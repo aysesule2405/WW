@@ -1,0 +1,13 @@
+{
+  "name": "whisperwind-grove",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter ./apps/server run dev\" \"pnpm --filter ./apps/web run dev\" --names server,web --prefix name"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
