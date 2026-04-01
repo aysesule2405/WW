@@ -15,6 +15,8 @@ type Props = {
 };
 
 export default function GameCard({ game, onPlay }: Props) {
+  const cardImage = game.gameBg ?? game.thumbnail;
+
   const styles: { [k: string]: React.CSSProperties } = {
     card: {
       background: `linear-gradient(180deg, ${palette.leafLight}, ${palette.leaf})`,
@@ -30,7 +32,8 @@ export default function GameCard({ game, onPlay }: Props) {
     image: {
       width: '100%',
       height: 140,
-      objectFit: 'cover' as const,
+      objectFit: 'contain' as const,
+      objectPosition: 'center',
       borderRadius: 10,
       background: '#fff',
       display: 'block',
@@ -84,8 +87,8 @@ export default function GameCard({ game, onPlay }: Props) {
       }}
     >
       <div style={{ width: '100%' }}>
-        {game.thumbnail ? (
-          <img src={game.thumbnail} alt={game.title} style={styles.image} />
+        {cardImage ? (
+          <img src={cardImage} alt={game.title} style={styles.image} />
         ) : (
           <div style={{ ...styles.image, display: 'flex', alignItems: 'center', justifyContent: 'center', color: palette.accent }}>
             {game.title}

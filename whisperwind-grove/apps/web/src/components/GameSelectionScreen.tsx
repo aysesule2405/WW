@@ -83,8 +83,12 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
   const styles: { [k: string]: React.CSSProperties } = {
     root: {
       minHeight: '100vh',
+      width: '100vw',
       padding: 40,
-      background: `linear-gradient(180deg, ${palette.paper} 0%, ${palette.leafLight} 60%), url('/assets/backgrounds/grove-home.png') center/cover no-repeat`,
+      backgroundImage: `linear-gradient(180deg, ${palette.paper} 0%, ${palette.leafLight} 60%), url('/assets/backgrounds/grove-home.png')`,
+      backgroundPosition: 'center, center',
+      backgroundSize: '100% 100%, auto',
+      backgroundRepeat: 'no-repeat, no-repeat',
       fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
       color: palette.bark,
       display: 'flex',
@@ -144,7 +148,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
 
       {activeGame && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(6,5,4,0.48)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40 }}>
-          <div style={{ width: 'min(900px, 96vw)', height: 'min(560px, 86vh)', background: '#000000', borderRadius: 8, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
+          <div style={{ width: 'min(1920px, 96vw)', height: 'min(1080px, 88vh)', aspectRatio: '16 / 9', background: '#000000', borderRadius: 8, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
             <div ref={(el) => { phaserParentRef.current = el; }} style={{ width: '100%', height: '100%' }} />
           </div>
           <button

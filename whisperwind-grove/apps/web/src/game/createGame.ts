@@ -1,12 +1,19 @@
 import Phaser from "phaser";
 
+const gameplayFontFamily = 'Waterlily, Georgia, serif';
+
 type GameAPI = {
   start: () => void;
   stop: () => void;
   destroy: () => void;
 };
 
+type GameOptions = {
+  onGameEnd?: (score: number) => void;
+};
+
 class CatchWindSpritesScene extends Phaser.Scene {
+  private readonly onGameEnd?: (score: number) => void;
   private score = 0;
   private timeLeftMs = 60_000;
   private running = false;
@@ -80,16 +87,17 @@ class CatchWindSpritesScene extends Phaser.Scene {
     osc2.stop(now + 0.18);
   }
 
-  constructor() {
+  constructor(options?: GameOptions) {
     super("catch-wind-sprites");
+    this.onGameEnd = options?.onGameEnd;
   }
 
   preload() {
-    this.load.image("spirit-1", "/assets/sprites/wind-spirit.png");
+    this.load.image("spirit-1", "/assets/sprites/wind-spirit-1.png");
     this.load.image("spirit-2", "/assets/sprites/wind-spirit-2.png");
     this.load.image("spirit-3", "/assets/sprites/wind-spirit-3.png");
     this.load.image("spirit-gold", "/assets/sprites/wind-spirit-gold.png");
-    this.load.image("bg", "/assets/backgrounds/whisperwind-bg.png");
+    this.load.image("bg", "/assets/backgrounds/spirit-drift/game-bg.png");
   }
 
   create() {
@@ -125,34 +133,35 @@ class CatchWindSpritesScene extends Phaser.Scene {
     // Heading and hint
     this.add
       .text(width / 2, 120, "Catch the Wind Sprites", {
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-        fontSize: "28px",
+        fontFamily: gameplayFontFamily,
+        fontSize: "56px",
         color: "#ffffff",
       })
       .setOrigin(0.5);
 
     this.hintText = this.add
       .text(width / 2, 160, "Click Start below to begin", {
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-        fontSize: "16px",
+        fontFamily: gameplayFontFamily,
+        fontSize: "30px",
         color: "#c7d2fe",
       })
       .setOrigin(0.5);
 
     this.scoreText = this.add.text(26, 22, "Score: 0", {
-      fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-      fontSize: "16px",
+      fontFamily: gameplayFontFamily,
+      fontSize: "34px",
       color: "#ffffff",
     });
+    this.scoreText.setStroke('#000000', 6);
 
     this.timerText = this.add
       .text(width - 26, 22, "01:00", {
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace",
-        fontSize: "16px",
+        fontFamily: gameplayFontFamily,
+        fontSize: "34px",
         color: "#ffffff",
       })
       .setOrigin(1, 0);
-    this.timerText.setStroke('#000000', 3);
+    this.timerText.setStroke('#000000', 6);
 
     this.glowRect = this.add
       .rectangle(width / 2, height / 2, width + 200, height + 200, 0x7c3aed, 0.0)
@@ -233,19 +242,19 @@ class CatchWindSpritesScene extends Phaser.Scene {
     // Start screen
     const title = this.add
       .text(width / 2, height / 2 - 60, 'Catch the Wind Sprites', {
-        fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Arial',
-        fontSize: '36px',
+        fontFamily: gameplayFontFamily,
+        fontSize: '72px',
         color: '#ffffff',
       })
       .setOrigin(0.5);
 
     const startBtn = this.add
       .text(width / 2, height / 2 + 10, 'Start', {
-        fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Arial',
-        fontSize: '20px',
+        fontFamily: gameplayFontFamily,
+        fontSize: '42px',
         color: '#111827',
         backgroundColor: '#a78bfa',
-        padding: { x: 12, y: 8 },
+        padding: { x: 20, y: 12 },
       })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
@@ -260,27 +269,27 @@ class CatchWindSpritesScene extends Phaser.Scene {
     // Game over UI
     const overTitle = this.add
       .text(width / 2, height / 2 - 60, 'Game Over', {
-        fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Arial',
-        fontSize: '34px',
+        fontFamily: gameplayFontFamily,
+        fontSize: '68px',
         color: '#ffffff',
       })
       .setOrigin(0.5);
 
     const finalScoreText = this.add
       .text(width / 2, height / 2 - 10, 'Final Score: 0', {
-        fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Arial',
-        fontSize: '20px',
+        fontFamily: gameplayFontFamily,
+        fontSize: '40px',
         color: '#c7d2fe',
       })
       .setOrigin(0.5);
 
     const restartBtn = this.add
       .text(width / 2, height / 2 + 40, 'Restart', {
-        fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Arial',
-        fontSize: '18px',
+        fontFamily: gameplayFontFamily,
+        fontSize: '38px',
         color: '#111827',
         backgroundColor: '#93c5fd',
-        padding: { x: 10, y: 6 },
+        padding: { x: 18, y: 10 },
       })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
@@ -382,6 +391,11 @@ class CatchWindSpritesScene extends Phaser.Scene {
 
     this.hintText?.setText(manual ? `Stopped. Final score: ${this.score}` : `Time! Final score: ${this.score} — Click Start to play again`);
 
+    if (!manual && this.onGameEnd) {
+      this.time.delayedCall(150, () => this.onGameEnd?.(this.score));
+      return;
+    }
+
     // show game over UI
     if (this.gameOverContainer) {
       const finalScore = this.gameOverContainer.list[1] as Phaser.GameObjects.Text;
@@ -404,15 +418,15 @@ class CatchWindSpritesScene extends Phaser.Scene {
 
     if (roll < 0.03) {
       // gold is still special by points, but use the same visual scale as commons
-      return { key: "spirit-gold", points: 5, scale: 0.42, isGold: true };
+      return { key: "spirit-gold", points: 5, scale: 0.84, isGold: true };
     }
 
     // common pool (only use loaded textures)
     // Slightly larger base scale so sprites are easier to see
     const commons = [
-      { key: "spirit-1", points: 1, scale: 0.42, isGold: false },
-      { key: "spirit-2", points: 1, scale: 0.42, isGold: false },
-      { key: "spirit-3", points: 1, scale: 0.42, isGold: false },
+      { key: "spirit-1", points: 1, scale: 0.84, isGold: false },
+      { key: "spirit-2", points: 1, scale: 0.84, isGold: false },
+      { key: "spirit-3", points: 1, scale: 0.84, isGold: false },
     ].filter((s) => this.textures.exists(s.key));
 
     return commons[Math.floor(Math.random() * commons.length)];
@@ -541,14 +555,18 @@ class CatchWindSpritesScene extends Phaser.Scene {
   }
 }
 
-export function createGame(parent: HTMLDivElement): GameAPI {
-  const scene = new CatchWindSpritesScene();
+export function createGame(parent: HTMLDivElement, options?: GameOptions): GameAPI {
+  const scene = new CatchWindSpritesScene(options);
 
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     parent,
-    width: 900,
-    height: 520,
+    scale: {
+      width: 1920,
+      height: 1080,
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
     backgroundColor: "#0b1020",
     scene: [scene],
   };
