@@ -2,6 +2,7 @@ import { useState } from 'react';
 import GameSelectionScreen from './components/GameSelectionScreen';
 import SpiritDriftGame from './components/SpiritDriftGame';
 import GameExperienceScreen from './components/GameExperienceScreen';
+import SpiritSaplingGame from './components/SpiritSaplingGame';
 
 type SelectedGame = 'spirit-drift' | 'delivery-on-the-wind' | 'spirit-sapling' | null;
 
@@ -34,16 +35,7 @@ export default function App() {
   }
 
   if (selectedGame === 'spirit-sapling') {
-    return (
-      <GameExperienceScreen
-        title="Spirit Sapling"
-        subtitle="Nurture your first seed and guide its growth"
-        backgroundImage="/assets/backgrounds/spirit-sapling/game-bg.png"
-        panelBackgroundImage="/assets/backgrounds/spirit-sapling/plant-seed.png"
-        mode="plant-seed"
-        onExit={handleExitGame}
-      />
-    );
+    return <SpiritSaplingGame onExit={handleExitGame} />;
   }
 
   return <GameSelectionScreen onSelect={handleSelectGame} />;

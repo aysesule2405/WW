@@ -1,6 +1,5 @@
 import Phaser from "phaser";
-
-const gameplayFontFamily = 'Waterlily, Georgia, serif';
+import { bodyFontFamily, headingFontFamily } from '../theme/typography';
 
 type GameAPI = {
   start: () => void;
@@ -133,7 +132,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     // Heading and hint
     this.add
       .text(width / 2, 120, "Catch the Wind Sprites", {
-        fontFamily: gameplayFontFamily,
+        fontFamily: headingFontFamily,
         fontSize: "56px",
         color: "#ffffff",
       })
@@ -141,14 +140,14 @@ class CatchWindSpritesScene extends Phaser.Scene {
 
     this.hintText = this.add
       .text(width / 2, 160, "Click Start below to begin", {
-        fontFamily: gameplayFontFamily,
+        fontFamily: bodyFontFamily,
         fontSize: "30px",
         color: "#c7d2fe",
       })
       .setOrigin(0.5);
 
     this.scoreText = this.add.text(26, 22, "Score: 0", {
-      fontFamily: gameplayFontFamily,
+      fontFamily: bodyFontFamily,
       fontSize: "34px",
       color: "#ffffff",
     });
@@ -156,7 +155,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
 
     this.timerText = this.add
       .text(width - 26, 22, "01:00", {
-        fontFamily: gameplayFontFamily,
+        fontFamily: bodyFontFamily,
         fontSize: "34px",
         color: "#ffffff",
       })
@@ -242,7 +241,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     // Start screen
     const title = this.add
       .text(width / 2, height / 2 - 60, 'Catch the Wind Sprites', {
-        fontFamily: gameplayFontFamily,
+        fontFamily: headingFontFamily,
         fontSize: '72px',
         color: '#ffffff',
       })
@@ -250,7 +249,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
 
     const startBtn = this.add
       .text(width / 2, height / 2 + 10, 'Start', {
-        fontFamily: gameplayFontFamily,
+        fontFamily: bodyFontFamily,
         fontSize: '42px',
         color: '#111827',
         backgroundColor: '#a78bfa',
@@ -269,7 +268,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     // Game over UI
     const overTitle = this.add
       .text(width / 2, height / 2 - 60, 'Game Over', {
-        fontFamily: gameplayFontFamily,
+        fontFamily: headingFontFamily,
         fontSize: '68px',
         color: '#ffffff',
       })
@@ -277,7 +276,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
 
     const finalScoreText = this.add
       .text(width / 2, height / 2 - 10, 'Final Score: 0', {
-        fontFamily: gameplayFontFamily,
+        fontFamily: bodyFontFamily,
         fontSize: '40px',
         color: '#c7d2fe',
       })
@@ -285,7 +284,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
 
     const restartBtn = this.add
       .text(width / 2, height / 2 + 40, 'Restart', {
-        fontFamily: gameplayFontFamily,
+        fontFamily: bodyFontFamily,
         fontSize: '38px',
         color: '#111827',
         backgroundColor: '#93c5fd',

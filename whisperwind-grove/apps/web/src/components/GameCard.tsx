@@ -1,5 +1,6 @@
 import React from 'react';
 import type { GameInfo } from './gameData';
+import { bodyFontFamily, headingFontFamily } from '../theme/typography';
 
 const palette = {
   paper: '#F0EAD2',
@@ -43,13 +44,17 @@ export default function GameCard({ game, onPlay }: Props) {
       color: palette.accent,
       fontSize: 18,
       fontWeight: 700,
+      fontFamily: headingFontFamily,
     },
     description: {
       margin: 0,
       color: palette.accent,
-      fontSize: 13,
+      fontSize: 15,
       textAlign: 'center' as const,
       opacity: 0.95,
+      lineHeight: 1.45,
+      letterSpacing: 0.2,
+      fontFamily: bodyFontFamily,
     },
     button: {
       background: palette.bark,
@@ -59,6 +64,10 @@ export default function GameCard({ game, onPlay }: Props) {
       padding: '8px 14px',
       cursor: 'pointer',
       fontWeight: 700,
+      fontFamily: bodyFontFamily,
+      fontSize: 18,
+      letterSpacing: 0.2,
+      lineHeight: 1.1,
     },
     comingSoon: {
       color: palette.accent,
@@ -67,6 +76,9 @@ export default function GameCard({ game, onPlay }: Props) {
       borderRadius: 8,
       border: `1px dashed ${palette.accent}`,
       background: 'transparent',
+      fontFamily: bodyFontFamily,
+      fontSize: 16,
+      letterSpacing: 0.2,
     },
   };
 
@@ -90,7 +102,7 @@ export default function GameCard({ game, onPlay }: Props) {
         {cardImage ? (
           <img src={cardImage} alt={game.title} style={styles.image} />
         ) : (
-          <div style={{ ...styles.image, display: 'flex', alignItems: 'center', justifyContent: 'center', color: palette.accent }}>
+          <div style={{ ...styles.image, display: 'flex', alignItems: 'center', justifyContent: 'center', color: palette.accent, fontFamily: headingFontFamily }}>
             {game.title}
           </div>
         )}

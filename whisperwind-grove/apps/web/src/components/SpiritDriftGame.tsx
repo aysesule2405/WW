@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createGame } from '../game/createGame';
-
-const gameplayFontFamily = 'Waterlily, Georgia, serif';
+import { bodyFontFamily, headingFontFamily } from '../theme/typography';
 
 type Props = {
   onExit: () => void;
@@ -103,13 +102,13 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '14px 22px',
     cursor: 'pointer',
     fontWeight: 600,
-    fontFamily: gameplayFontFamily,
+    fontFamily: bodyFontFamily,
     fontSize: 28,
   },
   heading: {
     color: '#6C584C',
     margin: 0,
-    fontFamily: gameplayFontFamily,
+    fontFamily: headingFontFamily,
     fontSize: 44,
   },
   gameWrap: {
@@ -150,7 +149,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 42,
     fontWeight: 800,
     letterSpacing: 0.5,
-    fontFamily: gameplayFontFamily,
+    fontFamily: bodyFontFamily,
   },
   scoreBoardActions: {
     position: 'absolute',
@@ -168,7 +167,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '14px 22px',
     cursor: 'pointer',
     fontWeight: 700,
-    fontFamily: gameplayFontFamily,
+    fontFamily: bodyFontFamily,
     fontSize: 28,
   },
   secondaryButton: {
@@ -179,7 +178,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '14px 22px',
     cursor: 'pointer',
     fontWeight: 700,
-    fontFamily: gameplayFontFamily,
+    fontFamily: bodyFontFamily,
     fontSize: 28,
   },
 };

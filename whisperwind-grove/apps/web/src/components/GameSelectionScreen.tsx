@@ -3,6 +3,7 @@ import GameCard from './GameCard';
 import games from './gameData';
 import { createGame } from '../game/createGame';
 import { useState, useRef, useEffect } from 'react';
+import { bodyFontFamily, headingFontFamily } from '../theme/typography';
 
 const palette = {
   paper: '#F0EAD2',
@@ -89,7 +90,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
       backgroundPosition: 'center, center',
       backgroundSize: '100% 100%, auto',
       backgroundRepeat: 'no-repeat, no-repeat',
-      fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      fontFamily: bodyFontFamily,
       color: palette.bark,
       display: 'flex',
       flexDirection: 'column',
@@ -103,12 +104,16 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
       fontSize: 36,
       margin: 0,
       color: palette.accent,
+      fontFamily: headingFontFamily,
     },
     subtitle: {
       margin: 0,
       color: palette.bark,
       opacity: 0.9,
-      fontSize: 14,
+      fontSize: 16,
+      letterSpacing: 0.25,
+      lineHeight: 1.45,
+      fontFamily: bodyFontFamily,
     },
     row: {
       display: 'flex',
@@ -160,7 +165,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
               }
               setActiveGame(null);
             }}
-            style={{ position: 'fixed', top: 18, right: 18, padding: '8px 12px', borderRadius: 8, border: 'none', background: '#fff' }}
+            style={{ position: 'fixed', top: 18, right: 18, padding: '8px 12px', borderRadius: 8, border: 'none', background: '#fff', fontFamily: bodyFontFamily }}
           >
             Close
           </button>
