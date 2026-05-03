@@ -1,0 +1,82 @@
+// Prisma schema for PostgreSQL (matches main migrations)
+// Run: npx prisma generate && npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           BigInt    @id @default(autoincrement())
+  email        String    @unique
+  username     String    @unique
+  passwordHash String    @map("password_hash")
+  createdAt    DateTime  @map("created_at") @default(now())
+  updatedAt    DateTime  @map("updated_at") @updatedAt
+  lastLoginAt  DateTime? @map("last_login_at")
+
+  scoreSubmissions  ScoreSubmission[]
+  userHighScores    UserHighScore[]
+  refreshTokens     AuthRefreshToken[]
+
+  @@map("users")
+}
+
+model AuthRefreshToken {
+  id         BigInt   @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     BigInt   @map("user_id")
+  tokenHash  String   @map("token_hash")
+  expiresAt  DateTime @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime @map("created_at") @default(now())
+
+  @@map("auth_refresh_tokens")
+  @@unique([tokenHash], map: "uq_token_hash")
+}
+
+model Game {
+  id        BigInt   @id @default(autoincrement())
+  slug      String   @unique
+  title     String
+  isActive  Boolean  @map("is_active") @default(true)
+  createdAt DateTime @map("created_at") @default(now())
+
+  scoreSubmissions ScoreSubmission[]
+  userHighScores   UserHighScore[]
+
+  @@map("games")
+}
+
+model ScoreSubmission {
+  id           BigInt   @id @default(autoincrement())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       BigInt   @map("user_id")
+  game         Game     @relation(fields: [gameId], references: [id])
+  gameId       BigInt   @map("game_id")
+  score        BigInt
+  metadataJson Json?    @map("metadata_json")
+  submittedAt  DateTime @map("submitted_at") @default(now())
+
+  @@map("score_submissions")
+  @@index([gameId, score], map: "idx_score_game_desc")
+  @@index([userId, gameId], map: "idx_score_user_game")
+}
+
+model UserHighScore {
+  id         BigInt   @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     BigInt   @map("user_id")
+  game       Game     @relation(fields: [gameId], references: [id])
+  gameId     BigInt   @map("game_id")
+  highScore  BigInt   @map("high_score")
+  achievedAt DateTime @map("achieved_at") @default(now())
+
+  @@map("user_high_scores")
+  @@unique([userId, gameId], map: "uq_user_game_high")
+  @@index([gameId, highScore], map: "idx_game_high")
+}

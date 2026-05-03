@@ -1,0 +1,14 @@
+{
+  "name": "whisperwind-grove-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+  "dev": "npx concurrently \"npm --prefix frontend run dev\" \"npm --prefix backend run dev\"",
+  "start": "npx concurrently \"npm --prefix backend run dev\"",
+  "install:all": "npm --prefix frontend install && npm --prefix backend install",
+  "bootstrap": "npm run install:all"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.1"
+  }
+}

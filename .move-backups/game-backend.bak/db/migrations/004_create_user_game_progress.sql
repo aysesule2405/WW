@@ -1,0 +1,13 @@
+-- 004_create_user_game_progress.sql
+CREATE TABLE IF NOT EXISTS user_game_progress (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  game_id BIGINT UNSIGNED NOT NULL,
+  level_reached INT DEFAULT 0,
+  xp BIGINT DEFAULT 0,
+  completion_percent DECIMAL(5,2) DEFAULT 0,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_user_game (user_id, game_id),
+  CONSTRAINT fk_progress_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_progress_game FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

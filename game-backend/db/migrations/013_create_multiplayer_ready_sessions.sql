@@ -1,0 +1,11 @@
+-- 013_create_multiplayer_ready_sessions.sql
+CREATE TABLE IF NOT EXISTS multiplayer_ready_sessions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  game_id BIGINT UNSIGNED NOT NULL,
+  host_user_id BIGINT UNSIGNED NOT NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'waiting',
+  max_players INT NOT NULL DEFAULT 4,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_mrs_game FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
+  CONSTRAINT fk_mrs_host FOREIGN KEY (host_user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
