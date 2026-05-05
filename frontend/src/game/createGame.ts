@@ -378,7 +378,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     this.scoreText?.setText('Score: 0');
     this.timerText?.setText('01:00');
     this.timerText?.setScale(1);
-    this.tweens.killTweensOf(this.timerText);
+    if (this.timerText) this.tweens.killTweensOf(this.timerText);
     this.hintText?.setText('Catch as many as you can!');
     this.startContainer?.setVisible(false);
 
@@ -660,7 +660,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
         from: 0, to: 1,
         duration: 2000,
         onUpdate: (t) => {
-          const p = t.getValue();
+          const p = t.getValue() ?? 0;
           this.currentSpawnInterval = Phaser.Math.Linear(fromSpawn, nextPhase.spawnInterval, p);
           this.currentMoveBase = Phaser.Math.Linear(fromMove, nextPhase.moveBase, p);
         },

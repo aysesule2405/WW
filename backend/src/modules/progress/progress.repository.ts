@@ -1,32 +1,43 @@
-import pool from '../../config/database'
+import { Types } from 'mongoose'
+import { UserGameProgress } from '../../models/UserGameProgress'
+import { Game } from '../../models/Game'
 
 export class ProgressRepository {
-  async upsertProgress(userId: number, gameId: number, levelReached = 0, xp = 0, completion = 0) {
-    const [existing]: any = await pool.execute('SELECT id FROM user_game_progress WHERE user_id = ? AND game_id = ? LIMIT 1', [userId, gameId])
-    if (existing && existing.length > 0) {
-      await pool.execute(
-        'UPDATE user_game_progress SET level_reached = ?, xp = ?, completion_percent = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND game_id = ?',
-        [levelReached, xp, completion, userId, gameId]
-      )
-      return { updated: true }
-    }
+  async upsertProgress(userId: string, gameId: string, levelReached = 0, xp = 0, completionPercent = 0) {
+    const userOid = new Types.ObjectId(userId)
+    const gameOid = new Types.ObjectId(gameId)
 
-    const [result]: any = await pool.execute(
-      'INSERT INTO user_game_progress (user_id, game_id, level_reached, xp, completion_percent) VALUES (?, ?, ?, ?, ?)',
-      [userId, gameId, levelReached, xp, completion]
+    const result = await UserGameProgress.findOneAndUpdate(
+      { userId: userOid, gameId: gameOid },
+      { $set: { levelReached, xp, completionPercent } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     )
-    return { createdId: result.insertId }
+
+    return { updated: true, id: result._id.toString() }
   }
 
-  async getProgressForUser(userId: number) {
-    const [rows]: any = await pool.execute(
-      `SELECT p.id, p.user_id, p.game_id, p.level_reached, p.xp, p.completion_percent, p.updated_at, g.slug as game_slug, g.title as game_title
-       FROM user_game_progress p
-       JOIN games g ON g.id = p.game_id
-       WHERE p.user_id = ?`,
-      [userId]
-    )
-    return rows
+  async getProgressForUser(userId: string) {
+    const userOid = new Types.ObjectId(userId)
+    const rows = await UserGameProgress.find({ userId: userOid }).lean()
+
+    const gameIds = rows.map((r) => r.gameId)
+    const games = await Game.find({ _id: { $in: gameIds } }).select('_id slug title').lean()
+    const gameMap = new Map(games.map((g) => [g._id.toString(), g]))
+
+    return rows.map((r) => {
+      const g = gameMap.get(r.gameId.toString())
+      return {
+        id: r._id.toString(),
+        userId: r.userId.toString(),
+        gameId: r.gameId.toString(),
+        gameSlug: g?.slug ?? null,
+        gameTitle: g?.title ?? null,
+        levelReached: r.levelReached,
+        xp: r.xp,
+        completionPercent: r.completionPercent,
+        updatedAt: r.updatedAt,
+      }
+    })
   }
 }
 

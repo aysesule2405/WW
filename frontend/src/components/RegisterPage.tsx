@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { bodyFontFamily, headingFontFamily } from '../theme/typography';
 
 type Props = {
@@ -9,6 +10,8 @@ type Props = {
 
 export default function RegisterPage({ onGoToLogin, onGoToLanding }: Props) {
   const { register } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,8 +41,15 @@ export default function RegisterPage({ onGoToLogin, onGoToLanding }: Props) {
     }
   };
 
+  const pageStyle = {
+    ...s.page,
+    backgroundImage: isDark
+      ? 'radial-gradient(circle at 20% 80%, rgba(90,120,48,0.18), transparent 40%), linear-gradient(160deg, #1A2212 0%, #111808 55%, #0E1A0A 100%)'
+      : 'radial-gradient(circle at 20% 80%, rgba(173,193,120,0.3), transparent 40%), linear-gradient(160deg, #f6f1de 0%, #e5edd0 55%, #d9e6bf 100%)',
+  };
+
   return (
-    <div style={s.page}>
+    <div style={pageStyle}>
       {onGoToLanding && (
         <button style={s.backBtn} onClick={onGoToLanding}>← Back to Grove</button>
       )}
@@ -137,21 +147,17 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundImage: `
-      radial-gradient(circle at 20% 80%, rgba(173,193,120,0.3), transparent 40%),
-      linear-gradient(160deg, #f6f1de 0%, #e5edd0 55%, #d9e6bf 100%)
-    `,
     fontFamily: bodyFontFamily,
     padding: 24,
     boxSizing: 'border-box',
   },
   card: {
     width: 'min(440px, 100%)',
-    background: 'rgba(255,255,255,0.78)',
+    background: 'var(--bg-surface)',
     backdropFilter: 'blur(14px)',
     borderRadius: 24,
-    border: '1px solid rgba(108,88,76,0.22)',
-    boxShadow: '0 20px 52px rgba(58,45,36,0.16)',
+    border: '1px solid var(--border-strong)',
+    boxShadow: 'var(--shadow-lg)',
     padding: '36px 40px 30px',
     boxSizing: 'border-box',
     display: 'flex',
@@ -173,20 +179,20 @@ const s: Record<string, React.CSSProperties> = {
   logoText: {
     fontFamily: headingFontFamily,
     fontSize: 18,
-    color: '#6C584C',
+    color: 'var(--text-secondary)',
     lineHeight: 1,
   },
   heading: {
     margin: '0 0 6px',
     fontFamily: headingFontFamily,
     fontSize: 28,
-    color: '#3d2e23',
+    color: 'var(--text-h)',
     lineHeight: 1.1,
   },
   sub: {
     margin: '0 0 22px',
     fontSize: 14,
-    color: '#7a5f4e',
+    color: 'var(--text-secondary)',
     lineHeight: 1.4,
   },
   form: {
@@ -200,25 +206,25 @@ const s: Record<string, React.CSSProperties> = {
     gap: 5,
     fontSize: 13,
     fontWeight: 600,
-    color: '#5a4535',
+    color: 'var(--text-muted)',
   },
   input: {
     padding: '11px 14px',
     borderRadius: 10,
-    border: '1px solid rgba(108,88,76,0.35)',
-    background: 'rgba(253,248,238,0.9)',
+    border: '1px solid var(--border-strong)',
+    background: 'var(--bg-input)',
     fontSize: 15,
     fontFamily: bodyFontFamily,
-    color: '#3d2e23',
+    color: 'var(--text-body)',
     outline: 'none',
   },
   error: {
     margin: 0,
     padding: '10px 14px',
     borderRadius: 8,
-    background: 'rgba(220,60,60,0.09)',
+    background: 'var(--bg-danger-soft)',
     border: '1px solid rgba(220,60,60,0.28)',
-    color: '#b02222',
+    color: '#C04040',
     fontSize: 14,
     lineHeight: 1.4,
   },
@@ -227,8 +233,8 @@ const s: Record<string, React.CSSProperties> = {
     padding: '13px 0',
     borderRadius: 12,
     border: 'none',
-    background: '#ADC178',
-    color: '#2e3d10',
+    background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))',
+    color: 'var(--text-on-dark)',
     fontFamily: bodyFontFamily,
     fontSize: 17,
     fontWeight: 700,
@@ -239,7 +245,7 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 20,
     textAlign: 'center',
     fontSize: 14,
-    color: '#7a5f4e',
+    color: 'var(--text-secondary)',
   },
   backBtn: {
     position: 'fixed' as const,
@@ -247,7 +253,7 @@ const s: Record<string, React.CSSProperties> = {
     left: 22,
     background: 'none',
     border: 'none',
-    color: '#7a5f4e',
+    color: 'var(--text-secondary)',
     fontFamily: bodyFontFamily,
     fontSize: 14,
     cursor: 'pointer',
@@ -257,7 +263,7 @@ const s: Record<string, React.CSSProperties> = {
   link: {
     background: 'none',
     border: 'none',
-    color: '#6C584C',
+    color: 'var(--text-secondary)',
     fontFamily: bodyFontFamily,
     fontSize: 14,
     fontWeight: 700,

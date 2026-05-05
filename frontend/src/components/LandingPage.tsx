@@ -56,13 +56,26 @@ const COMING_SOON = [
   { icon: '🌿', title: 'New Worlds',             desc: 'Forest Temple, Cloud Meadow, and River Crossing are growing in the grove right now.' },
 ];
 
-const FLOATING_SPIRITS = [
-  { src: '/assets/sprites/wind-spirit-1.png',    top: '18%', left: '8%',  size: 72, delay: '0s',    duration: '5.8s' },
-  { src: '/assets/sprites/wind-spirit-2.png',    top: '32%', left: '88%', size: 64, delay: '1.4s',  duration: '7.1s' },
-  { src: '/assets/sprites/wind-spirit-gold.png', top: '60%', left: '6%',  size: 58, delay: '2.6s',  duration: '6.3s' },
-  { src: '/assets/sprites/wind-spirit-3.png',    top: '22%', left: '75%', size: 54, delay: '0.8s',  duration: '8.0s' },
-  { src: '/assets/sprites/wind-spirit-1.png',    top: '72%', left: '82%', size: 48, delay: '3.2s',  duration: '5.4s' },
-  { src: '/assets/sprites/wind-spirit-2.png',    top: '50%', left: '92%', size: 42, delay: '1.9s',  duration: '6.9s' },
+const FLOATING_ANIMS: {
+  src: string; top?: string; bottom?: string; left: string; width: number;
+  opacity: number; delay: string; duration: string; flip?: boolean;
+}[] = [
+  // Willow curtains — normal left, flipped right
+  { src: '/assets/animation/willow-leaves.gif', top: '0%',    left: '-1%',  width: 210, opacity: 0.88, delay: '0s',   duration: '7.2s'             },
+  { src: '/assets/animation/willow-leaves.gif', top: '0%',    left: '82%',  width: 210, opacity: 0.88, delay: '0.5s', duration: '7.2s', flip: true },
+  // Ladies — bottom-pinned so feet sit on the hero edge
+  { src: '/assets/animation/lady-1.gif',        bottom: '0%', left: '6%',   width: 160, opacity: 0.95, delay: '0.6s', duration: '6.4s'             },
+  { src: '/assets/animation/lady-2.gif',        bottom: '0%', left: '40%',  width: 160, opacity: 0.95, delay: '1.0s', duration: '6.8s'             },
+  { src: '/assets/animation/lady-3.gif',        bottom: '0%', left: '74%',  width: 145, opacity: 0.95, delay: '0.3s', duration: '6.1s'             },
+  // Wind — lower-left and lower-right
+  { src: '/assets/animation/wind.gif',          top: '62%',   left: '-2%',  width: 165, opacity: 0.52, delay: '1.2s', duration: '8.2s'             },
+  { src: '/assets/animation/wind.gif',          top: '55%',   left: '83%',  width: 150, opacity: 0.46, delay: '3.0s', duration: '9.0s', flip: true },
+  // Shines scattered across mid-field
+  { src: '/assets/animation/shine-1.gif',       top: '22%',   left: '20%',  width: 74,  opacity: 0.55, delay: '0.9s', duration: '5.2s'             },
+  { src: '/assets/animation/shine-2.gif',       top: '46%',   left: '66%',  width: 66,  opacity: 0.50, delay: '1.8s', duration: '6.6s'             },
+  { src: '/assets/animation/shine-3.gif',       top: '34%',   left: '88%',  width: 58,  opacity: 0.45, delay: '3.1s', duration: '7.0s'             },
+  { src: '/assets/animation/shine-1.gif',       top: '68%',   left: '42%',  width: 60,  opacity: 0.40, delay: '2.2s', duration: '5.8s'             },
+  { src: '/assets/animation/shine-2.gif',       top: '14%',   left: '52%',  width: 55,  opacity: 0.38, delay: '4.0s', duration: '6.2s'             },
 ];
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -95,24 +108,25 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
           aria-hidden="true"
         />
 
-        {/* Floating spirits */}
-        {FLOATING_SPIRITS.map((sp, i) => (
+        {/* Floating GIF animations */}
+        {FLOATING_ANIMS.map((anim, i) => (
           <img
             key={i}
-            src={sp.src}
+            src={anim.src}
             alt=""
             aria-hidden="true"
             style={{
               position: 'absolute',
-              top: sp.top,
-              left: sp.left,
-              width: sp.size,
-              height: sp.size,
-              objectFit: 'contain',
-              opacity: 0.72,
-              animation: `float-spirit ${sp.duration} ease-in-out ${sp.delay} infinite`,
+              top: anim.top,
+              bottom: anim.bottom,
+              left: anim.left,
+              width: anim.width,
+              height: 'auto',
+              opacity: anim.opacity,
+              animation: `float-spirit ${anim.duration} ease-in-out ${anim.delay} infinite`,
               pointerEvents: 'none',
-              filter: 'drop-shadow(0 0 12px rgba(173,193,120,0.55))',
+              filter: 'drop-shadow(0 4px 16px rgba(120,160,80,0.35))',
+              transform: anim.flip ? 'scaleX(-1)' : undefined,
             }}
           />
         ))}
@@ -356,7 +370,7 @@ const s: Record<string, React.CSSProperties> = {
     paddingTop: 62,
     backgroundImage: `
       linear-gradient(180deg, rgba(10,12,8,0.48) 0%, rgba(10,15,8,0.62) 60%, rgba(6,8,5,0.78) 100%),
-      url('/assets/whisperwind-grove.png')
+      url('/assets/whisperwind-grove.jpg')
     `,
     backgroundSize: 'cover',
     backgroundPosition: 'center',

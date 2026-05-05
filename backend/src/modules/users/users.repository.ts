@@ -1,44 +1,33 @@
-import pool from '../../config/database'
+import { User } from '../../models/User'
 
 export class UserRepository {
   async findByEmail(email: string) {
-    const [rows]: any = await pool.execute('SELECT * FROM users WHERE email = ? LIMIT 1', [email])
-    return rows[0]
+    return User.findOne({ email: email.toLowerCase() }).lean()
   }
 
   async findByUsername(username: string) {
-    const [rows]: any = await pool.execute('SELECT * FROM users WHERE username = ? LIMIT 1', [username])
-    return rows[0]
+    return User.findOne({ username }).lean()
   }
 
   async create(userData: { email: string; username: string; passwordHash: string }) {
-    const [result]: any = await pool.execute(
-      'INSERT INTO users (email, username, password_hash) VALUES (?, ?, ?)',
-      [userData.email, userData.username, userData.passwordHash]
-    )
-    return result.insertId
+    const user = await User.create({
+      email: userData.email.toLowerCase(),
+      username: userData.username,
+      passwordHash: userData.passwordHash,
+    })
+    return user._id.toString()
   }
 
-  async findById(id: number) {
-    const [rows]: any = await pool.execute('SELECT * FROM users WHERE id = ? LIMIT 1', [id])
-    return rows[0]
+  async findById(id: string) {
+    return User.findById(id).lean()
   }
 
-  async updateProfile(id: number, data: { username?: string; avatarUrl?: string }) {
-    const updates = [] as string[]
-    const params: any[] = []
-    if (data.username) {
-      updates.push('username = ?')
-      params.push(data.username)
-    }
-    if (data.avatarUrl) {
-      updates.push('avatar_url = ?')
-      params.push(data.avatarUrl)
-    }
-    if (updates.length === 0) return { updated: false }
-    params.push(id)
-    const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`
-    await pool.execute(sql, params)
+  async updateProfile(id: string, data: { username?: string; avatarUrl?: string }) {
+    const update: Record<string, string> = {}
+    if (data.username) update.username = data.username
+    if (data.avatarUrl) update.avatarUrl = data.avatarUrl
+    if (Object.keys(update).length === 0) return { updated: false }
+    await User.findByIdAndUpdate(id, { $set: update })
     return { updated: true }
   }
 }

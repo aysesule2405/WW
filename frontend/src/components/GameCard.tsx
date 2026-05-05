@@ -1,212 +1,221 @@
-import React from 'react';
-import type { GameInfo } from './gameData';
-import { bodyFontFamily, headingFontFamily } from '../theme/typography';
+import React from 'react'
+import type { GameInfo } from './gameData'
+import { bodyFontFamily, headingFontFamily } from '../theme/typography'
 
-const palette = {
-  paper: '#F0EAD2',
-  leafLight: '#DDE5B6',
-  leaf: '#ADC178',
-  bark: '#A98467',
-  accent: '#6C584C',
-};
+type Status = 'playable' | 'coming-soon' | 'in-progress'
 
 type Props = {
-  game: GameInfo;
-  onPlay?: (id: string) => void;
-  revealDelayMs?: number;
-};
+  game: GameInfo
+  onPlay?: (id: string) => void
+  revealDelayMs?: number
+  status?: Status
+}
 
-export default function GameCard({ game, onPlay, revealDelayMs = 0 }: Props) {
-  const cardImage = game.gameBg ?? game.thumbnail;
+const STATUS_CONFIG: Record<Status, { label: string; bg: string; color: string; dot: string }> = {
+  'playable':    { label: 'Playable',    bg: 'rgba(90,160,48,0.18)',  color: '#2E6810', dot: '#5AA030' },
+  'coming-soon': { label: 'Coming Soon', bg: 'rgba(108,88,76,0.14)',  color: 'var(--text-secondary)', dot: 'var(--bark)' },
+  'in-progress': { label: 'In Progress', bg: 'rgba(200,134,10,0.16)', color: '#7A4A00', dot: '#C8860A' },
+}
 
-  const gameMeta = (() => {
-    if (game.id === 'spirit-drift') return { mode: 'Arcade', duration: '~1 min', vibe: 'Swift & airy' };
-    if (game.id === 'delivery-on-the-wind') return { mode: 'Strategy', duration: '~2 min', vibe: 'Cozy routing' };
-    return { mode: 'Nurture', duration: '~3 min', vibe: 'Calm progression' };
-  })();
+const GAME_META: Record<string, { mode: string; duration: string }> = {
+  'spirit-drift':         { mode: 'Arcade',   duration: '~1 min' },
+  'delivery-on-the-wind': { mode: 'Strategy', duration: '~2 min' },
+  'spirit-sapling':       { mode: 'Nurture',  duration: '~3 min' },
+}
 
-  const styles: { [k: string]: React.CSSProperties } = {
-    card: {
-      background: `linear-gradient(180deg, rgba(240,234,210,0.88), rgba(221,229,182,0.82))`,
-      borderRadius: 16,
-      border: `1px solid rgba(108,88,76,0.26)`,
-      padding: 14,
-      width: '100%',
-      minHeight: 320,
-      boxShadow: '0 10px 24px rgba(0,0,0,0.1)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-      alignItems: 'stretch',
-      transition: 'transform 200ms ease, box-shadow 220ms ease',
-      animation: 'card-reveal 560ms cubic-bezier(0.22, 1, 0.36, 1) both',
-      animationDelay: `${revealDelayMs}ms`,
-    },
-    imageWrap: {
-      width: '100%',
-      height: 145,
-      borderRadius: 10,
-      background: 'linear-gradient(180deg, rgba(255, 252, 245, 0.98), rgba(245, 236, 214, 0.88))',
-      border: '1px solid rgba(108,88,76,0.18)',
-      overflow: 'hidden',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 8,
-      boxSizing: 'border-box',
-    },
-    image: {
-      width: '100%',
-      height: '100%',
-      objectFit: 'contain' as const,
-      objectPosition: 'center',
-      display: 'block',
-    },
-    badgesRow: {
-      display: 'flex',
-      flexWrap: 'wrap' as const,
-      gap: 6,
-      alignItems: 'center',
-    },
-    badge: {
-      borderRadius: 999,
-      border: '1px solid rgba(108,88,76,0.25)',
-      background: 'rgba(255,255,255,0.56)',
-      color: palette.accent,
-      fontFamily: bodyFontFamily,
-      fontSize: 13,
-      lineHeight: 1,
-      padding: '6px 8px',
-      letterSpacing: 0.15,
-    },
-    title: {
-      margin: 0,
-      color: palette.accent,
-      fontSize: 26,
-      fontWeight: 700,
-      fontFamily: headingFontFamily,
-      lineHeight: 1,
-    },
-    description: {
-      margin: 0,
-      color: palette.accent,
-      fontSize: 17,
-      textAlign: 'left' as const,
-      opacity: 0.95,
-      lineHeight: 1.35,
-      letterSpacing: 0.2,
-      fontFamily: bodyFontFamily,
-      flexGrow: 1,
-    },
-    footerRow: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: 8,
-      marginTop: 'auto',
-      flexWrap: 'wrap' as const,
-    },
-    statusPill: {
-      borderRadius: 999,
-      border: '1px solid rgba(108,88,76,0.3)',
-      background: game.available ? 'rgba(173,193,120,0.35)' : 'rgba(169,132,103,0.24)',
-      color: palette.accent,
-      fontFamily: bodyFontFamily,
-      fontSize: 14,
-      padding: '6px 9px',
-      lineHeight: 1,
-    },
-    button: {
-      background: palette.bark,
-      color: palette.paper,
-      border: 'none',
-      borderRadius: 9,
-      padding: '8px 13px',
-      cursor: 'pointer',
-      fontWeight: 700,
-      fontFamily: bodyFontFamily,
-      fontSize: 17,
-      letterSpacing: 0.2,
-      lineHeight: 1.1,
-      transition: 'transform 120ms ease, filter 120ms ease, box-shadow 120ms ease',
-      boxShadow: '0 6px 14px rgba(108,88,76,0.3)',
-    },
-    comingSoon: {
-      color: palette.accent,
-      fontStyle: 'italic',
-      padding: '6px 10px',
-      borderRadius: 8,
-      border: `1px dashed ${palette.accent}`,
-      background: 'transparent',
-      fontFamily: bodyFontFamily,
-      fontSize: 16,
-      letterSpacing: 0.2,
-    },
-  };
+export default function GameCard({ game, onPlay, revealDelayMs = 0, status }: Props) {
+  const resolvedStatus: Status = status ?? (game.available ? 'playable' : 'coming-soon')
+  const st = STATUS_CONFIG[resolvedStatus]
+  const meta = GAME_META[game.id] ?? { mode: 'Game', duration: '~? min' }
+  const bgImage = game.gameBg ?? game.thumbnail
 
   return (
     <div
-      style={styles.card}
-      role="button"
-      aria-label={`${game.title} card`}
+      style={{ ...s.card, animationDelay: `${revealDelayMs}ms` }}
       onMouseEnter={(e) => {
-        const el = e.currentTarget as HTMLDivElement;
-        el.style.transform = 'translateY(-6px)';
-        el.style.boxShadow = '0 16px 34px rgba(108, 88, 76, 0.2)';
+        const el = e.currentTarget as HTMLDivElement
+        el.style.transform = 'translateY(-7px)'
+        el.style.boxShadow = 'var(--shadow-hover)'
       }}
       onMouseLeave={(e) => {
-        const el = e.currentTarget as HTMLDivElement;
-        el.style.transform = 'translateY(0)';
-        el.style.boxShadow = '0 10px 24px rgba(0,0,0,0.1)';
+        const el = e.currentTarget as HTMLDivElement
+        el.style.transform = 'translateY(0)'
+        el.style.boxShadow = 'var(--shadow-md)'
       }}
     >
-      <div style={styles.imageWrap}>
-        {cardImage ? (
-          <img src={cardImage} alt={game.title} style={styles.image} />
+      {/* 16/9 image */}
+      <div style={s.imageWrap}>
+        {bgImage ? (
+          <img src={bgImage} alt={game.title} style={s.image} />
         ) : (
-          <div style={{ ...styles.image, display: 'flex', alignItems: 'center', justifyContent: 'center', color: palette.accent, fontFamily: headingFontFamily }}>
-            {game.title}
+          <div style={s.imageFallback}>
+            <span style={s.fallbackText}>{game.title}</span>
           </div>
         )}
+        <div style={s.imageOverlay} />
+        <div style={{ ...s.statusBadge, background: st.bg, color: st.color }}>
+          <span style={{ ...s.statusDot, background: st.dot }} />
+          {st.label}
+        </div>
       </div>
 
-      <div style={styles.badgesRow}>
-        <span style={styles.badge}>{gameMeta.mode}</span>
-        <span style={styles.badge}>{gameMeta.duration}</span>
-        <span style={styles.badge}>{gameMeta.vibe}</span>
-      </div>
-
-      <h3 style={styles.title}>{game.title}</h3>
-      <p style={styles.description}>{game.description}</p>
-
-      <div style={styles.footerRow}>
-        <span style={styles.statusPill}>{game.available ? 'Ready to play' : 'In development'}</span>
-        {game.available ? (
-          <button
-            style={styles.button}
-            onMouseDown={(e) => {
-              const el = e.currentTarget as HTMLButtonElement;
-              el.style.transform = 'translateY(1px) scale(0.98)';
-              el.style.filter = 'brightness(0.94)';
-            }}
-            onMouseUp={(e) => {
-              const el = e.currentTarget as HTMLButtonElement;
-              el.style.transform = 'translateY(0) scale(1)';
-              el.style.filter = 'brightness(1)';
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLButtonElement;
-              el.style.transform = 'translateY(0) scale(1)';
-              el.style.filter = 'brightness(1)';
-            }}
-            onClick={() => onPlay?.(game.id)}
-          >
-            Launch
-          </button>
-        ) : (
-          <div style={styles.comingSoon}>Coming Soon</div>
-        )}
+      {/* Body */}
+      <div style={s.body}>
+        <div style={s.metaRow}>
+          <span style={s.badge}>{meta.mode}</span>
+          <span style={s.badge}>⏱ {meta.duration}</span>
+        </div>
+        <h3 style={s.title}>{game.title}</h3>
+        <p style={s.description}>{game.description}</p>
+        <div style={s.footer}>
+          {resolvedStatus === 'playable' ? (
+            <button
+              style={s.playBtn}
+              onClick={() => onPlay?.(game.id)}
+              onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
+              onMouseUp={(e)   => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)' }}
+            >
+              Play Now
+            </button>
+          ) : resolvedStatus === 'in-progress' ? (
+            <div style={s.altPill}>In Development 🌱</div>
+          ) : (
+            <div style={s.altPill}>Coming Soon ✦</div>
+          )}
+        </div>
       </div>
     </div>
-  );
+  )
+}
+
+const s: Record<string, React.CSSProperties> = {
+  card: {
+    background: 'var(--bg-surface)',
+    borderRadius: 18,
+    border: '1px solid var(--border)',
+    boxShadow: 'var(--shadow-md)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    transition: 'transform 200ms ease, box-shadow 220ms ease, background 220ms ease, border-color 220ms ease',
+    animation: 'card-reveal 560ms cubic-bezier(0.22, 1, 0.36, 1) both',
+  },
+  imageWrap: {
+    position: 'relative',
+    width: '100%',
+    aspectRatio: '16 / 9',
+    background: 'var(--bg-muted)',
+    overflow: 'hidden',
+    flexShrink: 0,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    objectPosition: 'center',
+    display: 'block',
+  },
+  imageFallback: {
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'linear-gradient(135deg, #d9e6bf, #adc178)',
+  },
+  fallbackText: {
+    fontFamily: headingFontFamily,
+    fontSize: 22,
+    color: '#4A3020',
+    textAlign: 'center',
+    padding: '0 16px',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background: 'linear-gradient(180deg, transparent 55%, rgba(0,0,0,0.3) 100%)',
+    pointerEvents: 'none',
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '5px 10px',
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 700,
+    fontFamily: bodyFontFamily,
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.25)',
+    lineHeight: 1,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: '50%',
+    flexShrink: 0,
+  },
+  body: {
+    padding: '14px 16px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    flex: 1,
+  },
+  metaRow: { display: 'flex', gap: 6, flexWrap: 'wrap' },
+  badge: {
+    borderRadius: 999,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-badge)',
+    color: 'var(--text-secondary)',
+    fontFamily: bodyFontFamily,
+    fontSize: 12,
+    padding: '4px 9px',
+    lineHeight: 1,
+  },
+  title: {
+    margin: 0,
+    fontFamily: headingFontFamily,
+    fontSize: 22,
+    color: 'var(--text-h)',
+    lineHeight: 1.1,
+  },
+  description: {
+    margin: 0,
+    fontFamily: bodyFontFamily,
+    fontSize: 14,
+    color: 'var(--text-secondary)',
+    lineHeight: 1.5,
+    flex: 1,
+  },
+  footer: { marginTop: 'auto', paddingTop: 4 },
+  playBtn: {
+    width: '100%',
+    padding: '10px 0',
+    borderRadius: 10,
+    border: 'none',
+    background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))',
+    color: 'var(--text-on-dark)',
+    fontFamily: bodyFontFamily,
+    fontSize: 15,
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: '0 4px 14px rgba(58,88,32,0.3)',
+    transition: 'transform 120ms ease',
+    letterSpacing: 0.3,
+  },
+  altPill: {
+    textAlign: 'center',
+    padding: '9px 0',
+    borderRadius: 10,
+    border: '1px dashed var(--border-strong)',
+    color: 'var(--text-muted)',
+    fontFamily: bodyFontFamily,
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
 }

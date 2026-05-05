@@ -8,6 +8,7 @@
     "migrate": "node ./scripts/migrate.js",
     "seed": "node ./scripts/seed.js",
     "seed:all": "npm run migrate && npm run seed",
+    "seed:mongo": "node ./scripts/seed-mongo.js",
     "show-admin": "node ./scripts/show-admin.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -22,6 +23,7 @@
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.6.1",
     "mysql2": "^3.20.0"
   },
   "devDependencies": {

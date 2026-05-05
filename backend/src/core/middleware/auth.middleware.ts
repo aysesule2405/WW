@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 
 export interface AuthRequest extends Request {
-  userId?: number
+  userId?: string
 }
 
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -17,7 +17,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     const payload: any = jwt.verify(token, process.env.JWT_SECRET)
     req.userId = payload?.id
     return next()
-  } catch (err: any) {
+  } catch {
     return res.status(401).json({ error: 'Invalid or expired token' })
   }
 }

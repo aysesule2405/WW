@@ -12,9 +12,7 @@ export class AuthService {
     const existingByUsername = await userRepo.findByUsername(username)
     if (existingByUsername) throw new Error('Username already in use')
 
-    const salt = await bcrypt.genSalt(10)
-    const hash = await bcrypt.hash(password, salt)
-
+    const hash = await bcrypt.hash(password, 10)
     const userId = await userRepo.create({ email, username, passwordHash: hash })
 
     return { userId, message: 'User created successfully' }
@@ -24,12 +22,12 @@ export class AuthService {
     const user = await userRepo.findByEmail(email)
     if (!user) throw new Error('User not found')
 
-    const isMatch = await bcrypt.compare(password, user.password_hash)
+    const isMatch = await bcrypt.compare(password, user.passwordHash)
     if (!isMatch) throw new Error('Invalid credentials')
 
     if (!process.env.JWT_SECRET) throw new Error('JWT secret not configured')
 
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' })
+    const token = jwt.sign({ id: user._id.toString() }, process.env.JWT_SECRET, { expiresIn: '1h' })
 
     return { token, username: user.username }
   }

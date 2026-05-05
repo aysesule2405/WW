@@ -1,27 +1,116 @@
-import crypto from 'crypto'
-import pool from '../../config/database'
 import { Readable } from 'stream'
 
-// Placeholder: actual ElevenLabs integration and S3 upload to be implemented
+type GuardianId = 'deer' | 'fox' | 'kodama' | 'mononoke'
+
+interface VoiceSettings {
+  stability: number
+  similarity_boost: number
+  style: number
+  use_speaker_boost: boolean
+}
+
+const clamp01 = (value: string | undefined, fallback: number): number => {
+  const parsed = Number(value)
+  return Number.isNaN(parsed) ? fallback : Math.max(0, Math.min(1, parsed))
+}
+
+const parseBool = (value: string | undefined, fallback: boolean): boolean => {
+  if (value === 'true') return true
+  if (value === 'false') return false
+  return fallback
+}
+
+const VOICE_IDS: Record<GuardianId, string> = {
+  deer:     process.env.ELEVENLABS_VOICE_ID_DEER     || '',
+  fox:      process.env.ELEVENLABS_VOICE_ID_FOX      || '',
+  kodama:   process.env.ELEVENLABS_VOICE_ID_KODAMA   || '',
+  mononoke: process.env.ELEVENLABS_VOICE_ID_MONONOKE || '',
+}
+
+const VOICE_SETTINGS: Record<GuardianId, VoiceSettings> = {
+  deer: {
+    // Steady, warm, minimally stylised
+    stability:        clamp01(process.env.ELEVENLABS_DEER_STABILITY,       0.86),
+    similarity_boost: clamp01(process.env.ELEVENLABS_DEER_SIMILARITY,      0.58),
+    style:            clamp01(process.env.ELEVENLABS_DEER_STYLE,           0.08),
+    use_speaker_boost: parseBool(process.env.ELEVENLABS_DEER_SPEAKER_BOOST, false),
+  },
+  fox: {
+    // Playful, expressive, trickster energy
+    stability:        clamp01(process.env.ELEVENLABS_FOX_STABILITY,        0.28),
+    similarity_boost: clamp01(process.env.ELEVENLABS_FOX_SIMILARITY,       0.92),
+    style:            clamp01(process.env.ELEVENLABS_FOX_STYLE,            0.82),
+    use_speaker_boost: parseBool(process.env.ELEVENLABS_FOX_SPEAKER_BOOST,  true),
+  },
+  kodama: {
+    // Airy, fragile, spirit-like
+    stability:        clamp01(process.env.ELEVENLABS_KODAMA_STABILITY,     0.18),
+    similarity_boost: clamp01(process.env.ELEVENLABS_KODAMA_SIMILARITY,    0.63),
+    style:            clamp01(process.env.ELEVENLABS_KODAMA_STYLE,         0.38),
+    use_speaker_boost: parseBool(process.env.ELEVENLABS_KODAMA_SPEAKER_BOOST, false),
+  },
+  mononoke: {
+    // Bold, dramatic, theatrical
+    stability:        clamp01(process.env.ELEVENLABS_MONONOKE_STABILITY,   0.22),
+    similarity_boost: clamp01(process.env.ELEVENLABS_MONONOKE_SIMILARITY,  0.97),
+    style:            clamp01(process.env.ELEVENLABS_MONONOKE_STYLE,       0.95),
+    use_speaker_boost: parseBool(process.env.ELEVENLABS_MONONOKE_SPEAKER_BOOST, true),
+  },
+}
+
 export default {
-  synthesizeGuardian: async ({ userId, guardianId, text }: any) => {
-    // compute prompt hash
-    const hash = crypto.createHash('sha256').update(`${guardianId}|${text}`).digest('hex')
+  synthesizeGuardian: async ({
+    guardianId,
+    text,
+  }: {
+    userId: string
+    guardianId: string
+    text: string
+  }) => {
+    if (!['deer', 'fox', 'kodama', 'mononoke'].includes(guardianId)) {
+      throw new Error(`Unknown guardian: ${guardianId}`)
+    }
+    const gid = guardianId as GuardianId
 
-    // check voice_clips table for cached audio
-    const [rows]: any = await pool.execute(
-      `SELECT id, s3_path, content_type FROM voice_clips WHERE prompt_hash = ? LIMIT 1`,
-      [hash],
-    )
-
-    if (rows && rows[0]) {
-      // return a JSON pointer to S3 path (client can fetch)
-      return { id: rows[0].id, s3Path: rows[0].s3_path }
+    if (typeof text !== 'string' || text.trim().length < 1 || text.length > 240) {
+      throw new Error('text must be a non-empty string under 240 characters')
     }
 
-    // Not cached: respond with placeholder indicating job queued
-    // In production, enqueue job to worker and return a job id or signed URL when ready
-    // For now, return an informational response
-    return { queued: true, message: 'TTS job queued (not yet implemented)', promptHash: hash }
+    const apiKey = process.env.ELEVENLABS_API_KEY
+    if (!apiKey) {
+      throw new Error('ELEVENLABS_API_KEY is not configured')
+    }
+
+    const voiceId = VOICE_IDS[gid]
+    if (!voiceId) {
+      throw new Error(`No ElevenLabs voice ID configured for guardian: ${guardianId}`)
+    }
+
+    const elevenRes = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg',
+        },
+        body: JSON.stringify({
+          text,
+          model_id: process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2',
+          voice_settings: VOICE_SETTINGS[gid],
+        }),
+      }
+    )
+
+    if (!elevenRes.ok) {
+      const details = await elevenRes.text()
+      throw new Error(`ElevenLabs error ${elevenRes.status}: ${details}`)
+    }
+
+    const audioBuffer = Buffer.from(await elevenRes.arrayBuffer())
+    const stream = Readable.from(audioBuffer)
+
+    return { stream, contentType: 'audio/mpeg' }
   },
 }

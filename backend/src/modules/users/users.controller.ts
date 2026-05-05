@@ -9,9 +9,12 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
   if (!userId) return res.status(401).json({ error: 'Unauthorized' })
   const user = await userRepo.findById(userId)
   if (!user) return res.status(404).json({ error: 'User not found' })
-  // sanitize
-  const { id, email, username, avatar_url } = user
-  return res.status(200).json({ id, email, username, avatarUrl: avatar_url })
+  return res.status(200).json({
+    id: (user as any)._id.toString(),
+    email: user.email,
+    username: user.username,
+    avatarUrl: user.avatarUrl ?? null,
+  })
 }
 
 export const updateProfile = async (req: AuthRequest, res: Response) => {
@@ -46,7 +49,6 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
     const filePath = path.join(uploadDir, filename)
     await fs.promises.writeFile(filePath, buffer)
 
-    // construct public URL (backend serves /uploads from backend/public/uploads)
     const publicUrl = `/uploads/avatars/${filename}`
     await userRepo.updateProfile(userId, { avatarUrl: publicUrl })
 

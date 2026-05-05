@@ -1,51 +1,72 @@
-import pool from '../../config/database'
+import { Types } from 'mongoose'
+import { ScoreSubmission } from '../../models/ScoreSubmission'
+import { UserHighScore } from '../../models/UserHighScore'
+import { User } from '../../models/User'
 
 export default {
-  submitScore: async ({ userId, gameId, score, durationMs, metadata }: any) => {
-    // insert submission
-    const [insertResult]: any = await pool.execute(
-      `INSERT INTO score_submissions (user_id, game_id, score, metadata_json) VALUES (?, ?, ?, ?)`,
-      [userId, gameId, score, JSON.stringify(metadata || {})],
-    )
+  submitScore: async ({ userId, gameId, score, durationMs, metadata }: {
+    userId: string
+    gameId: string
+    score: number
+    durationMs?: number
+    metadata?: Record<string, unknown>
+  }) => {
+    const userOid = new Types.ObjectId(userId)
+    const gameOid = new Types.ObjectId(gameId)
 
-    const submissionId = insertResult.insertId || null
+    const submission = await ScoreSubmission.create({
+      userId: userOid,
+      gameId: gameOid,
+      score,
+      durationMs: durationMs ?? null,
+      metadata: metadata ?? {},
+    })
 
-    // upsert into user_high_scores (MySQL style) -- DB migrations_pg are Postgres; keep compatibility with existing pool config
-    await pool.execute(
-      `INSERT INTO user_high_scores (user_id, game_id, high_score) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE high_score = GREATEST(high_score, VALUES(high_score)), achieved_at = IF(high_score < VALUES(high_score), NOW(), achieved_at)`,
-      [userId, gameId, score],
-    )
+    const existing = await UserHighScore.findOne({ userId: userOid, gameId: gameOid })
+    let newPersonalBest = false
 
-    // compute whether new personal best
-    const [bestRows]: any = await pool.execute(
-      `SELECT high_score FROM user_high_scores WHERE user_id = ? AND game_id = ? LIMIT 1`,
-      [userId, gameId],
-    )
-    const highScore = bestRows && bestRows[0] ? Number(bestRows[0].high_score) : null
+    if (!existing) {
+      await UserHighScore.create({ userId: userOid, gameId: gameOid, score, achievedAt: new Date() })
+      newPersonalBest = true
+    } else if (score > existing.score) {
+      existing.score = score
+      existing.achievedAt = new Date()
+      await existing.save()
+      newPersonalBest = true
+    }
 
-    const newPersonalBest = highScore === Number(score)
-
-    return { success: true, id: submissionId, newPersonalBest }
+    return { success: true, id: submission._id.toString(), newPersonalBest }
   },
 
-  getLeaderboard: async (gameId: number, limit = 100) => {
-    const [rows]: any = await pool.execute(
-      `SELECT u.id as userId, u.username, u.avatar_url as avatarUrl, hs.high_score as score, hs.achieved_at as achievedAt
-       FROM user_high_scores hs
-       JOIN users u ON u.id = hs.user_id
-       WHERE hs.game_id = ?
-       ORDER BY hs.high_score DESC, hs.achieved_at ASC
-       LIMIT ?`,
-      [gameId, limit],
-    )
-    return rows
+  getLeaderboard: async (gameId: string, limit = 100) => {
+    const gameOid = new Types.ObjectId(gameId)
+    const rows = await UserHighScore
+      .find({ gameId: gameOid })
+      .sort({ score: -1, achievedAt: 1 })
+      .limit(limit)
+      .lean()
+
+    const userIds = rows.map((r) => r.userId)
+    const users = await User.find({ _id: { $in: userIds } }).select('_id username avatarUrl').lean()
+    const userMap = new Map(users.map((u) => [u._id.toString(), u]))
+
+    return rows.map((r) => {
+      const u = userMap.get(r.userId.toString())
+      return {
+        userId: r.userId.toString(),
+        username: u?.username ?? 'Unknown',
+        avatarUrl: u?.avatarUrl ?? null,
+        score: r.score,
+        achievedAt: r.achievedAt,
+      }
+    })
   },
 
-  getMyBest: async (userId: number, gameId: number) => {
-    const [rows]: any = await pool.execute(
-      `SELECT high_score as score, achieved_at as achievedAt FROM user_high_scores WHERE user_id = ? AND game_id = ? LIMIT 1`,
-      [userId, gameId],
-    )
-    return rows && rows[0] ? rows[0] : null
+  getMyBest: async (userId: string, gameId: string) => {
+    const row = await UserHighScore
+      .findOne({ userId: new Types.ObjectId(userId), gameId: new Types.ObjectId(gameId) })
+      .lean()
+    if (!row) return null
+    return { score: row.score, achievedAt: row.achievedAt }
   },
 }

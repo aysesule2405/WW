@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { bodyFontFamily, headingFontFamily } from '../theme/typography';
+import { getToken } from '../lib/api';
 
 type Props = {
   onExit: () => void;
@@ -300,18 +301,26 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     deer: [
       'Grow gently, little one. Every morning breeze carries your strength.',
       'Roots below, leaves above. You are safe in this grove.',
+      'The dew remembers you. Drink deep and reach for the sky.',
+      'Still waters nourish the deepest roots. Trust your quiet growth.',
     ],
     fox: [
       'Wake up, sprout. The sun has stories for your leaves today.',
       'Stretch and sparkle. The wind already knows your name.',
+      'Mischief and moonlight made you. Now dazzle the whole grove!',
+      'Every trickster knows — the brightest flame grows from the smallest spark.',
     ],
     kodama: [
       'Spirit child, drink the light and listen to the earth song.',
       'You rise with the forest heartbeat. Keep growing.',
+      'The old trees lean in to whisper your name. They have waited long.',
+      'Between breath and root, you belong. Grow on, gentle spirit.',
     ],
     mononoke: [
       'Stand proud, sapling. Even storms must bow to your roots.',
       'Take this breath of power and bloom into your true form.',
+      'You are forged from wild things. Let nothing tame your branches.',
+      'The mountain watches. Show it the strength that lives inside you.',
     ],
   };
 
@@ -327,12 +336,16 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     const startedAt = Date.now();
     const minTalkAndSubtitleMs = 3000;
     setIsTalking(true);
-    setSpokenLine(line);
+    setSpokenLine('…');
 
     try {
-      const response = await fetch('/api/tts/guardian', {
+      const token = getToken();
+      const response = await fetch('/api/v1/tts/guardian', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           guardianId: selectedGuardianId,
           text: line,
@@ -340,35 +353,29 @@ export default function SpiritSaplingGame({ onExit }: Props) {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.warn('Guardian TTS unavailable:', errorText);
+        console.warn('Guardian TTS unavailable:', response.status);
+        setSpokenLine(line);
         return;
       }
 
+      setSpokenLine(line);
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const voice = new Audio(audioUrl);
 
       await voice.play();
       await new Promise<void>((resolve) => {
-        voice.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          resolve();
-        };
-        voice.onerror = () => {
-          URL.revokeObjectURL(audioUrl);
-          resolve();
-        };
+        voice.onended = () => { URL.revokeObjectURL(audioUrl); resolve(); };
+        voice.onerror = () => { URL.revokeObjectURL(audioUrl); resolve(); };
       });
     } catch (error) {
+      setSpokenLine(line);
       console.warn('Failed to play guardian voice:', error);
     } finally {
       const elapsedMs = Date.now() - startedAt;
       const holdMs = Math.max(0, minTalkAndSubtitleMs - elapsedMs);
       if (holdMs > 0) {
-        await new Promise<void>((resolve) => {
-          window.setTimeout(() => resolve(), holdMs);
-        });
+        await new Promise<void>((resolve) => window.setTimeout(resolve, holdMs));
       }
       setIsTalking(false);
       setSpokenLine('');
