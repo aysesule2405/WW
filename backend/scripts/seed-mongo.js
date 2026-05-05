@@ -16,9 +16,12 @@ const GameSchema = new mongoose.Schema(
 const Game = mongoose.models.Game || mongoose.model('Game', GameSchema)
 
 const GAMES = [
-  { slug: 'spirit-drift',    title: 'Spirit Drift' },
-  { slug: 'ember-run',       title: 'Ember Run' },
-  { slug: 'moonveil-puzzle', title: 'Moonveil Puzzle' },
+  { slug: 'spirit-drift',        title: 'Spirit Drift' },
+  { slug: 'delivery-on-the-wind', title: 'Delivery on the Wind' },
+  { slug: 'spirit-sapling',      title: 'Spirit Sapling' },
+  { slug: 'half-moon',           title: 'Rise of the Half Moon' },
+  { slug: 'ember-run',           title: 'Ember Run' },
+  { slug: 'moonveil-puzzle',     title: 'Moonveil Puzzle' },
 ]
 
 async function seed() {

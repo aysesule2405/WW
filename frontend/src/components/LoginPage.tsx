@@ -24,8 +24,8 @@ export default function LoginPage({ onGoToRegister, onGoToLanding }: Props) {
     try {
       await login(email, password);
       // AuthContext update triggers App re-render → dashboard shown automatically
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }

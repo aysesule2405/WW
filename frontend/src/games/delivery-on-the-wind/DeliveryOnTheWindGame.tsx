@@ -28,6 +28,16 @@ function formatTime(sec: number) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+function TopBar({ onExit }: { onExit: () => void }) {
+  return (
+    <div style={s.topBar}>
+      <button style={s.backBtn} onClick={onExit}>← Back to Grove</button>
+      <h2 style={s.heading}>Delivery on the Wind</h2>
+      <div style={{ width: 140 }} />
+    </div>
+  )
+}
+
 export default function DeliveryOnTheWindGame({ onExit }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const apiRef = useRef<DeliveryGameAPI | null>(null)
@@ -70,20 +80,11 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
     setSessionId(v => v + 1)
   }
 
-  // ── Top bar ──────────────────────────────────────────────────────────────────
-  const TopBar = () => (
-    <div style={s.topBar}>
-      <button style={s.backBtn} onClick={onExit}>← Back to Grove</button>
-      <h2 style={s.heading}>Delivery on the Wind</h2>
-      <div style={{ width: 140 }} />
-    </div>
-  )
-
   // ── Rules screen ──────────────────────────────────────────────────────────────
   if (showRules) {
     return (
       <div style={s.page}>
-        <TopBar />
+        <TopBar onExit={onExit} />
         <div style={s.centreWrap}>
           <div style={s.rulesCard}>
             <div style={s.rulesHeader}>
@@ -132,7 +133,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
     const won = result.outcome === 'win'
     return (
       <div style={s.page}>
-        <TopBar />
+        <TopBar onExit={onExit} />
         <div style={s.centreWrap}>
           <div style={{ ...s.endCard, borderColor: won ? 'rgba(173,193,120,0.5)' : 'rgba(200,80,80,0.4)' }}>
             <div style={s.endIcon}>{won ? '★' : '!'}</div>
@@ -172,40 +173,39 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
     <div style={s.page}>
       <TopBar />
       <div style={s.gameArea}>
-        {/* Phaser canvas container */}
-        <div key={sessionId} ref={containerRef} style={s.gameWrap} />
-
-        {/* React HUD overlay — inspect buttons */}
-        {hud && (
-          <div style={s.hudOverlay}>
-            {hud.heldType && hud.heldImageIndex !== null && (
-              <button
-                style={s.inspectBtn}
-                onClick={() => apiRef.current?.inspectHeldPackage()}
-              >
-                <img
-                  src={`/assets/backgrounds/delivery-on-the-wind/package-${hud.heldImageIndex}.png`}
-                  alt=""
-                  style={s.inspectBtnImg}
-                />
-                Inspect Package
-              </button>
-            )}
-            {hud.nearHouseType && hud.nearHouseImageIndex !== null && (
-              <button
-                style={{ ...s.inspectBtn, ...s.inspectHouseBtn }}
-                onClick={() => apiRef.current?.inspectNearHouse()}
-              >
-                <img
-                  src={`/assets/backgrounds/delivery-on-the-wind/house-${hud.nearHouseImageIndex}.png`}
-                  alt=""
-                  style={s.inspectBtnImg}
-                />
-                Inspect House
-              </button>
-            )}
-          </div>
-        )}
+        {/* Phaser canvas + React HUD both inside gameWrap for correct overlay positioning */}
+        <div key={sessionId} ref={containerRef} style={s.gameWrap}>
+          {hud && (
+            <div style={s.hudOverlay}>
+              {hud.heldType && hud.heldImageIndex !== null && (
+                <button
+                  style={s.inspectBtn}
+                  onClick={() => apiRef.current?.inspectHeldPackage()}
+                >
+                  <img
+                    src={`/assets/backgrounds/delivery-on-the-wind/package-${hud.heldImageIndex}.png`}
+                    alt=""
+                    style={s.inspectBtnImg}
+                  />
+                  Inspect Package
+                </button>
+              )}
+              {hud.nearHouseType && hud.nearHouseImageIndex !== null && (
+                <button
+                  style={{ ...s.inspectBtn, ...s.inspectHouseBtn }}
+                  onClick={() => apiRef.current?.inspectNearHouse()}
+                >
+                  <img
+                    src={`/assets/backgrounds/delivery-on-the-wind/house-${hud.nearHouseImageIndex}.png`}
+                    alt=""
+                    style={s.inspectBtnImg}
+                  />
+                  Inspect House
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Inspection overlay modal */}
@@ -266,7 +266,7 @@ function InspectModal({ data, onClose }: { data: InspectData; onClose: () => voi
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const BG = `linear-gradient(rgba(10,18,8,0.3),rgba(10,18,8,0.3)), url('/assets/backgrounds/delivery-on-the-wind/game-bg.png') center/cover no-repeat`
+const BG = `radial-gradient(ellipse at top, #1a3a0a 0%, #0d1a06 100%)`
 
 const s: Record<string, React.CSSProperties> = {
   page: {
@@ -307,18 +307,21 @@ const s: Record<string, React.CSSProperties> = {
   },
   gameArea: {
     flex: 1,
-    position: 'relative',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    padding: '12px',
+    boxSizing: 'border-box',
   },
   gameWrap: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    position: 'relative',
+    width: 'min(100%, calc((100vh - 80px) * (16/9)))',
+    aspectRatio: '16 / 9',
+    borderRadius: 16,
+    overflow: 'hidden',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+    border: '2px solid rgba(173,193,120,0.25)',
   },
-  // HUD overlay anchored to the game area
   hudOverlay: {
     position: 'absolute',
     bottom: 18,

@@ -11,6 +11,7 @@ export default function ProgressPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!user) { setLoading(false); return }
     const slugs = games.filter((g) => g.available).map((g) => ({ slug: g.id, title: g.title }))
     Promise.all(

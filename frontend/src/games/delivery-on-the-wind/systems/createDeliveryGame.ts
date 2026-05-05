@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { DeliveryGameScene } from '../DeliveryGameScene'
 import type { SceneCallbacks } from '../DeliveryGameScene'
-import { COLS, ROWS, TILE } from '../data/deliveryConfig'
+import { VIEWPORT_W, VIEWPORT_H } from '../data/deliveryConfig'
 
 export type { HUDState, InspectData } from '../data/deliveryConfig'
 
@@ -33,9 +33,9 @@ export function createDeliveryGame(
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
-    width: COLS * TILE,
-    height: ROWS * TILE,
-    backgroundColor: '#5A9030',
+    width:  VIEWPORT_W,
+    height: VIEWPORT_H,
+    backgroundColor: '#3A6820',
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,

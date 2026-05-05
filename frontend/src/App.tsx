@@ -8,8 +8,9 @@ import AppShell from './components/layout/AppShell'
 import SpiritDriftGame from './components/SpiritDriftGame'
 import DeliveryOnTheWindGame from './games/delivery-on-the-wind/DeliveryOnTheWindGame'
 import SpiritSaplingGame from './components/SpiritSaplingGame'
+import HalfMoonGame from './games/half-moon/HalfMoonGame'
 
-type GameView = 'spirit-drift' | 'delivery-on-the-wind' | 'spirit-sapling'
+type GameView = 'spirit-drift' | 'delivery-on-the-wind' | 'spirit-sapling' | 'half-moon'
 type RootView = 'landing' | 'login' | 'register'
 
 function AppContent() {
@@ -24,6 +25,7 @@ function AppContent() {
     if (activeGame === 'spirit-drift')        return <SpiritDriftGame onExit={exitGame} />
     if (activeGame === 'delivery-on-the-wind') return <DeliveryOnTheWindGame onExit={exitGame} />
     if (activeGame === 'spirit-sapling')      return <SpiritSaplingGame onExit={exitGame} />
+    if (activeGame === 'half-moon')           return <HalfMoonGame onExit={exitGame} />
 
     return (
       <AppShell

@@ -12,6 +12,7 @@ export class Player {
   private container: Phaser.GameObjects.Container
   private bodyGfx: Phaser.GameObjects.Graphics
   private holdGfx: Phaser.GameObjects.Graphics
+  private _holdLabel?: { destroy(): void }
 
   constructor(scene: Phaser.Scene, gridX: number, gridY: number) {
     this.scene = scene
@@ -106,9 +107,8 @@ export class Player {
       strokeThickness: 2,
     }).setOrigin(0.5, 0.5).setDepth(6)
     this.container.add(text)
-    // Clean up previous label - store ref and destroy on next call
-    ;(this as any)._holdLabel?.destroy()
-    ;(this as any)._holdLabel = text
+    this._holdLabel?.destroy()
+    this._holdLabel = text
   }
 
   get x() { return this.container.x }
@@ -144,7 +144,7 @@ export class Player {
   }
 
   destroy() {
-    ;(this as any)._holdLabel?.destroy()
+    this._holdLabel?.destroy()
     this.container.destroy()
   }
 }

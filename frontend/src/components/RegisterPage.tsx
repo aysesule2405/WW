@@ -34,8 +34,8 @@ export default function RegisterPage({ onGoToLogin, onGoToLanding }: Props) {
     try {
       await register(email, username, password);
       // register auto-logs in → AuthContext update → App shows dashboard
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }

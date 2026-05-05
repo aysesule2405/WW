@@ -112,8 +112,7 @@ const AccountSetup: React.FC<Props> = ({ onClose }) => {
             <div>
               <p style={styles.label}>Avatar</p>
               {avatarUrl ? (
-                // eslint-disable-next-line jsx-a11y/img-redundant-alt
-                <img src={avatarUrl} alt="avatar preview" style={styles.avatarPreview} />
+                <img src={avatarUrl} alt="avatar" style={styles.avatarPreview} />
               ) : (
                 <div style={{ ...styles.avatarPreview, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B5648' }}>No avatar</div>
               )}

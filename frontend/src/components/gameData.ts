@@ -43,6 +43,15 @@ export const games: GameInfo[] = [
     postSelectionPanelBg: '/assets/backgrounds/spirit-sapling/plant-seed.png',
     available: true,
   },
+  {
+    id: 'half-moon',
+    title: 'Rise of the Half Moon',
+    description:
+      'Place lunar phase cards on an enchanted board, form cycles, and outwit the mysterious Half Moon.',
+    thumbnail: '/assets/thumbnails/half-moon-placeholder.svg',
+    gameBg: '/assets/game_bgs/half-moon.svg',
+    available: true,
+  },
 ];
 
 export default games;
