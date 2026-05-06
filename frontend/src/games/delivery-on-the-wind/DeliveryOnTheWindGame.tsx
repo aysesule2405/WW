@@ -2,7 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createDeliveryGame } from './systems/createDeliveryGame'
 import type { DeliveryGameAPI, HUDState, InspectData } from './systems/createDeliveryGame'
 import { DELIVERY_TYPES } from './data/deliveryConfig'
-import { bodyFontFamily, headingFontFamily } from '../../theme/typography'
+import { uiFontFamily, titleFontFamily, numberFontFamily } from '../../theme/typography'
+import { submitSession } from '../../lib/api'
+import GameShell from '../../components/game/GameShell'
+import AchievementToast from '../../components/AchievementToast'
+import type { UnlockedAchievement } from '../../components/AchievementToast'
 
 type Props = { onExit: () => void }
 
@@ -12,30 +16,40 @@ type EndResult = {
   timeRemaining: number
 }
 
+const BG = `radial-gradient(ellipse at top, #1a3a0a 0%, #0d1a06 100%)`
+
 const STEPS = [
-  { num: '1', text: 'Walk to a glowing package and step on it to pick it up.' },
-  { num: '2', text: 'Use the Inspect Package button to see the sign on the package.' },
-  { num: '3', text: 'Find the matching house — walk close to it and use Inspect House.' },
-  { num: '4', text: 'Step onto the correct house to deliver. The village will cheer!' },
-  { num: '5', text: 'Wrong house: a 5 s time penalty — but you keep the package.' },
-  { num: '6', text: 'Carry one package at a time. Deliver it before picking up another.' },
-  { num: '7', text: 'Use the Arrow Keys to move. No diagonal movement.' },
+  { heading: 'Objective', items: ['Help Kiki deliver all 4 packages to the correct houses within 2 minutes.'] },
+  {
+    heading: 'Controls',
+    items: [
+      'Arrow Keys to move Kiki.',
+      'Step onto a glowing package to pick it up.',
+      'Walk near a house and press Inspect House to see its sign.',
+      'Step onto the matching house to deliver.',
+    ],
+  },
+  {
+    heading: 'Scoring',
+    items: [
+      'Deliver all 4 packages before time runs out to win.',
+      'Your fastest completion time is saved to the leaderboard.',
+    ],
+  },
+  {
+    heading: 'Penalties & Tips',
+    items: [
+      'Delivering to the wrong house costs 5 seconds.',
+      'You can only carry one package at a time.',
+      'Use Inspect Package and Inspect House to match the signs — they must match exactly.',
+    ],
+  },
 ]
 
 function formatTime(sec: number) {
   const m = Math.floor(sec / 60)
   const s = sec % 60
   return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-function TopBar({ onExit }: { onExit: () => void }) {
-  return (
-    <div style={s.topBar}>
-      <button style={s.backBtn} onClick={onExit}>← Back to Grove</button>
-      <h2 style={s.heading}>Delivery on the Wind</h2>
-      <div style={{ width: 140 }} />
-    </div>
-  )
 }
 
 export default function DeliveryOnTheWindGame({ onExit }: Props) {
@@ -47,17 +61,28 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   const [sessionId, setSessionId] = useState(0)
   const [hud, setHud]             = useState<HUDState | null>(null)
   const [inspecting, setInspecting] = useState<InspectData | null>(null)
+  const [unlockedAchievements, setUnlockedAchievements] = useState<UnlockedAchievement[]>([])
 
   useEffect(() => {
     if (showRules || result !== null || !containerRef.current) return
 
     apiRef.current = createDeliveryGame(containerRef.current, {
-      onGameEnd: (outcome, deliveries, timeRemaining) => {
+      onGameEnd: async (outcome, deliveries, timeRemaining) => {
         apiRef.current?.destroy()
         apiRef.current = null
+        const won = outcome === 'win'
+        const result = await submitSession('delivery-on-the-wind', {
+          completed: won,
+          won,
+          deliveriesCompleted: deliveries,
+          completionTimeSeconds: won ? 120 - timeRemaining : null,
+          completionTime: won ? 120 - timeRemaining : null,
+          shortestTime: won ? 120 - timeRemaining : null,
+        })
+        setUnlockedAchievements(result?.achievements ?? [])
         setResult({ outcome, deliveries, timeRemaining })
       },
-      onHUDUpdate: (state) => setHud(state),
+      onHUDUpdate:      (state) => setHud(state),
       onInspectPackage: (data) => setInspecting(data),
       onInspectHouse:   (data) => setInspecting(data),
     })
@@ -80,29 +105,33 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
     setSessionId(v => v + 1)
   }
 
-  // ── Rules screen ──────────────────────────────────────────────────────────────
+  // ── Rules screen ──────────────────────────────────────────────────────────
   if (showRules) {
     return (
-      <div style={s.page}>
-        <TopBar onExit={onExit} />
-        <div style={s.centreWrap}>
+      <GameShell title="Delivery on the Wind" onExit={onExit} background={BG} accentColor="#e9dfc2">
+        <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
+        <div style={s.scrollArea}>
           <div style={s.rulesCard}>
             <div style={s.rulesHeader}>
-              <h3 style={s.rulesTitle}>Help Kiki deliver all 4 packages!</h3>
-              <p style={s.rulesSub}>You have <strong>2 minutes</strong>. Match each package to its house using the signs.</p>
+              <h3 style={s.rulesTitle}>Help Kiki Deliver!</h3>
+              <p style={s.rulesSub}>Match each package to its house using the signs. You have 2 minutes.</p>
             </div>
 
-            <ul style={s.stepList}>
-              {STEPS.map(step => (
-                <li key={step.num} style={s.stepRow}>
-                  <span style={s.stepNum}>{step.num}</span>
-                  <span style={s.stepText}>{step.text}</span>
-                </li>
+            <div style={s.rulesSections}>
+              {STEPS.map((sec) => (
+                <div key={sec.heading} style={s.rulesBlock}>
+                  <p style={s.rulesBlockTitle}>{sec.heading}</p>
+                  <ul style={s.rulesList}>
+                    {sec.items.map((item, i) => (
+                      <li key={i} style={s.rulesItem}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
 
             <div style={s.legend}>
-              <p style={s.legendTitle}>Package types:</p>
+              <p style={s.legendTitle}>Package types</p>
               <div style={s.legendGrid}>
                 {DELIVERY_TYPES.map(d => (
                   <div key={d.type} style={s.legendItem}>
@@ -124,64 +153,85 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
             </button>
           </div>
         </div>
-      </div>
+      </GameShell>
     )
   }
 
-  // ── End screen ────────────────────────────────────────────────────────────────
+  // ── End screen ────────────────────────────────────────────────────────────
   if (result !== null) {
     const won = result.outcome === 'win'
+    const completionTime = won ? 120 - result.timeRemaining : null
+
     return (
-      <div style={s.page}>
-        <TopBar onExit={onExit} />
-        <div style={s.centreWrap}>
-          <div style={{ ...s.endCard, borderColor: won ? 'rgba(173,193,120,0.5)' : 'rgba(200,80,80,0.4)' }}>
-            <div style={s.endIcon}>{won ? '★' : '!'}</div>
-            <h3 style={{ ...s.endTitle, color: won ? '#3A6A12' : '#8B2500' }}>
+      <GameShell title="Delivery on the Wind" onExit={onExit} background={BG} accentColor="#e9dfc2">
+        <div style={s.scrollArea}>
+          <div style={{ ...s.resultsCard, borderColor: won ? 'rgba(154,162,83,0.45)' : 'rgba(203,91,64,0.4)' }}>
+            <div style={{ ...s.resultIcon, color: won ? '#c6cf79' : '#cb5b40' }}>
+              {won ? '★' : '!'}
+            </div>
+            <h3 style={{ ...s.resultTitle, color: won ? '#c6cf79' : '#cb5b40' }}>
               {won ? 'All Delivered!' : "Time's Up!"}
             </h3>
+
             {won ? (
-              <p style={s.endSub}>Kiki delivered every package — the grove is grateful!</p>
+              <>
+                <p style={s.resultSub}>Kiki delivered every package — the grove is grateful!</p>
+                <div style={s.statGrid}>
+                  <div style={s.statBox}>
+                    <span style={s.statLabel}>Packages</span>
+                    <span style={s.statVal}>4 / 4</span>
+                  </div>
+                  {completionTime !== null && (
+                    <div style={s.statBox}>
+                      <span style={s.statLabel}>Completion Time</span>
+                      <span style={{ ...s.statVal, color: '#c6cf79' }}>{formatTime(completionTime)}</span>
+                    </div>
+                  )}
+                  {result.timeRemaining > 0 && (
+                    <div style={s.statBox}>
+                      <span style={s.statLabel}>Time Remaining</span>
+                      <span style={s.statVal}>{formatTime(result.timeRemaining)}</span>
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
-              <p style={s.endSub}>{result.deliveries} of 4 packages delivered.</p>
+              <>
+                <p style={s.resultSub}>{result.deliveries} of 4 packages delivered.</p>
+                <div style={s.statGrid}>
+                  <div style={s.statBox}>
+                    <span style={s.statLabel}>Packages</span>
+                    <span style={s.statVal}>{result.deliveries} / 4</span>
+                  </div>
+                </div>
+                <p style={{ ...s.resultSub, fontSize: 14, opacity: 0.7 }}>
+                  {result.deliveries === 0
+                    ? 'The packages are waiting — give it another go!'
+                    : 'So close! Try again and deliver them all.'}
+                </p>
+              </>
             )}
-            {won && (
-              <div style={s.timeRemainingBadge}>
-                <span style={s.timeRemainingLabel}>Time remaining</span>
-                <span style={s.timeRemainingValue}>{formatTime(result.timeRemaining)}</span>
-              </div>
-            )}
-            {!won && (
-              <p style={{ ...s.endSub, fontSize: 14, opacity: 0.7 }}>
-                {result.deliveries === 0
-                  ? 'The packages are waiting — give it another go!'
-                  : 'So close! Try again and deliver them all.'}
-              </p>
-            )}
-            <div style={s.endActions}>
+
+            <div style={s.resultActions}>
               <button style={s.primaryBtn} onClick={restart}>Play Again</button>
-              <button style={s.secondaryBtn} onClick={onExit}>Back to Grove</button>
+              <button style={s.ghostBtn} onClick={onExit}>← Grove</button>
             </div>
           </div>
         </div>
-      </div>
+      </GameShell>
     )
   }
 
-  // ── Game screen ───────────────────────────────────────────────────────────────
+  // ── Game screen ───────────────────────────────────────────────────────────
   return (
-    <div style={s.page}>
-      <TopBar />
+    <GameShell title="Delivery on the Wind" onExit={onExit} background={BG} accentColor="#e9dfc2">
+      <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
       <div style={s.gameArea}>
-        {/* Phaser canvas + React HUD both inside gameWrap for correct overlay positioning */}
         <div key={sessionId} ref={containerRef} style={s.gameWrap}>
           {hud && (
             <div style={s.hudOverlay}>
               {hud.heldType && hud.heldImageIndex !== null && (
-                <button
-                  style={s.inspectBtn}
-                  onClick={() => apiRef.current?.inspectHeldPackage()}
-                >
+                <button style={s.inspectBtn} onClick={() => apiRef.current?.inspectHeldPackage()}>
                   <img
                     src={`/assets/backgrounds/delivery-on-the-wind/package-${hud.heldImageIndex}.png`}
                     alt=""
@@ -208,11 +258,8 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
         </div>
       </div>
 
-      {/* Inspection overlay modal */}
-      {inspecting && (
-        <InspectModal data={inspecting} onClose={closeInspect} />
-      )}
-    </div>
+      {inspecting && <InspectModal data={inspecting} onClose={closeInspect} />}
+    </GameShell>
   )
 }
 
@@ -227,38 +274,22 @@ function InspectModal({ data, onClose }: { data: InspectData; onClose: () => voi
   return (
     <div style={m.backdrop} onClick={onClose}>
       <div style={m.card} onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
         <div style={m.header}>
-          <h3 style={m.title}>
-            {isPackage ? 'Package Inspection' : 'House Inspection'}
-          </h3>
+          <h3 style={m.title}>{isPackage ? 'Package Inspection' : 'House Inspection'}</h3>
           <button style={m.closeBtn} onClick={onClose}>Close</button>
         </div>
-
-        {/* Magnifier frame + image */}
         <div style={m.magnifierWrap}>
           <div style={{ ...m.magnifierRing, borderColor: data.colorHex }}>
             <img src={imgSrc} alt={data.label} style={m.magnifierImg} />
           </div>
-          {/* Handle */}
           <div style={{ ...m.handle, background: data.colorHex }} />
         </div>
-
-        {/* Label */}
         <div style={m.labelRow}>
           <span style={{ ...m.typeDot, background: data.colorHex }} />
           <span style={{ ...m.labelText, color: data.colorHex }}>{data.label}</span>
         </div>
-
-        {/* Hint (packages only) */}
-        {isPackage && (
-          <p style={m.hint}>{data.hint}</p>
-        )}
-
-        <button style={m.continueBtn} onClick={onClose}>
-          Continue
-        </button>
+        {isPackage && <p style={m.hint}>{data.hint}</p>}
+        <button style={m.continueBtn} onClick={onClose}>Continue</button>
       </div>
     </div>
   )
@@ -266,416 +297,171 @@ function InspectModal({ data, onClose }: { data: InspectData; onClose: () => voi
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const BG = `radial-gradient(ellipse at top, #1a3a0a 0%, #0d1a06 100%)`
-
 const s: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: '100vh',
-    background: BG,
-    display: 'flex',
-    flexDirection: 'column',
+  scrollArea: {
+    flex: 1, overflowY: 'auto',
+    display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+    padding: '28px 20px 36px', boxSizing: 'border-box',
+  },
+
+  /* Rules */
+  rulesCard: {
+    width: 'min(620px, 100%)',
+    background: 'rgba(10,18,8,0.84)',
+    backdropFilter: 'blur(16px)',
+    borderRadius: 22,
+    border: '1px solid rgba(154,162,83,0.24)',
+    boxShadow: '0 24px 56px rgba(0,0,0,0.50)',
+    padding: '32px 36px 28px',
     boxSizing: 'border-box',
-    fontFamily: bodyFontFamily,
+    display: 'flex', flexDirection: 'column', gap: 20,
   },
-  topBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '14px 22px',
-    background: 'rgba(10,18,8,0.65)',
-    backdropFilter: 'blur(12px)',
-    borderBottom: '1px solid rgba(173,193,120,0.2)',
-    flexShrink: 0,
+  rulesHeader:     { display: 'flex', flexDirection: 'column', gap: 6 },
+  rulesTitle:      { margin: 0, fontFamily: titleFontFamily, fontSize: 28, color: '#fff7e0', textAlign: 'center' },
+  rulesSub:        { margin: 0, fontFamily: uiFontFamily, fontSize: 15, color: '#d4c69e', textAlign: 'center', lineHeight: 1.5 },
+  rulesSections:   { display: 'flex', flexDirection: 'column', gap: 14 },
+  rulesBlock:      { display: 'flex', flexDirection: 'column', gap: 5 },
+  rulesBlockTitle: { margin: 0, fontFamily: uiFontFamily, fontWeight: 700, fontSize: 12, color: '#9aa253', textTransform: 'uppercase', letterSpacing: 0.6 },
+  rulesList:       { margin: 0, padding: '0 0 0 18px', display: 'flex', flexDirection: 'column', gap: 4 },
+  rulesItem:       { fontFamily: uiFontFamily, fontSize: 14, color: '#e9dfc2', lineHeight: 1.5 },
+
+  legend:      { borderTop: '1px solid rgba(154,162,83,0.18)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 },
+  legendTitle: { margin: 0, fontSize: 12, fontWeight: 700, color: '#9aa253', textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: uiFontFamily },
+  legendGrid:  { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
+  legendItem:  { display: 'flex', alignItems: 'center', gap: 10 },
+  legendImgWrap: {
+    width: 40, height: 40, borderRadius: 8,
+    background: 'rgba(154,162,83,0.10)', border: '1px solid rgba(154,162,83,0.18)',
+    overflow: 'hidden', flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
-  backBtn: {
-    width: 140,
-    padding: '8px 14px',
-    borderRadius: 9,
-    border: '1px solid rgba(240,234,210,0.3)',
-    background: 'rgba(240,234,210,0.1)',
-    color: '#F0EAD2',
-    fontFamily: bodyFontFamily,
-    fontSize: 14,
-    cursor: 'pointer',
+  legendImg:   { width: 34, height: 34, objectFit: 'contain' },
+  legendLabel: { fontSize: 13, fontWeight: 600, fontFamily: uiFontFamily },
+
+  startBtn: {
+    width: '100%', padding: '14px 0', borderRadius: 12, border: 'none',
+    background: 'linear-gradient(135deg, #5A9030, #3E6820)',
+    color: '#F0EAD2', fontFamily: uiFontFamily, fontSize: 17, fontWeight: 700,
+    cursor: 'pointer', letterSpacing: 0.3, boxShadow: '0 8px 24px rgba(58,88,32,0.45)',
   },
-  heading: {
-    margin: 0,
-    fontFamily: headingFontFamily,
-    fontSize: 26,
-    color: '#F0EAD2',
-    textShadow: '0 2px 10px rgba(0,0,0,0.6)',
+
+  /* Results */
+  resultsCard: {
+    width: 'min(480px, 100%)',
+    background: 'rgba(10,18,8,0.88)',
+    backdropFilter: 'blur(16px)',
+    borderRadius: 22, border: '2px solid',
+    boxShadow: '0 24px 56px rgba(0,0,0,0.55)',
+    padding: '36px 40px 32px', boxSizing: 'border-box',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18,
+    textAlign: 'center',
   },
+  resultIcon:    { fontSize: 52, fontFamily: titleFontFamily, lineHeight: 1 },
+  resultTitle:   { margin: 0, fontFamily: titleFontFamily, fontSize: 34, lineHeight: 1.1 },
+  resultSub:     { margin: 0, fontSize: 15, color: '#d4c69e', lineHeight: 1.55, fontFamily: uiFontFamily },
+  statGrid:      { display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', width: '100%' },
+  statBox: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+    background: 'rgba(154,162,83,0.12)', border: '1px solid rgba(154,162,83,0.28)',
+    borderRadius: 12, padding: '10px 20px',
+  },
+  statLabel: { fontSize: 11, color: '#9aa253', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.7, fontFamily: uiFontFamily },
+  statVal:   { fontSize: 26, fontFamily: numberFontFamily, color: '#fff7e0', lineHeight: 1 },
+
+  resultActions: { display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', width: '100%', marginTop: 4 },
+  primaryBtn: {
+    flex: 1, minWidth: 110, padding: '12px 0', borderRadius: 11, border: 'none',
+    background: 'linear-gradient(135deg, #5A9030, #3E6820)',
+    color: '#F0EAD2', fontFamily: uiFontFamily, fontSize: 15, fontWeight: 700,
+    cursor: 'pointer', boxShadow: '0 5px 16px rgba(58,88,32,0.38)',
+  },
+  ghostBtn: {
+    flex: 1, minWidth: 80, padding: '12px 0', borderRadius: 11,
+    border: '1px solid rgba(212,198,158,0.28)', background: 'transparent',
+    color: '#d4c69e', fontFamily: uiFontFamily, fontSize: 15, cursor: 'pointer',
+  },
+
+  /* Game */
   gameArea: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '12px',
-    boxSizing: 'border-box',
+    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: '10px', boxSizing: 'border-box',
   },
   gameWrap: {
     position: 'relative',
     width: 'min(100%, calc((100vh - 80px) * (16/9)))',
     aspectRatio: '16 / 9',
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
     boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
-    border: '2px solid rgba(173,193,120,0.25)',
+    border: '1px solid rgba(154,162,83,0.22)',
   },
   hudOverlay: {
-    position: 'absolute',
-    bottom: 18,
-    right: 18,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    alignItems: 'flex-end',
-    pointerEvents: 'auto',
-    zIndex: 10,
+    position: 'absolute', bottom: 18, right: 18,
+    display: 'flex', flexDirection: 'column', gap: 8,
+    alignItems: 'flex-end', pointerEvents: 'auto', zIndex: 10,
   },
   inspectBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '9px 16px',
-    borderRadius: 12,
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '9px 16px', borderRadius: 12,
     border: '1.5px solid rgba(240,234,210,0.45)',
-    background: 'rgba(10,18,8,0.82)',
-    color: '#F0EAD2',
-    fontFamily: bodyFontFamily,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-    backdropFilter: 'blur(8px)',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-    whiteSpace: 'nowrap',
+    background: 'rgba(10,18,8,0.82)', color: '#F0EAD2',
+    fontFamily: uiFontFamily, fontSize: 14, fontWeight: 600,
+    cursor: 'pointer', backdropFilter: 'blur(8px)',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.4)', whiteSpace: 'nowrap',
   },
-  inspectHouseBtn: {
-    borderColor: 'rgba(200,160,80,0.5)',
-    color: '#F0D890',
-  },
-  inspectBtnImg: {
-    width: 28,
-    height: 28,
-    objectFit: 'contain',
-    borderRadius: 4,
-  },
-  centreWrap: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 28,
-  },
-
-  // ── Rules ──
-  rulesCard: {
-    background: 'rgba(246,241,222,0.97)',
-    backdropFilter: 'blur(18px)',
-    borderRadius: 22,
-    border: '1px solid rgba(108,88,76,0.22)',
-    boxShadow: '0 24px 56px rgba(0,0,0,0.4)',
-    padding: '32px 38px',
-    maxWidth: 560,
-    width: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 20,
-  },
-  rulesHeader: { display: 'flex', flexDirection: 'column', gap: 4 },
-  rulesTitle: {
-    margin: 0,
-    fontFamily: headingFontFamily,
-    fontSize: 28,
-    color: '#4A3020',
-    textAlign: 'center',
-  },
-  rulesSub: {
-    margin: 0,
-    fontSize: 15,
-    color: '#7A5F4E',
-    textAlign: 'center',
-    lineHeight: 1.5,
-  },
-  stepList: {
-    margin: 0,
-    padding: 0,
-    listStyle: 'none',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 7,
-  },
-  stepRow: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 12,
-    padding: '8px 12px',
-    borderRadius: 10,
-    background: 'rgba(108,88,76,0.07)',
-    border: '1px solid rgba(108,88,76,0.08)',
-  },
-  stepNum: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#8B6A50',
-    width: 18,
-    textAlign: 'right',
-    flexShrink: 0,
-    paddingTop: 1,
-  },
-  stepText: { fontSize: 14, color: '#5A3E28', lineHeight: 1.5 },
-
-  legend: {
-    borderTop: '1px solid rgba(108,88,76,0.18)',
-    paddingTop: 16,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-  },
-  legendTitle: {
-    margin: 0,
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#8B6A50',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  legendGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 10,
-  },
-  legendItem: { display: 'flex', alignItems: 'center', gap: 10 },
-  legendImgWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    background: 'rgba(108,88,76,0.08)',
-    border: '1px solid rgba(108,88,76,0.14)',
-    overflow: 'hidden',
-    flexShrink: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  legendImg: { width: 34, height: 34, objectFit: 'contain' },
-  legendLabel: { fontSize: 13, fontWeight: 600 },
-
-  startBtn: {
-    padding: '14px 0',
-    borderRadius: 13,
-    border: 'none',
-    background: 'linear-gradient(135deg, #5A9030, #3E6820)',
-    color: '#F0EAD2',
-    fontFamily: bodyFontFamily,
-    fontSize: 19,
-    fontWeight: 700,
-    cursor: 'pointer',
-    letterSpacing: 0.3,
-    boxShadow: '0 8px 24px rgba(58,88,32,0.45)',
-  },
-
-  // ── End ──
-  endCard: {
-    background: 'rgba(246,241,222,0.97)',
-    backdropFilter: 'blur(18px)',
-    borderRadius: 22,
-    border: '2px solid',
-    boxShadow: '0 24px 56px rgba(0,0,0,0.4)',
-    padding: '40px 44px',
-    maxWidth: 460,
-    width: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 14,
-    textAlign: 'center',
-  },
-  endIcon: {
-    fontSize: 52,
-    fontFamily: headingFontFamily,
-    color: '#C8860A',
-    lineHeight: 1,
-  },
-  endTitle: {
-    margin: 0,
-    fontFamily: headingFontFamily,
-    fontSize: 36,
-    lineHeight: 1.1,
-  },
-  endSub: {
-    margin: 0,
-    fontSize: 16,
-    color: '#7A5F4E',
-    lineHeight: 1.55,
-  },
-  timeRemainingBadge: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 2,
-    background: 'rgba(90,144,48,0.12)',
-    border: '1px solid rgba(90,144,48,0.35)',
-    borderRadius: 12,
-    padding: '10px 24px',
-  },
-  timeRemainingLabel: { fontSize: 12, color: '#5A9030', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' },
-  timeRemainingValue: { fontSize: 28, color: '#3A6820', fontFamily: headingFontFamily, lineHeight: 1 },
-  endActions: {
-    display: 'flex',
-    gap: 12,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  primaryBtn: {
-    padding: '12px 30px',
-    borderRadius: 11,
-    border: 'none',
-    background: 'linear-gradient(135deg, #5A9030, #3E6820)',
-    color: '#F0EAD2',
-    fontFamily: bodyFontFamily,
-    fontSize: 16,
-    fontWeight: 700,
-    cursor: 'pointer',
-    boxShadow: '0 5px 16px rgba(58,88,32,0.38)',
-  },
-  secondaryBtn: {
-    padding: '12px 30px',
-    borderRadius: 11,
-    border: '1px solid rgba(108,88,76,0.38)',
-    background: 'transparent',
-    color: '#6C584C',
-    fontFamily: bodyFontFamily,
-    fontSize: 16,
-    cursor: 'pointer',
-  },
+  inspectHouseBtn: { borderColor: 'rgba(200,160,80,0.5)', color: '#F0D890' },
+  inspectBtnImg:   { width: 28, height: 28, objectFit: 'contain', borderRadius: 4 },
 }
-
-// ── Modal styles ──────────────────────────────────────────────────────────────
 
 const m: Record<string, React.CSSProperties> = {
   backdrop: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.72)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-    backdropFilter: 'blur(4px)',
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 100, backdropFilter: 'blur(4px)',
   },
   card: {
-    background: 'rgba(248,243,225,0.98)',
-    borderRadius: 22,
+    background: 'rgba(248,243,225,0.98)', borderRadius: 22,
     border: '1px solid rgba(108,88,76,0.2)',
     boxShadow: '0 28px 60px rgba(0,0,0,0.55)',
-    padding: '28px 32px 32px',
-    maxWidth: 380,
-    width: '92%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 18,
-    fontFamily: bodyFontFamily,
+    padding: '28px 32px 32px', maxWidth: 380, width: '92%',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18,
+    fontFamily: uiFontFamily,
   },
-  header: {
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: {
-    margin: 0,
-    fontFamily: headingFontFamily,
-    fontSize: 22,
-    color: '#3A2810',
-  },
+  header:     { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  title:      { margin: 0, fontFamily: titleFontFamily, fontSize: 22, color: '#3A2810' },
   closeBtn: {
-    padding: '5px 14px',
-    borderRadius: 8,
-    border: '1px solid rgba(108,88,76,0.3)',
-    background: 'rgba(108,88,76,0.07)',
-    color: '#6C584C',
-    fontFamily: bodyFontFamily,
-    fontSize: 13,
-    cursor: 'pointer',
+    padding: '5px 14px', borderRadius: 8,
+    border: '1px solid rgba(108,88,76,0.3)', background: 'rgba(108,88,76,0.07)',
+    color: '#6C584C', fontFamily: uiFontFamily, fontSize: 13, cursor: 'pointer',
   },
-  magnifierWrap: {
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
+  magnifierWrap:  { position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   magnifierRing: {
-    width: 200,
-    height: 200,
-    borderRadius: '50%',
-    overflow: 'hidden',
-    border: '5px solid',           // color set inline from data.colorHex
+    width: 200, height: 200, borderRadius: '50%', overflow: 'hidden', border: '5px solid',
     boxShadow: '0 8px 32px rgba(0,0,0,0.28), inset 0 0 24px rgba(0,0,0,0.06)',
     background: 'rgba(240,230,210,0.6)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
-  magnifierImg: {
-    width: 178,
-    height: 178,
-    objectFit: 'contain',
-  },
+  magnifierImg: { width: 178, height: 178, objectFit: 'contain' },
   handle: {
-    width: 10,
-    height: 54,
-    borderRadius: 5,
+    width: 10, height: 54, borderRadius: 5,
     transform: 'rotate(35deg) translateX(50px) translateY(-14px)',
-    transformOrigin: 'top center',
-    marginTop: -8,
-    alignSelf: 'flex-end',
-    marginRight: 8,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.22)',
+    transformOrigin: 'top center', marginTop: -8, alignSelf: 'flex-end',
+    marginRight: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.22)',
   },
-  labelRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-  },
-  typeDot: {
-    width: 14,
-    height: 14,
-    borderRadius: '50%',
-    flexShrink: 0,
-  },
-  labelText: {
-    fontSize: 18,
-    fontWeight: 700,
-    letterSpacing: 0.2,
-  },
+  labelRow:  { display: 'flex', alignItems: 'center', gap: 10 },
+  typeDot:   { width: 14, height: 14, borderRadius: '50%', flexShrink: 0 },
+  labelText: { fontSize: 18, fontWeight: 700, letterSpacing: 0.2, fontFamily: uiFontFamily },
   hint: {
-    margin: 0,
-    fontSize: 14,
-    color: '#5A4030',
-    textAlign: 'center',
-    lineHeight: 1.55,
-    padding: '10px 14px',
-    background: 'rgba(90,144,48,0.08)',
-    border: '1px solid rgba(90,144,48,0.22)',
-    borderRadius: 10,
-    fontStyle: 'italic',
-    width: '100%',
-    boxSizing: 'border-box',
+    margin: 0, fontSize: 14, color: '#5A4030', textAlign: 'center',
+    lineHeight: 1.55, padding: '10px 14px',
+    background: 'rgba(90,144,48,0.08)', border: '1px solid rgba(90,144,48,0.22)',
+    borderRadius: 10, fontStyle: 'italic', width: '100%', boxSizing: 'border-box',
+    fontFamily: uiFontFamily,
   },
   continueBtn: {
-    width: '100%',
-    padding: '12px 0',
-    borderRadius: 12,
-    border: 'none',
+    width: '100%', padding: '12px 0', borderRadius: 12, border: 'none',
     background: 'linear-gradient(135deg, #5A9030, #3E6820)',
-    color: '#F0EAD2',
-    fontFamily: bodyFontFamily,
-    fontSize: 16,
-    fontWeight: 700,
-    cursor: 'pointer',
-    boxShadow: '0 6px 18px rgba(58,88,32,0.38)',
+    color: '#F0EAD2', fontFamily: uiFontFamily, fontSize: 16, fontWeight: 700,
+    cursor: 'pointer', boxShadow: '0 6px 18px rgba(58,88,32,0.38)',
   },
 }

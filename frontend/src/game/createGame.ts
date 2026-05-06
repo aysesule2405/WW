@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { bodyFontFamily, headingFontFamily } from '../theme/typography';
+import { bodyFontFamily, headingFontFamily, numberFontFamily } from '../theme/typography';
 
 type GameAPI = {
   start: () => void;
@@ -102,7 +102,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     const t = this.add
       .text(x, y, text, {
         fontFamily: bodyFontFamily,
-        fontSize: '38px',
+        fontSize: '26px',
         color,
         fontStyle: 'bold',
         stroke: '#000000',
@@ -195,7 +195,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     this.add
       .text(width / 2, 120, "Catch the Wind Sprites", {
         fontFamily: headingFontFamily,
-        fontSize: "56px",
+        fontSize: "38px",
         color: "#ffffff",
       })
       .setOrigin(0.5);
@@ -203,23 +203,23 @@ class CatchWindSpritesScene extends Phaser.Scene {
     this.hintText = this.add
       .text(width / 2, 160, "Click Start below to begin", {
         fontFamily: bodyFontFamily,
-        fontSize: "30px",
+        fontSize: "20px",
         color: "#c7d2fe",
       })
       .setOrigin(0.5);
 
     this.scoreText = this.add
       .text(26, 22, "Score: 0", {
-        fontFamily: bodyFontFamily,
-        fontSize: "34px",
+        fontFamily: numberFontFamily,
+        fontSize: "24px",
         color: "#ffffff",
       })
       .setStroke('#000000', 6);
 
     this.timerText = this.add
       .text(width - 26, 22, "01:00", {
-        fontFamily: bodyFontFamily,
-        fontSize: "34px",
+        fontFamily: numberFontFamily,
+        fontSize: "24px",
         color: "#ffffff",
       })
       .setOrigin(1, 0)
@@ -292,7 +292,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     const title = this.add
       .text(width / 2, height / 2 - 60, 'Catch the Wind Sprites', {
         fontFamily: headingFontFamily,
-        fontSize: '72px',
+        fontSize: '46px',
         color: '#ffffff',
       })
       .setOrigin(0.5);
@@ -300,7 +300,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     const startBtn = this.add
       .text(width / 2, height / 2 + 10, 'Start', {
         fontFamily: bodyFontFamily,
-        fontSize: '42px',
+        fontSize: '28px',
         color: '#111827',
         backgroundColor: '#a78bfa',
         padding: { x: 20, y: 12 },
@@ -319,15 +319,15 @@ class CatchWindSpritesScene extends Phaser.Scene {
     const overTitle = this.add
       .text(width / 2, height / 2 - 60, 'Game Over', {
         fontFamily: headingFontFamily,
-        fontSize: '68px',
+        fontSize: '44px',
         color: '#ffffff',
       })
       .setOrigin(0.5);
 
     const finalScoreText = this.add
       .text(width / 2, height / 2 - 10, 'Final Score: 0', {
-        fontFamily: bodyFontFamily,
-        fontSize: '40px',
+        fontFamily: numberFontFamily,
+        fontSize: '28px',
         color: '#c7d2fe',
       })
       .setOrigin(0.5);
@@ -335,7 +335,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     const restartBtn = this.add
       .text(width / 2, height / 2 + 40, 'Restart', {
         fontFamily: bodyFontFamily,
-        fontSize: '38px',
+        fontSize: '26px',
         color: '#111827',
         backgroundColor: '#93c5fd',
         padding: { x: 18, y: 10 },
@@ -491,17 +491,17 @@ class CatchWindSpritesScene extends Phaser.Scene {
     const roll = Math.random();
 
     if (roll < 0.03) {
-      return { key: 'spirit-gold', points: 5, scale: 0.84, isGold: true, isCursed: false };
+      return { key: 'spirit-gold', points: 5, scale: 0.58, isGold: true, isCursed: false };
     }
     // Cursed spirit — dark tinted, penalises click and breaks combo
     if (roll < 0.10) {
-      return { key: 'spirit-1', points: -3, scale: 0.78, isGold: false, isCursed: true };
+      return { key: 'spirit-1', points: -3, scale: 0.54, isGold: false, isCursed: true };
     }
 
     const commons = [
-      { key: 'spirit-1', points: 1, scale: 0.84, isGold: false, isCursed: false },
-      { key: 'spirit-2', points: 1, scale: 0.84, isGold: false, isCursed: false },
-      { key: 'spirit-3', points: 1, scale: 0.84, isGold: false, isCursed: false },
+      { key: 'spirit-1', points: 1, scale: 0.58, isGold: false, isCursed: false },
+      { key: 'spirit-2', points: 1, scale: 0.58, isGold: false, isCursed: false },
+      { key: 'spirit-3', points: 1, scale: 0.58, isGold: false, isCursed: false },
     ].filter((s) => this.textures.exists(s.key));
 
     return commons[Math.floor(Math.random() * commons.length)];
@@ -705,8 +705,8 @@ export function createGame(parent: HTMLDivElement, options?: GameOptions): GameA
     type: Phaser.AUTO,
     parent,
     scale: {
-      width: 1920,
-      height: 1080,
+      width: 1280,
+      height: 720,
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },

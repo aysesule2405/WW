@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { bodyFontFamily, headingFontFamily } from '../theme/typography';
-import { getToken } from '../lib/api';
+import { uiFontFamily, titleFontFamily, numberFontFamily } from '../theme/typography';
+import { apiUrl, getToken, submitSession } from '../lib/api';
+import GameShell from './game/GameShell';
+import GameDescriptionPanel from '../games/spirit-sapling/GameDescriptionPanel';
+import TalkToSaplingPanel from '../games/spirit-sapling/TalkToSaplingPanel';
+import AchievementToast from './AchievementToast';
+import type { UnlockedAchievement } from './AchievementToast';
+
+const bodyFontFamily    = uiFontFamily
+const headingFontFamily = titleFontFamily
 
 type Props = {
   onExit: () => void;
@@ -74,7 +82,9 @@ const basketButtonImage = '/assets/backgrounds/spirit-sapling/baskets/basket.png
 
 const dropletOffsets = [12, 20, 28, 36, 44, 52, 60, 68, 76, 84];
 
-const ENERGY_RECHARGE_SECONDS = 20;
+const BASE_ENERGY_RECHARGE_SECONDS = 20;
+const MIN_ENERGY_RECHARGE_SECONDS = 8;
+const KINDNESS_RECHARGE_REDUCTION_SECONDS = 4;
 const energyFrames = [
   '/assets/animation/energy/energy-0.png',
   '/assets/animation/energy/energy-25.png',
@@ -83,17 +93,19 @@ const energyFrames = [
   '/assets/animation/energy/energy-100.png',
 ];
 
+type GameScreen = 'description' | 'selection' | 'game' | 'results';
 type SaplingEffect = 'water' | 'sun' | 'talk' | null;
 type SaplingAction = Exclude<SaplingEffect, null> | 'harvest';
 
 export default function SpiritSaplingGame({ onExit }: Props) {
-  const [hasStarted, setHasStarted] = useState(false);
+  const [screen, setScreen] = useState<GameScreen>('description');
   const [selectedGuardianId, setSelectedGuardianId] = useState<GuardianId>('deer');
   const [stageIndex, setStageIndex] = useState(0);
   const [transitionKey, setTransitionKey] = useState(0);
   const [isTalking, setIsTalking] = useState(false);
   const [spokenLine, setSpokenLine] = useState('');
-  const [energyElapsedSeconds, setEnergyElapsedSeconds] = useState(ENERGY_RECHARGE_SECONDS);
+  const [energyElapsedSeconds, setEnergyElapsedSeconds] = useState(BASE_ENERGY_RECHARGE_SECONDS);
+  const [energyRechargeSeconds, setEnergyRechargeSeconds] = useState(BASE_ENERGY_RECHARGE_SECONDS);
   const [growthImageReady, setGrowthImageReady] = useState<Record<string, boolean>>({});
   const [activeEffect, setActiveEffect] = useState<SaplingEffect>(null);
   const [activeAction, setActiveAction] = useState<SaplingAction | null>(null);
@@ -101,6 +113,13 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   const [previousStageIndex, setPreviousStageIndex] = useState<number | null>(null);
   const [hasCollectedFruit, setHasCollectedFruit] = useState(false);
   const [harvestedGuardianId, setHarvestedGuardianId] = useState<GuardianId | null>(null);
+  const [harvestScore, setHarvestScore] = useState<number | null>(null);
+  const [showTalkPanel, setShowTalkPanel] = useState(false);
+  const [talkBoostTotal, setTalkBoostTotal] = useState(0);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<UnlockedAchievement[]>([]);
+  const waterCountRef = useRef(0);
+  const sunCountRef   = useRef(0);
+  const talkCountRef  = useRef(0);
   const effectTimerRef = useRef<number | null>(null);
   const stageTransitionTimerRef = useRef<number | null>(null);
   const growthDelayTimerRef = useRef<number | null>(null);
@@ -127,9 +146,9 @@ export default function SpiritSaplingGame({ onExit }: Props) {
 
   const atFinalStage = stageIndex >= growthStages.length - 1;
   const canCollectFruit = atFinalStage && !hasCollectedFruit && previousStageIndex === null && !isTalking;
-  const isRecharging = energyElapsedSeconds < ENERGY_RECHARGE_SECONDS;
-  const energyPercent = Math.round((energyElapsedSeconds / ENERGY_RECHARGE_SECONDS) * 100);
-  const energyFrameIndex = Math.min(4, Math.floor(energyElapsedSeconds / 5));
+  const isRecharging = energyElapsedSeconds < energyRechargeSeconds;
+  const energyPercent = Math.min(100, Math.round((energyElapsedSeconds / energyRechargeSeconds) * 100));
+  const energyFrameIndex = Math.min(4, Math.floor((energyPercent / 100) * 4));
   const currentStageSrc = growthStages[stageIndex];
   const isCurrentStageLoaded = Boolean(growthImageReady[currentStageSrc]);
 
@@ -220,7 +239,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!hasStarted || atFinalStage || energyElapsedSeconds >= ENERGY_RECHARGE_SECONDS) {
+    if (screen !== 'game' || atFinalStage || energyElapsedSeconds >= energyRechargeSeconds) {
       if (energyTickTimerRef.current) {
         window.clearInterval(energyTickTimerRef.current);
         energyTickTimerRef.current = null;
@@ -229,7 +248,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     }
 
     energyTickTimerRef.current = window.setInterval(() => {
-      setEnergyElapsedSeconds((current) => Math.min(ENERGY_RECHARGE_SECONDS, current + 1));
+      setEnergyElapsedSeconds((current) => Math.min(energyRechargeSeconds, current + 1));
     }, 1000);
 
     return () => {
@@ -238,7 +257,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
         energyTickTimerRef.current = null;
       }
     };
-  }, [hasStarted, atFinalStage, energyElapsedSeconds]);
+  }, [screen, atFinalStage, energyElapsedSeconds, energyRechargeSeconds]);
 
   const scheduleGrowthAdvance = (delayMs: number) => {
     if (growthDelayTimerRef.current) {
@@ -259,6 +278,9 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   const handleSunOrWaterAction = (action: Extract<SaplingAction, 'sun' | 'water'>) => {
     if (!canUseNurtureAction) return;
 
+    if (action === 'water') waterCountRef.current += 1;
+    else sunCountRef.current += 1;
+
     const effectDuration = action === 'water' ? 1900 : 1800;
     const growthDelay = action === 'water' ? 780 : 680;
 
@@ -275,9 +297,9 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     }, 1050);
   };
 
-  const handleTalkAction = async () => {
-    if (!canUseNurtureAction) return;
-
+  const handleHearGuardian = async () => {
+    if (isTalking) return;
+    talkCountRef.current += 1;
     resetEnergyOnNurture();
     setActiveAction('talk');
     triggerEffect('talk', 3600);
@@ -286,13 +308,44 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     setActiveAction(null);
   };
 
-  const handleCollectFruit = () => {
+  const handleKindnessApproved = (growthBoost: number) => {
+    setTalkBoostTotal((prev) => prev + growthBoost);
+    setEnergyRechargeSeconds((current) =>
+      Math.max(
+        MIN_ENERGY_RECHARGE_SECONDS,
+        current - growthBoost * KINDNESS_RECHARGE_REDUCTION_SECONDS,
+      )
+    );
+  };
+
+  const handleCollectFruit = async () => {
     if (!canCollectFruit) return;
+
+    const harmonyBonus = waterCountRef.current > 0 && sunCountRef.current > 0 && talkCountRef.current > 0;
+    const score = 50 + 10 + (harmonyBonus ? 20 : 0) + talkBoostTotal * 5;
 
     setActiveAction('harvest');
     setHarvestedGuardianId(selectedGuardianId);
+    setHarvestScore(score);
+
+    const result = await submitSession('spirit-sapling', {
+      completed: true,
+      won: true,
+      score,
+      guardianId: selectedGuardianId,
+      growthStageReached: 'full',
+      waterActions: waterCountRef.current,
+      sunActions:   sunCountRef.current,
+      talkActions:  talkCountRef.current,
+      harmonyBonus,
+      saplingsGrown: 1,
+      fruitsCollected: 1,
+    });
+    setUnlockedAchievements(result?.achievements ?? []);
+
     window.setTimeout(() => {
       setHasCollectedFruit(true);
+      setScreen('results');
       setActiveAction(null);
     }, 220);
   };
@@ -329,6 +382,25 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     return lines[currentStage % lines.length];
   };
 
+  const browserSpeak = (text: string, guardianId: GuardianId): Promise<void> =>
+    new Promise((resolve) => {
+      if (!window.speechSynthesis) { resolve(); return; }
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      // Each guardian gets a distinct voice character
+      const cfg: Record<GuardianId, { rate: number; pitch: number }> = {
+        deer:     { rate: 0.82, pitch: 1.10 },
+        fox:      { rate: 1.08, pitch: 1.30 },
+        kodama:   { rate: 0.74, pitch: 1.55 },
+        mononoke: { rate: 0.90, pitch: 0.78 },
+      };
+      utter.rate  = cfg[guardianId].rate;
+      utter.pitch = cfg[guardianId].pitch;
+      utter.onend   = () => resolve();
+      utter.onerror = () => resolve();
+      window.speechSynthesis.speak(utter);
+    });
+
   const speakGuardian = async () => {
     if (isTalking) return;
 
@@ -340,7 +412,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
 
     try {
       const token = getToken();
-      const response = await fetch('/api/v1/tts/guardian', {
+      const response = await fetch(apiUrl('/tts/guardian'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -352,13 +424,15 @@ export default function SpiritSaplingGame({ onExit }: Props) {
         }),
       });
 
+      setSpokenLine(line);
+
       if (!response.ok) {
-        console.warn('Guardian TTS unavailable:', response.status);
-        setSpokenLine(line);
+        const errBody = await response.text().catch(() => '');
+        console.error(`[TTS] Request failed (HTTP ${response.status}): ${errBody}`);
+        await browserSpeak(line, selectedGuardianId);
         return;
       }
 
-      setSpokenLine(line);
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const voice = new Audio(audioUrl);
@@ -370,7 +444,8 @@ export default function SpiritSaplingGame({ onExit }: Props) {
       });
     } catch (error) {
       setSpokenLine(line);
-      console.warn('Failed to play guardian voice:', error);
+      console.warn('Failed to play guardian voice, using browser TTS:', error);
+      await browserSpeak(line, selectedGuardianId);
     } finally {
       const elapsedMs = Date.now() - startedAt;
       const holdMs = Math.max(0, minTalkAndSubtitleMs - elapsedMs);
@@ -384,27 +459,110 @@ export default function SpiritSaplingGame({ onExit }: Props) {
 
   const restartJourney = () => {
     setStageIndex(0);
-    setEnergyElapsedSeconds(ENERGY_RECHARGE_SECONDS);
+    setEnergyElapsedSeconds(BASE_ENERGY_RECHARGE_SECONDS);
+    setEnergyRechargeSeconds(BASE_ENERGY_RECHARGE_SECONDS);
     setTransitionKey((value) => value + 1);
     setPreviousStageIndex(null);
     setHasCollectedFruit(false);
     setHarvestedGuardianId(null);
+    setHarvestScore(null);
+    setTalkBoostTotal(0);
+    setShowTalkPanel(false);
+    waterCountRef.current = 0;
+    sunCountRef.current   = 0;
+    talkCountRef.current  = 0;
     setActiveAction(null);
     setActiveEffect(null);
     setIsTalking(false);
     setSpokenLine('');
+    setScreen('game');
   };
 
-  if (!hasStarted) {
-    return (
-      <div style={styles.page}>
-        <div style={styles.topBar}>
-          <button style={styles.backButton} onClick={onExit}>
-            ← Back to Grove
-          </button>
-          <h2 style={styles.heading}>Spirit Sapling</h2>
-        </div>
+  const SHELL_BG = "linear-gradient(rgba(20,20,20,0.2),rgba(20,20,20,0.2)), url('/assets/backgrounds/spirit-sapling/game-bg.png') center/cover no-repeat";
+  const actionButtons = (
+    <div style={styles.buttonRow}>
+      <button
+        type="button"
+        style={{
+          ...styles.iconButton,
+          ...styles.talkSaplingButton,
+          opacity: isTalking ? 0.55 : 1,
+        }}
+        onClick={() => setShowTalkPanel(true)}
+        disabled={isTalking}
+      >
+        <span style={styles.buttonEmoji}>💬</span>
+        <span style={styles.actionLabel}>Talk to Sapling</span>
+        <span style={styles.actionHint}>Kind words help it grow</span>
+      </button>
+      <button
+        type="button"
+        style={{
+          ...styles.iconButton,
+          ...styles.talkButton,
+          opacity: (isRecharging || isTalking) && activeAction !== 'talk' ? 0.55 : 1,
+          boxShadow: activeAction === 'talk'
+            ? '0 0 18px rgba(236, 206, 145, 0.78), 0 0 32px rgba(236, 206, 145, 0.34)'
+            : '0 8px 18px rgba(0,0,0,0.22)',
+          transform: activeAction === 'talk' ? 'translateX(2px) scale(1.03)' : 'translateX(0) scale(1)',
+        }}
+        onClick={handleHearGuardian}
+        disabled={!canUseNurtureAction}
+      >
+        <img src={selectedGuardian.talkButton} alt={`Hear ${selectedGuardian.name}`} style={styles.buttonArt} />
+        <span style={styles.actionLabel}>Hear {selectedGuardian.name}</span>
+        <span style={styles.actionHint}>Guardian speaks</span>
+      </button>
+      <button
+        type="button"
+        style={{
+          ...styles.iconButton,
+          ...styles.waterButton,
+          opacity: (isRecharging || isTalking) && activeAction !== 'water' ? 0.55 : 1,
+          boxShadow: activeAction === 'water'
+            ? '0 0 18px rgba(108, 177, 231, 0.82), 0 0 28px rgba(108, 177, 231, 0.32)'
+            : '0 8px 18px rgba(0,0,0,0.22)',
+          transform: activeAction === 'water' ? 'translateX(2px) scale(1.03)' : 'translateX(0) scale(1)',
+        }}
+        onClick={() => handleSunOrWaterAction('water')}
+        disabled={!canUseNurtureAction}
+      >
+        <img src="/assets/backgrounds/spirit-sapling/buttons/water-bucket-button.png" alt="Water bucket" style={styles.buttonArt} />
+        <span style={styles.actionLabel}>Water</span>
+        <span style={styles.actionHint}>Rain blessing</span>
+      </button>
+      <button
+        type="button"
+        style={{
+          ...styles.iconButton,
+          ...styles.sunButton,
+          opacity: (isRecharging || isTalking) && activeAction !== 'sun' ? 0.55 : 1,
+          boxShadow: activeAction === 'sun'
+            ? '0 0 18px rgba(255, 208, 99, 0.86), 0 0 28px rgba(255, 208, 99, 0.36)'
+            : '0 8px 18px rgba(0,0,0,0.22)',
+          transform: activeAction === 'sun' ? 'translateX(2px) scale(1.03)' : 'translateX(0) scale(1)',
+        }}
+        onClick={() => handleSunOrWaterAction('sun')}
+        disabled={!canUseNurtureAction}
+      >
+        <img src="/assets/backgrounds/spirit-sapling/buttons/sun-light-button.png" alt="Sun light" style={styles.buttonArt} />
+        <span style={styles.actionLabel}>Sun</span>
+        <span style={styles.actionHint}>Warm leaves</span>
+      </button>
+    </div>
+  );
 
+  if (screen === 'description') {
+    return (
+      <GameShell title="Spirit Sapling" onExit={onExit} background={SHELL_BG} accentColor="#F0EAD2">
+        <GameDescriptionPanel onContinue={() => setScreen('selection')} />
+      </GameShell>
+    );
+  }
+
+  if (screen === 'selection') {
+    return (
+      <GameShell title="Spirit Sapling" onExit={onExit} background={SHELL_BG} accentColor="#F0EAD2">
         <div style={styles.selectionWrap}>
           <div style={styles.selectionCard}>
             <h3 style={styles.selectionTitle}>Choose Your Guardian</h3>
@@ -431,46 +589,74 @@ export default function SpiritSaplingGame({ onExit }: Props) {
               })}
             </div>
 
-            <button type="button" style={styles.primaryAction} onClick={() => setHasStarted(true)}>
-              Begin Nurturing
-            </button>
+            <div style={styles.selectionActions}>
+              <button type="button" style={styles.ghostAction} onClick={() => setScreen('description')}>
+                ← Back
+              </button>
+              <button type="button" style={styles.primaryAction} onClick={() => setScreen('game')}>
+                Begin Nurturing
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </GameShell>
     );
   }
 
-  if (hasCollectedFruit && harvestedGuardian) {
+  if (screen === 'results' && harvestedGuardian) {
     return (
-      <div style={styles.page}>
-        <div style={styles.topBar}>
-          <button style={styles.backButton} onClick={onExit}>
-            ← Back to Grove
-          </button>
-          <h2 style={styles.heading}>Spirit Sapling</h2>
-        </div>
-
+      <GameShell title="Spirit Sapling" onExit={onExit}
+        background="linear-gradient(rgba(20,20,20,0.2),rgba(20,20,20,0.2)), url('/assets/backgrounds/spirit-sapling/game-bg.png') center/cover no-repeat"
+        accentColor="#F0EAD2"
+      >
+        <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
         <div style={styles.celebrationWrap}>
           <div style={styles.celebrationCard}>
             <p style={styles.celebrationOverline}>Sacred Harvest Gathered</p>
-            <h3 style={styles.celebrationTitle}>{harvestedGuardian.sacredTreeName} Collected</h3>
             <p style={styles.celebrationSubtitle}>
               Guided by {harvestedGuardian.name}, your spirit sapling matured into a sacred tree and filled the basket with {harvestedGuardian.harvestName}.
             </p>
 
+            {harvestScore !== null && (
+              <div style={styles.scoreBreakdown}>
+                <div style={styles.scoreRow}>
+                  <span style={styles.scoreDetail}>Fully grown</span>
+                  <span style={styles.scoreDetail}>+50</span>
+                </div>
+                <div style={styles.scoreRow}>
+                  <span style={styles.scoreDetail}>Harvest gathered</span>
+                  <span style={styles.scoreDetail}>+10</span>
+                </div>
+                {(harvestScore - talkBoostTotal * 5) >= 80 && (
+                  <div style={styles.scoreRow}>
+                    <span style={styles.scoreDetail}>Harmony bonus ✨</span>
+                    <span style={styles.scoreDetail}>+20</span>
+                  </div>
+                )}
+                {talkBoostTotal > 0 && (
+                  <div style={styles.scoreRow}>
+                    <span style={styles.scoreDetail}>Kind words 💚 ×{talkBoostTotal}</span>
+                    <span style={styles.scoreDetail}>+{talkBoostTotal * 5}</span>
+                  </div>
+                )}
+                <div style={{ ...styles.scoreRow, ...styles.scoreTotalRow }}>
+                  <span style={styles.scoreTotalLabel}>Total Score</span>
+                  <span style={styles.scoreTotalValue}>{harvestScore} pts</span>
+                </div>
+              </div>
+            )}
+
             <div style={styles.celebrationVisualArea}>
-              <img
-                key={`celebration-${transitionKey}`}
-                src={harvestedGuardian.fruitTree}
-                alt={harvestedGuardian.sacredTreeName}
-                style={styles.celebrationSapling}
-              />
-              <img src={harvestedGuardian.image} alt={harvestedGuardian.name} style={styles.celebrationGuardian} />
               <img
                 src={harvestedGuardian.fruitBasket}
                 alt={`Basket of ${harvestedGuardian.harvestName}`}
                 style={styles.celebrationBasket}
               />
+              <div style={styles.celebrationResultText}>
+                <span style={styles.celebrationResultKicker}>Harvest Complete</span>
+                <span style={styles.celebrationResultMain}>{harvestedGuardian.harvestName} gathered</span>
+              </div>
+              <img src={harvestedGuardian.image} alt={harvestedGuardian.name} style={styles.celebrationGuardian} />
             </div>
 
             <div style={styles.celebrationActions}>
@@ -482,7 +668,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
                 style={styles.celebrationSecondaryAction}
                 onClick={() => {
                   restartJourney();
-                  setHasStarted(false);
+                  setScreen('selection');
                 }}
               >
                 Choose New Guardian
@@ -490,19 +676,20 @@ export default function SpiritSaplingGame({ onExit }: Props) {
             </div>
           </div>
         </div>
-      </div>
+      </GameShell>
     );
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.topBar}>
-        <button style={styles.backButton} onClick={onExit}>
-          ← Back to Grove
-        </button>
-        <h2 style={styles.heading}>Spirit Sapling</h2>
-      </div>
-
+    <GameShell title="Spirit Sapling" onExit={onExit} background={SHELL_BG} accentColor="#F0EAD2">
+      <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
+      {showTalkPanel && (
+        <TalkToSaplingPanel
+          guardianName={selectedGuardian.name}
+          onClose={() => setShowTalkPanel(false)}
+          onApproved={handleKindnessApproved}
+        />
+      )}
       <div style={styles.gameLayout}>
         <div style={styles.saplingPanel}>
           <div style={styles.saplingFrame}>
@@ -566,97 +753,31 @@ export default function SpiritSaplingGame({ onExit }: Props) {
                 <p style={styles.energyLabel}>Sapling Energy {energyPercent}%</p>
                 <p style={styles.energyHint}>
                   {isRecharging
-                    ? `Energizing... ready in ${ENERGY_RECHARGE_SECONDS - energyElapsedSeconds}s`
-                    : 'Fully energized. Choose one nurturing action.'}
+                    ? `Energizing... ready in ${energyRechargeSeconds - energyElapsedSeconds}s`
+                    : `Fully energized. Next recharge: ${energyRechargeSeconds}s.`}
                 </p>
               </div>
             </div>
+            {!canCollectFruit ? actionButtons : null}
+            {canCollectFruit ? (
+              <div style={styles.harvestRow}>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.collectButton,
+                    boxShadow: activeAction === 'harvest'
+                      ? '0 0 18px rgba(242, 204, 143, 0.8), 0 0 30px rgba(242, 204, 143, 0.34)'
+                      : '0 8px 18px rgba(0,0,0,0.24)',
+                    transform: activeAction === 'harvest' ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)',
+                  }}
+                  onClick={handleCollectFruit}
+                >
+                  <img src={basketButtonImage} alt="Collect fruit basket" style={styles.collectButtonArt} />
+                  <span style={styles.collectLabel}>Collect Fruits</span>
+                </button>
+              </div>
+            ) : null}
           </div>
-
-          {canCollectFruit ? (
-            <div style={styles.harvestRow}>
-              <button
-                type="button"
-                style={{
-                  ...styles.collectButton,
-                  boxShadow: activeAction === 'harvest'
-                    ? '0 0 18px rgba(242, 204, 143, 0.8), 0 0 30px rgba(242, 204, 143, 0.34)'
-                    : '0 8px 18px rgba(0,0,0,0.24)',
-                  transform: activeAction === 'harvest' ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)',
-                }}
-                onClick={handleCollectFruit}
-              >
-                <img src={basketButtonImage} alt="Collect fruit basket" style={styles.collectButtonArt} />
-                <span style={styles.collectLabel}>Collect Fruits</span>
-                <span style={styles.collectHint}>Gather the {selectedGuardian.harvestName} from your sacred tree</span>
-              </button>
-            </div>
-          ) : (
-            <div style={styles.buttonRow}>
-              <button
-                type="button"
-                style={{
-                  ...styles.iconButton,
-                  ...styles.talkButton,
-                  opacity: (isRecharging || isTalking) && activeAction !== 'talk' ? 0.55 : 1,
-                  boxShadow: activeAction === 'talk'
-                    ? '0 0 18px rgba(236, 206, 145, 0.78), 0 0 32px rgba(236, 206, 145, 0.34)'
-                    : '0 8px 18px rgba(0,0,0,0.22)',
-                  transform: activeAction === 'talk' ? 'translateY(-2px) scale(1.03)' : 'translateY(0) scale(1)',
-                }}
-                onClick={handleTalkAction}
-                disabled={!canUseNurtureAction}
-              >
-                <img src={selectedGuardian.talkButton} alt={`Talk with ${selectedGuardian.name}`} style={styles.buttonArt} />
-                <span style={styles.actionLabel}>Talk</span>
-                <span style={styles.actionHint}>Hear {selectedGuardian.name}</span>
-              </button>
-              <button
-                type="button"
-                style={{
-                  ...styles.iconButton,
-                  ...styles.waterButton,
-                  opacity: (isRecharging || isTalking) && activeAction !== 'water' ? 0.55 : 1,
-                  boxShadow: activeAction === 'water'
-                    ? '0 0 18px rgba(108, 177, 231, 0.82), 0 0 28px rgba(108, 177, 231, 0.32)'
-                    : '0 8px 18px rgba(0,0,0,0.22)',
-                  transform: activeAction === 'water' ? 'translateY(-2px) scale(1.03)' : 'translateY(0) scale(1)',
-                }}
-                onClick={() => handleSunOrWaterAction('water')}
-                disabled={!canUseNurtureAction}
-              >
-                <img
-                  src="/assets/backgrounds/spirit-sapling/buttons/water-bucket-button.png"
-                  alt="Water bucket"
-                  style={styles.buttonArt}
-                />
-                <span style={styles.actionLabel}>Water</span>
-                <span style={styles.actionHint}>Rain blessing</span>
-              </button>
-              <button
-                type="button"
-                style={{
-                  ...styles.iconButton,
-                  ...styles.sunButton,
-                  opacity: (isRecharging || isTalking) && activeAction !== 'sun' ? 0.55 : 1,
-                  boxShadow: activeAction === 'sun'
-                    ? '0 0 18px rgba(255, 208, 99, 0.86), 0 0 28px rgba(255, 208, 99, 0.36)'
-                    : '0 8px 18px rgba(0,0,0,0.22)',
-                  transform: activeAction === 'sun' ? 'translateY(-2px) scale(1.03)' : 'translateY(0) scale(1)',
-                }}
-                onClick={() => handleSunOrWaterAction('sun')}
-                disabled={!canUseNurtureAction}
-              >
-                <img
-                  src="/assets/backgrounds/spirit-sapling/buttons/sun-light-button.png"
-                  alt="Sun light"
-                  style={styles.buttonArt}
-                />
-                <span style={styles.actionLabel}>Sun</span>
-                <span style={styles.actionHint}>Warm the leaves</span>
-              </button>
-            </div>
-          )}
 
           <p style={styles.statusText}>
             {canCollectFruit
@@ -687,19 +808,13 @@ export default function SpiritSaplingGame({ onExit }: Props) {
           })}
         </aside>
       </div>
-    </div>
+    </GameShell>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: '100vh',
-    position: 'relative',
-    background:
-      "linear-gradient(rgba(20, 20, 20, 0.2), rgba(20, 20, 20, 0.2)), url('/assets/backgrounds/spirit-sapling/game-bg.png') center/cover no-repeat",
-    padding: 24,
-    boxSizing: 'border-box',
-  },
+  // page and topBar are now provided by GameShell
+  page:   {},
   topBar: {
     maxWidth: 1920,
     margin: '0 auto 18px',
@@ -708,113 +823,114 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     gap: 16,
   },
-  backButton: {
-    backgroundColor: '#A98467',
-    color: '#F0EAD2',
-    border: 'none',
-    borderRadius: 12,
-    padding: '14px 22px',
-    cursor: 'pointer',
-    fontWeight: 600,
-    fontFamily: bodyFontFamily,
-    fontSize: 28,
-  },
-  heading: {
-    color: '#6C584C',
-    margin: 0,
-    fontFamily: headingFontFamily,
-    fontSize: 44,
-  },
+  backButton: {},
+  heading: {},
   selectionWrap: {
-    minHeight: 'calc(100vh - 120px)',
+    flex: 1,
+    overflowY: 'auto',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
   },
   selectionCard: {
-    width: 'min(1000px, 96vw)',
-    borderRadius: 24,
-    padding: 24,
-    background: 'rgba(45, 30, 22, 0.54)',
-    border: '1px solid rgba(255,255,255,0.36)',
-    boxShadow: '0 20px 42px rgba(0,0,0,0.32)',
+    width: 'min(800px, 96vw)',
+    borderRadius: 22,
+    padding: '20px 24px',
+    background: 'rgba(45, 30, 22, 0.72)',
+    backdropFilter: 'blur(16px)',
+    border: '1px solid rgba(255,255,255,0.22)',
+    boxShadow: '0 20px 42px rgba(0,0,0,0.45)',
   },
   selectionTitle: {
     margin: 0,
     color: '#F0EAD2',
     textAlign: 'center',
     fontFamily: headingFontFamily,
-    fontSize: 42,
+    fontSize: 28,
   },
   selectionSubtitle: {
-    margin: '8px 0 18px',
-    color: '#F0EAD2',
+    margin: '6px 0 16px',
+    color: 'rgba(240,234,210,0.8)',
     textAlign: 'center',
     fontFamily: bodyFontFamily,
-    fontSize: 26,
-    opacity: 0.95,
+    fontSize: 14,
   },
   guardianGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-    gap: 14,
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 12,
   },
   guardianChoice: {
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 12,
+    padding: '10px 8px',
     cursor: 'pointer',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   guardianChoiceImage: {
     width: '100%',
-    maxWidth: 140,
+    maxWidth: 100,
     aspectRatio: '1 / 1',
     objectFit: 'contain',
   },
   guardianChoiceLabel: {
     fontFamily: bodyFontFamily,
     color: '#F0EAD2',
-    fontSize: 24,
+    fontSize: 14,
+    fontWeight: 600,
+  },
+  selectionActions: {
+    marginTop: 16,
+    display: 'flex',
+    gap: 10,
+    justifyContent: 'center',
   },
   primaryAction: {
-    marginTop: 20,
-    marginLeft: 'auto',
-    marginRight: 'auto',
-    display: 'block',
     border: 'none',
-    borderRadius: 12,
+    borderRadius: 11,
     background: '#DDE5B6',
     color: '#3B4A20',
     fontFamily: bodyFontFamily,
-    fontSize: 30,
+    fontSize: 15,
     fontWeight: 700,
-    padding: '12px 24px',
+    padding: '11px 24px',
+    cursor: 'pointer',
+  },
+  ghostAction: {
+    border: '1px solid rgba(240,234,210,0.3)',
+    borderRadius: 11,
+    background: 'transparent',
+    color: 'rgba(240,234,210,0.7)',
+    fontFamily: bodyFontFamily,
+    fontSize: 15,
+    padding: '11px 20px',
     cursor: 'pointer',
   },
   secondaryAction: {
     border: 'none',
-    borderRadius: 12,
+    borderRadius: 11,
     background: 'rgba(233, 227, 201, 0.95)',
     color: '#5D3F2B',
     fontFamily: bodyFontFamily,
-    fontSize: 28,
+    fontSize: 15,
     fontWeight: 700,
-    padding: '12px 24px',
+    padding: '11px 20px',
     cursor: 'pointer',
   },
   gameLayout: {
     maxWidth: 1920,
     margin: '0 auto',
     width: '100%',
-    minHeight: 'calc(100vh - 120px)',
+    flex: 1,
+    padding: '12px 20px 16px',
+    boxSizing: 'border-box',
     display: 'grid',
     gridTemplateColumns: '1fr minmax(140px, 220px)',
     gap: 16,
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
   saplingPanel: {
     borderRadius: 22,
@@ -968,16 +1084,23 @@ const styles: Record<string, React.CSSProperties> = {
     animation: 'sun-glow-pulse 1600ms ease-out forwards',
   },
   buttonRow: {
-    marginTop: 14,
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(108px, 146px))',
-    justifyContent: 'center',
+    position: 'absolute',
+    left: 14,
+    top: 76,
+    zIndex: 8,
+    display: 'flex',
+    flexDirection: 'column',
+    width: 154,
     gap: 10,
   },
   harvestRow: {
-    marginTop: 14,
+    position: 'absolute',
+    left: 18,
+    bottom: 18,
+    zIndex: 9,
     display: 'flex',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    pointerEvents: 'auto',
   },
   energyPanel: {
     position: 'absolute',
@@ -1020,70 +1143,88 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1.25,
   },
   iconButton: {
-    border: '1px solid rgba(255,255,255,0.3)',
-    background: 'rgba(255,255,255,0.14)',
+    border: '1px solid rgba(210, 232, 184, 0.36)',
+    background: 'linear-gradient(180deg, rgba(35, 61, 32, 0.9), rgba(17, 38, 22, 0.92))',
     borderRadius: 12,
-    padding: '8px 6px 7px',
+    padding: '9px 8px 8px',
     width: '100%',
     transition: 'transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease',
     cursor: 'pointer',
     display: 'grid',
     justifyItems: 'center',
     alignContent: 'start',
-    gap: 2,
+    gap: 4,
+    minHeight: 112,
+    backdropFilter: 'blur(8px)',
+    boxShadow: '0 10px 24px rgba(0,0,0,0.32)',
+  },
+  talkSaplingButton: {
+    background: 'linear-gradient(180deg, rgba(42, 84, 45, 0.94), rgba(18, 48, 25, 0.96))',
+    border: '1px solid rgba(156, 213, 139, 0.44)',
+  },
+  buttonEmoji: {
+    fontSize: 28,
+    lineHeight: 1,
+    display: 'block',
   },
   talkButton: {
-    background: 'linear-gradient(180deg, rgba(234, 210, 162, 0.3), rgba(118, 84, 55, 0.36))',
+    background: 'linear-gradient(180deg, rgba(53, 76, 42, 0.94), rgba(23, 42, 24, 0.96))',
   },
   waterButton: {
-    background: 'linear-gradient(180deg, rgba(162, 219, 245, 0.34), rgba(44, 110, 145, 0.32))',
+    background: 'linear-gradient(180deg, rgba(38, 77, 58, 0.94), rgba(18, 46, 35, 0.96))',
   },
   sunButton: {
-    background: 'linear-gradient(180deg, rgba(255, 224, 145, 0.36), rgba(164, 108, 38, 0.32))',
+    background: 'linear-gradient(180deg, rgba(67, 80, 39, 0.94), rgba(33, 47, 21, 0.96))',
   },
   buttonArt: {
     width: '100%',
-    height: 70,
+    height: 56,
     objectFit: 'contain',
     display: 'block',
   },
   actionLabel: {
     color: '#FAF0DA',
     fontFamily: headingFontFamily,
-    fontSize: 18,
+    fontSize: 17,
     lineHeight: 1,
+    textAlign: 'center',
   },
   actionHint: {
-    color: 'rgba(245, 239, 224, 0.92)',
+    color: 'rgba(245, 239, 224, 0.94)',
     fontFamily: bodyFontFamily,
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 1.05,
     letterSpacing: 0.15,
+    textAlign: 'center',
   },
   collectButton: {
     border: '1px solid rgba(255,255,255,0.34)',
-    background: 'linear-gradient(180deg, rgba(243, 219, 170, 0.35), rgba(126, 81, 33, 0.38))',
-    borderRadius: 16,
-    padding: '10px 16px',
-    width: 'min(100%, 420px)',
+    background: 'linear-gradient(180deg, rgba(57, 73, 39, 0.86), rgba(34, 43, 25, 0.9))',
+    borderRadius: 14,
+    padding: '8px 10px 10px',
+    width: 156,
+    minHeight: 116,
     transition: 'transform 180ms ease, box-shadow 180ms ease',
     cursor: 'pointer',
     display: 'grid',
     justifyItems: 'center',
-    gap: 4,
+    alignContent: 'center',
+    gap: 3,
+    backdropFilter: 'blur(8px)',
   },
   collectButtonArt: {
     width: '100%',
-    maxWidth: 190,
-    height: 86,
+    maxWidth: 118,
+    height: 70,
     objectFit: 'contain',
     display: 'block',
   },
   collectLabel: {
     color: '#FAF0DA',
     fontFamily: headingFontFamily,
-    fontSize: 24,
+    fontSize: 20,
     lineHeight: 1,
+    textAlign: 'center',
   },
   collectHint: {
     color: 'rgba(245, 239, 224, 0.92)',
@@ -1102,33 +1243,51 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'center',
   },
   guardianRail: {
+    alignSelf: 'center',
+    justifySelf: 'center',
     display: 'grid',
+    gridTemplateRows: 'repeat(4, minmax(0, 1fr))',
     gap: 10,
+    width: 'min(100%, 172px)',
+    height: 'min(720px, calc(100vh - 142px))',
+    minHeight: 0,
   },
   guardianRailButton: {
     borderRadius: 14,
     padding: 8,
     cursor: 'pointer',
+    width: '100%',
+    height: '100%',
+    maxHeight: '100%',
+    aspectRatio: '1 / 1',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    justifySelf: 'center',
+    boxSizing: 'border-box',
   },
   guardianRailImage: {
-    width: '100%',
-    maxWidth: 180,
+    width: '84%',
+    maxWidth: 126,
+    maxHeight: '84%',
     aspectRatio: '1 / 1',
     objectFit: 'contain',
     display: 'block',
     margin: '0 auto',
   },
   celebrationWrap: {
-    minHeight: 'calc(100vh - 120px)',
+    flex: 1,
+    overflowY: 'auto',
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
+    padding: '26px 16px 18px',
   },
   celebrationCard: {
-    width: 'min(1040px, 96vw)',
+    width: 'min(960px, 96vw)',
     borderRadius: 24,
-    padding: 24,
-    background: 'radial-gradient(circle at 50% 15%, rgba(244, 215, 122, 0.38), rgba(54, 32, 20, 0.86))',
+    padding: '22px 24px 24px',
+    background: 'linear-gradient(180deg, rgba(54, 58, 31, 0.84), rgba(38, 27, 17, 0.9))',
     border: '1px solid rgba(255,255,255,0.42)',
     boxShadow: '0 28px 56px rgba(0,0,0,0.38)',
     textAlign: 'center',
@@ -1145,49 +1304,61 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '8px 0 6px',
     color: '#FFF6DF',
     fontFamily: headingFontFamily,
-    fontSize: 50,
+    fontSize: 42,
+    lineHeight: 1.05,
   },
   celebrationSubtitle: {
-    margin: '0 0 18px',
+    margin: '0 auto 16px',
     color: '#F5EBD4',
     fontFamily: bodyFontFamily,
-    fontSize: 26,
+    fontSize: 21,
     lineHeight: 1.4,
     letterSpacing: 0.2,
+    maxWidth: 760,
   },
   celebrationVisualArea: {
     position: 'relative',
     borderRadius: 18,
-    background: 'rgba(18, 13, 9, 0.4)',
-    minHeight: 'min(52vh, 520px)',
+    background: 'radial-gradient(circle at 50% 20%, rgba(242, 204, 143, 0.18), rgba(18, 34, 20, 0.62))',
+    minHeight: 250,
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'end',
-    gap: 0,
-    padding: 16,
-  },
-  celebrationSapling: {
-    width: 'min(82%, 760px)',
-    maxHeight: 'min(48vh, 460px)',
-    objectFit: 'contain',
-    animation: 'sapling-rise 700ms ease-out, bloom-pulse 2.3s ease-in-out infinite',
+    alignItems: 'center',
+    gap: 36,
+    padding: '22px 28px',
+    overflow: 'hidden',
   },
   celebrationGuardian: {
-    position: 'absolute',
-    right: 18,
-    bottom: 12,
-    width: 'min(18vw, 180px)',
+    width: 'min(24vw, 180px)',
+    maxWidth: 180,
     objectFit: 'contain',
-    animation: 'sapling-rise 500ms ease-out',
+    filter: 'drop-shadow(0 16px 20px rgba(0,0,0,0.34))',
+    animation: 'celebration-guardian-in 620ms ease-out, celebration-float 2.8s ease-in-out 650ms infinite',
   },
   celebrationBasket: {
-    position: 'absolute',
-    left: 24,
-    bottom: 12,
-    width: 'min(24vw, 240px)',
+    width: 'min(30vw, 240px)',
     maxWidth: 240,
     objectFit: 'contain',
-    animation: 'sapling-rise 620ms ease-out',
+    filter: 'drop-shadow(0 16px 20px rgba(0,0,0,0.34))',
+    animation: 'celebration-basket-pop 720ms cubic-bezier(0.2, 1.2, 0.25, 1), basket-bob 2.4s ease-in-out 780ms infinite',
+  },
+  celebrationResultText: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    minWidth: 220,
+    color: '#FFF6DF',
+    textShadow: '0 2px 10px rgba(0,0,0,0.4)',
+  },
+  celebrationResultKicker: {
+    fontFamily: bodyFontFamily,
+    fontSize: 18,
+    color: '#F2CC8F',
+  },
+  celebrationResultMain: {
+    fontFamily: headingFontFamily,
+    fontSize: 34,
+    lineHeight: 1.05,
   },
   celebrationActions: {
     marginTop: 20,
@@ -1221,5 +1392,47 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '16px 30px',
     minWidth: 320,
     cursor: 'pointer',
+  },
+
+  scoreBreakdown: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    background: 'rgba(18, 13, 9, 0.38)',
+    border: '1px solid rgba(242, 204, 143, 0.28)',
+    borderRadius: 14,
+    padding: '14px 20px',
+    maxWidth: 360,
+    margin: '0 auto',
+    width: '100%',
+    boxSizing: 'border-box' as const,
+  },
+  scoreRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  scoreDetail: {
+    color: '#F5EBD4',
+    fontFamily: numberFontFamily,
+    fontSize: 20,
+    lineHeight: 1.3,
+  },
+  scoreTotalRow: {
+    borderTop: '1px solid rgba(242, 204, 143, 0.3)',
+    marginTop: 4,
+    paddingTop: 8,
+  },
+  scoreTotalLabel: {
+    color: '#F2CC8F',
+    fontFamily: headingFontFamily,
+    fontSize: 22,
+    fontWeight: 700,
+  },
+  scoreTotalValue: {
+    color: '#F2CC8F',
+    fontFamily: numberFontFamily,
+    fontSize: 26,
+    fontWeight: 700,
   },
 };

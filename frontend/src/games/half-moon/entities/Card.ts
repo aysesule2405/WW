@@ -1,19 +1,17 @@
 import Phaser from 'phaser'
-import type { Phase } from '../data/halfMoonConfig'
-import { PHASE_NAMES } from '../data/halfMoonConfig'
+import type { Phase, Owner } from '../data/halfMoonConfig'
+import {
+  SELECTED_BG,
+  cardBgForOwner, borderForOwner, pulseColorForOwner,
+  PLAYER_SHINE, AI_SHADOW,
+} from '../visuals/glowEffects'
+import { cardFaceKey, cardFaceLoaded } from '../assets'
 
-export const CARD_W  = 72
-export const CARD_H  = 100
-export const CARD_R  = 10   // border radius
+export const CARD_W = 80
+export const CARD_H = 80
+export const CARD_R = 10
 
-// Navy / gold palette
-export const CARD_BG_PLAYER = 0x0A1628
-export const CARD_BG_AI     = 0x1A0A28
-export const CARD_BG_EMPTY  = 0x111C30
-export const CARD_BORDER     = 0xC8A84B
-export const CARD_BORDER_GLOW = 0xFFDD77
-
-// Phase → hex color for the moon icon
+// Phase → procedural moon color (fallback when no image asset is loaded)
 const PHASE_COLORS: Record<Phase, number> = {
   1: 0x334455,  // New Moon      — dark
   2: 0x8899BB,  // Waxing Cres   — slate blue
@@ -26,125 +24,103 @@ const PHASE_COLORS: Record<Phase, number> = {
 }
 
 export class Card {
-  public phase: Phase
+  public phase:   Phase
   public spaceId: number
-  private scene: Phaser.Scene
+
+  private scene:     Phaser.Scene
   private container: Phaser.GameObjects.Container
-  private bg: Phaser.GameObjects.Graphics
-  private moonGfx: Phaser.GameObjects.Graphics
-  private labelText: Phaser.GameObjects.Text
-  private numText: Phaser.GameObjects.Text
-  private isHighlighted = false
-  private isSelected    = false
+  private bg:        Phaser.GameObjects.Graphics
+  private moonGfx:   Phaser.GameObjects.Graphics
+  private faceImage: Phaser.GameObjects.Image | null = null
+  private glowRing:  Phaser.GameObjects.Graphics
+
+  private owner:         Owner = null
+  private isHighlighted  = false
+  private isSelected     = false
+  private pulseTween:    Phaser.Tweens.Tween | null = null
 
   constructor(scene: Phaser.Scene, phase: Phase, spaceId: number, x: number, y: number) {
     this.scene   = scene
     this.phase   = phase
     this.spaceId = spaceId
 
-    this.bg      = scene.add.graphics()
-    this.moonGfx = scene.add.graphics()
+    this.bg       = scene.add.graphics()
+    this.glowRing = scene.add.graphics()
+    this.moonGfx  = scene.add.graphics()
 
-    this.numText = scene.add.text(0, -CARD_H / 2 + 10, `${phase}`, {
-      fontSize: '11px', color: '#C8A84B', fontFamily: 'Georgia, serif',
-    }).setOrigin(0.5, 0)
+    // Try to use the PNG asset; fall back to procedural if not loaded
+    if (cardFaceLoaded(scene, phase)) {
+      this.faceImage = scene.add.image(0, 0, cardFaceKey(phase))
+        .setDisplaySize(CARD_W - 8, CARD_H - 8)
+    }
 
-    this.labelText = scene.add.text(0, CARD_H / 2 - 22, PHASE_NAMES[phase], {
-      fontSize: '7px', color: '#AABBCC', fontFamily: 'Georgia, serif',
-      wordWrap: { width: CARD_W - 10 }, align: 'center',
-    }).setOrigin(0.5, 0)
+    const children: Phaser.GameObjects.GameObject[] = [this.bg, this.glowRing, this.moonGfx]
+    if (this.faceImage) children.push(this.faceImage)
 
-    this.container = scene.add.container(x, y, [this.bg, this.moonGfx, this.numText, this.labelText])
+    this.container = scene.add.container(x, y, children)
     this.container.setSize(CARD_W, CARD_H)
 
-    this.drawCard(CARD_BG_EMPTY, false)
+    this.drawCard()
   }
 
-  private drawCard(bgColor: number, glowing: boolean) {
+  // ── Rendering ─────────────────────────────────────────────────────────────
+
+  private drawCard() {
+    const glowing   = this.isHighlighted || this.isSelected
+    const bgColor   = this.isSelected ? SELECTED_BG : cardBgForOwner(this.owner)
+    const border    = borderForOwner(this.owner, glowing)
+    const borderAlpha = glowing ? 1.0 : 0.65
+    const lineW     = glowing ? 2 : 1.5
+
     this.bg.clear()
-    // Card background
     this.bg.fillStyle(bgColor, 1)
     this.bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CARD_R)
-    // Border
-    const borderColor = glowing ? CARD_BORDER_GLOW : CARD_BORDER
-    const borderAlpha  = glowing ? 1.0 : 0.65
-    this.bg.lineStyle(glowing ? 2 : 1.5, borderColor, borderAlpha)
+    this.bg.lineStyle(lineW, border, borderAlpha)
     this.bg.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CARD_R)
-    // Corner ornaments
-    this.bg.fillStyle(borderColor, glowing ? 0.8 : 0.4)
-    const co = 8
-    this.bg.fillCircle(-CARD_W / 2 + co, -CARD_H / 2 + co, 2)
-    this.bg.fillCircle( CARD_W / 2 - co, -CARD_H / 2 + co, 2)
-    this.bg.fillCircle(-CARD_W / 2 + co,  CARD_H / 2 - co, 2)
-    this.bg.fillCircle( CARD_W / 2 - co,  CARD_H / 2 - co, 2)
 
-    this.drawMoon()
+    // Ownership glow ring: white multi-layer bloom for player, black shadow rings for AI
+    this.glowRing.clear()
+    if (this.owner === 'player') {
+      const hw = CARD_W / 2, hh = CARD_H / 2, r = CARD_R
+      this.glowRing.lineStyle(9, PLAYER_SHINE, glowing ? 0.20 : 0.10)
+      this.glowRing.strokeRoundedRect(-hw - 8, -hh - 8, CARD_W + 16, CARD_H + 16, r + 8)
+      this.glowRing.lineStyle(5, PLAYER_SHINE, glowing ? 0.48 : 0.26)
+      this.glowRing.strokeRoundedRect(-hw - 4, -hh - 4, CARD_W + 8, CARD_H + 8, r + 4)
+      this.glowRing.lineStyle(2, PLAYER_SHINE, glowing ? 0.92 : 0.60)
+      this.glowRing.strokeRoundedRect(-hw - 2, -hh - 2, CARD_W + 4, CARD_H + 4, r + 2)
+    } else if (this.owner === 'ai') {
+      const hw = CARD_W / 2, hh = CARD_H / 2, r = CARD_R
+      this.glowRing.lineStyle(10, AI_SHADOW, glowing ? 0.72 : 0.50)
+      this.glowRing.strokeRoundedRect(-hw - 8, -hh - 8, CARD_W + 16, CARD_H + 16, r + 8)
+      this.glowRing.lineStyle(6, AI_SHADOW, glowing ? 0.90 : 0.70)
+      this.glowRing.strokeRoundedRect(-hw - 4, -hh - 4, CARD_W + 8, CARD_H + 8, r + 4)
+      this.glowRing.lineStyle(3, AI_SHADOW, glowing ? 1.0 : 0.88)
+      this.glowRing.strokeRoundedRect(-hw - 2, -hh - 2, CARD_W + 4, CARD_H + 4, r + 2)
+    }
+
+    if (!this.faceImage) {
+      this.drawMoon()
+    } else {
+      this.moonGfx.clear()
+    }
   }
 
   private drawMoon() {
     this.moonGfx.clear()
-    const cx = 0, cy = -4
-    const r  = 22
+    const cx = 0, cy = 0, r = 24
     const col = PHASE_COLORS[this.phase]
 
-    // Draw moon phase using canvas texture compositing
-    const texKey = `moon-phase-${this.phase}`
-    if (!this.scene.textures.exists(texKey)) {
-      const size = 64
-      const canvas = this.scene.textures.createCanvas(texKey, size, size)!
-      const ctx = canvas.getContext() as CanvasRenderingContext2D
-      const cr  = size / 2
+    this.moonGfx.fillStyle(col, 0.15)
+    this.moonGfx.fillCircle(cx, cy, r + 6)   // halo
 
-      ctx.clearRect(0, 0, size, size)
-      ctx.fillStyle = `#${col.toString(16).padStart(6, '0')}`
-      ctx.beginPath()
-      ctx.arc(cr, cr, cr - 4, 0, Math.PI * 2)
-      ctx.fill()
-
-      if (this.phase !== 5) {
-        // Cut away appropriate portion based on phase
-        const cutOffset = this.getCutOffset()
-        ctx.globalCompositeOperation = 'destination-out'
-        ctx.beginPath()
-        ctx.arc(cr + cutOffset, cr, cr - 4, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.globalCompositeOperation = 'source-over'
-      }
-
-      canvas.refresh()
-    }
-
-    // Place the texture on top of the glow
-    // Use scene.add.image inside the container is tricky; use Graphics arc instead
-    // Approximate using filled arcs
-    const col32 = col
-    this.moonGfx.fillStyle(col32, 0.15)
-    this.moonGfx.fillCircle(cx, cy, r + 6)  // glow halo
-
-    this.moonGfx.fillStyle(col32, 1)
+    this.moonGfx.fillStyle(col, 1)
     this.moonGfx.fillCircle(cx, cy, r)
 
-    // Dark cut for phase shape
     if (this.phase !== 5) {
       const cutX = cx + this.getCutOffsetPx(r)
-      this.moonGfx.fillStyle(0x0A1628, 1)
+      this.moonGfx.fillStyle(cardBgForOwner(this.owner), 1)
       this.moonGfx.fillCircle(cutX, cy, r)
     }
-  }
-
-  private getCutOffset(): number {
-    // Returns fraction of radius for canvas texture (–1.5 to 1.5)
-    const cuts: Record<Phase, number> = {
-      1: 0,      // new: full cut → black disk (phase 1 stays fully dark)
-      2: 1.3,    // waxing crescent: right side cut
-      3: 0.15,   // first quarter: slight cut
-      4: -0.9,   // waxing gibbous: left cut
-      5: 0,      // full: no cut
-      6: 0.9,    // waning gibbous: right cut
-      7: -0.15,  // last quarter: slight right cut
-      8: -1.3,   // waning crescent: left side cut
-    }
-    return cuts[this.phase]
   }
 
   private getCutOffsetPx(r: number): number {
@@ -157,15 +133,35 @@ export class Card {
 
   // ── Public API ────────────────────────────────────────────────────────────
 
-  setOwner(owner: 'player' | 'ai' | null) {
-    const bg = owner === 'player' ? CARD_BG_PLAYER : owner === 'ai' ? CARD_BG_AI : CARD_BG_EMPTY
-    this.drawCard(bg, this.isHighlighted)
+  setOwner(newOwner: Owner) {
+    this.owner = newOwner
+    this.drawCard()
+    this.updateOwnerPulse()
+  }
+
+  private updateOwnerPulse() {
+    if (this.pulseTween) {
+      this.pulseTween.stop()
+      this.pulseTween = null
+    }
+    if (this.owner === 'player') {
+      this.pulseTween = this.scene.tweens.add({
+        targets: this.glowRing,
+        alpha: { from: 0.55, to: 1.0 },
+        duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.InOut',
+      })
+    } else if (this.owner === 'ai') {
+      this.pulseTween = this.scene.tweens.add({
+        targets: this.glowRing,
+        alpha: { from: 0.35, to: 0.85 },
+        duration: 900, yoyo: true, repeat: -1, ease: 'Quad.InOut',
+      })
+    }
   }
 
   setHighlight(on: boolean) {
     this.isHighlighted = on
-    const bg = this.isSelected ? CARD_BG_PLAYER : CARD_BG_EMPTY
-    this.drawCard(bg, on)
+    this.drawCard()
     if (on) {
       this.scene.tweens.add({
         targets: this.container, y: this.container.y - 6,
@@ -176,19 +172,17 @@ export class Card {
 
   setSelected(on: boolean) {
     this.isSelected = on
-    this.drawCard(on ? 0x1C2E50 : CARD_BG_EMPTY, on)
+    this.drawCard()
     this.container.setScale(on ? 1.1 : 1)
   }
 
   pulseDelivery(owner: 'player' | 'ai') {
-    const tintColor = owner === 'player' ? 0x88AAFF : 0xFF88BB
+    const tintColor = pulseColorForOwner(owner)
     this.scene.tweens.add({
       targets: this.container,
       scaleX: 1.25, scaleY: 1.25,
-      duration: 180, yoyo: true,
-      ease: 'Back.Out',
+      duration: 180, yoyo: true, ease: 'Back.Out',
     })
-    // Flash the glow
     const flash = this.scene.add.graphics()
     flash.fillStyle(tintColor, 0.4)
     flash.fillRoundedRect(
@@ -207,6 +201,7 @@ export class Card {
   setDepth(d: number)  { this.container.setDepth(d) }
   setAlpha(a: number)  { this.container.setAlpha(a) }
   setScale(s: number)  { this.container.setScale(s) }
+
   setInteractive(cb: () => void) {
     this.container.setInteractive()
     this.container.on('pointerdown', cb)
@@ -214,7 +209,6 @@ export class Card {
     this.container.on('pointerout',   () => this.setHighlight(false))
   }
 
-  // Drag-and-drop: no hover lift; optional isDragging guard prevents scale glitch
   setDragInteractive(onDragStart: () => void, isDraggingFn?: () => boolean) {
     this.container.setInteractive()
     this.container.on('pointerdown', onDragStart)
@@ -234,5 +228,8 @@ export class Card {
   get scaleY() { return this.container.scaleY }
   set scaleY(v: number) { this.container.scaleY = v }
 
-  destroy() { this.container.destroy() }
+  destroy() {
+    if (this.pulseTween) this.pulseTween.stop()
+    this.container.destroy()
+  }
 }

@@ -1,14 +1,24 @@
 import Phaser from 'phaser'
 import {
-  BOARD_LAYOUTS, CELL, SCORE_CARD_CONTROL,
+  CELL, SCORE_CARD_CONTROL,
   buildDeck, shuffle, runScoringAfterPlacement, resetChainIds,
+  generateRandomLayout,
 } from './data/halfMoonConfig'
 import type {
-  Phase, PlacedCard, BoardLayout, Difficulty,
+  Phase, PlacedCard, BoardLayout, Difficulty, AIMode,
   ScoreState, WildCardType,
 } from './data/halfMoonConfig'
 import { Card, CARD_W, CARD_H } from './entities/Card'
 import { AIOpponent } from './entities/AIOpponent'
+import {
+  preloadHalfMoonAssets,
+  GAME_BG_KEY, MOON_SMILE_KEY, MOON_SAD_KEY,
+} from './assets'
+import {
+  CONNECTION_PLAYER, CONNECTION_AI, CONNECTION_NEUTRAL,
+  SLOT_HOVER_BG, SLOT_HOVER_BORDER, SLOT_EMPTY_BG, SLOT_EMPTY_BORDER,
+} from './visuals/glowEffects'
+import { numberFontFamily } from '../../theme/typography'
 
 // ── Callback contract with React ──────────────────────────────────────────────
 
@@ -22,35 +32,37 @@ export type SceneCallbacks = {
 
 // ── Scene ─────────────────────────────────────────────────────────────────────
 
-const VP_W = 960
-const VP_H = 620
-const AI_THINK_MS  = 820
-const DROP_RADIUS  = CARD_W * 0.7   // snap-to-slot distance threshold
+const VP_W        = 960
+const VP_H        = 620
+const AI_THINK_MS = 820
+const DROP_RADIUS = CARD_W * 0.7
 
 export class HalfMoonScene extends Phaser.Scene {
   private cb!: SceneCallbacks
   private difficulty: Difficulty = 'medium'
+  private aiMode:     AIMode     = 'local'
   private level = 1
 
-  private layout!: BoardLayout
-  private placed: PlacedCard[] = []
-  private scoredPairs = new Set<string>()
+  private layout!:     BoardLayout
+  private placed:      PlacedCard[] = []
+  private scoredPairs  = new Set<string>()
 
-  private deck: Phase[] = []
+  private deck:       Phase[] = []
   private playerHand: Phase[] = []
   private aiHand:     Phase[] = []
 
   private scores: ScoreState = { player: 0, ai: 0, playerCards: 0, aiCards: 0 }
 
-  private boardCards: Map<number, Card> = new Map()
-  private handCards:  Card[] = []
-  private handCardHomePos: { x: number; y: number }[] = []
+  private boardCards:   Map<number, Card>                        = new Map()
+  private handCards:    Card[]                                   = []
+  private handCardHomePos: { x: number; y: number }[]           = []
 
-  // Slot visuals
   private slotGraphics:  Map<number, Phaser.GameObjects.Graphics> = new Map()
-  private slotPositions: Map<number, { x: number; y: number }>    = new Map()
+  private slotPositions: Map<number, { x: number; y: number }>   = new Map()
 
-  // Drag state
+  // Dynamic connection-line layer (redrawn on every placement)
+  private connectionGfx!: Phaser.GameObjects.Graphics
+
   private dragIdx:         number | null = null
   private dragCard:        Card   | null = null
   private dragHomeX = 0
@@ -61,17 +73,20 @@ export class HalfMoonScene extends Phaser.Scene {
   private isPlayerTurn  = true
   private inputLocked   = false
   private doublePlacement = false
+  private shieldActive = false
 
-  private moonFaceGfx!: Phaser.GameObjects.Graphics
-  private scoreText!: Phaser.GameObjects.Text
-  private turnText!:  Phaser.GameObjects.Text
+  private moonFaceGfx!: Phaser.GameObjects.Graphics      // procedural fallback
+  private moonImg:      Phaser.GameObjects.Image | null = null  // real sprite
+  private scoreText!:   Phaser.GameObjects.Text
+  private turnText!:    Phaser.GameObjects.Text
 
   constructor() { super({ key: 'HalfMoonScene' }) }
 
-  init(data: SceneCallbacks & { difficulty?: Difficulty; level?: number }) {
+  init(data: SceneCallbacks & { difficulty?: Difficulty; aiMode?: AIMode; level?: number }) {
     this.cb         = data
     this.difficulty = data.difficulty ?? 'medium'
-    this.level      = data.level ?? 1
+    this.aiMode     = data.aiMode     ?? 'local'
+    this.level      = data.level      ?? 1
     this.placed     = []
     this.scoredPairs = new Set()
     this.scores     = { player: 0, ai: 0, playerCards: 0, aiCards: 0 }
@@ -88,20 +103,24 @@ export class HalfMoonScene extends Phaser.Scene {
     this.isPlayerTurn    = true
     this.inputLocked     = false
     this.doublePlacement = false
+    this.shieldActive    = false
     resetChainIds()
-    // Remove stale listeners from previous scene run
     this.input.off('pointermove', this.onPointerMove, this)
     this.input.off('pointerup',   this.onPointerUp,   this)
   }
 
-  preload() {}
+  preload() {
+    // Silently loads PNGs from /assets/cards/ and /assets/ui/
+    // Missing files are ignored — the game falls back to procedural graphics
+    preloadHalfMoonAssets(this)
+  }
 
-  // ── Wild cards (called from React) ────────────────────────────────────────
+  // ── Wild cards ────────────────────────────────────────────────────────────
 
   activateWild(type: WildCardType) {
     switch (type) {
       case 'eclipse-shield':
-        ;(this as any)._shieldActive = true
+        this.shieldActive = true
         this.cb.onEvent("Eclipse Shield: AI's next turn is blocked!", '#88AAFF')
         break
       case 'moonrise':
@@ -119,6 +138,7 @@ export class HalfMoonScene extends Phaser.Scene {
           this.boardCards.get(target.spaceId)?.setOwner(null)
           target.owner = null
           target.phase = 1 as Phase
+          this.redrawConnections()
           this.cb.onEvent('Star Burst: removed an AI card!', '#FF8888')
         }
         break
@@ -130,14 +150,20 @@ export class HalfMoonScene extends Phaser.Scene {
     }
   }
 
-  // ── Layout & board ────────────────────────────────────────────────────────
+  // ── Board layout ──────────────────────────────────────────────────────────
 
   private buildLayout() {
-    const idx   = Math.min(this.level - 1, BOARD_LAYOUTS.length - 1)
-    this.layout = BOARD_LAYOUTS[idx]
+    this.layout = generateRandomLayout(this.level)
   }
 
   private drawStarfield() {
+    // Use the real background image when loaded; fall back to procedural starfield.
+    if (this.textures.exists(GAME_BG_KEY)) {
+      this.add.image(VP_W / 2, VP_H / 2, GAME_BG_KEY)
+        .setDisplaySize(VP_W, VP_H)
+        .setDepth(-1)
+      return
+    }
     const g = this.add.graphics()
     g.fillStyle(0x060C1A)
     g.fillRect(0, 0, VP_W, VP_H)
@@ -146,26 +172,22 @@ export class HalfMoonScene extends Phaser.Scene {
       const sx = Math.random() * VP_W
       const sy = Math.random() * VP_H * 0.88
       const sr = Math.random() < 0.8 ? 0.8 : 1.5
+      g.fillStyle(Math.random() < 0.12 ? 0xDDE5FF : 0xFFFFFF, 0.6 + Math.random() * 0.4)
       g.fillCircle(sx, sy, sr)
-      if (Math.random() < 0.12) g.fillStyle(0xDDE5FF, 0.6)
-      else g.fillStyle(0xFFFFFF, 0.6 + Math.random() * 0.4)
     }
   }
 
   private drawMoonFace() {
-    const gfx = this.add.graphics()
-    gfx.fillStyle(0xFFF8C0, 0.08)
-    gfx.fillCircle(VP_W - 80, 80, 70)
-    gfx.lineStyle(1, 0xC8A84B, 0.2)
-    gfx.strokeCircle(VP_W - 80, 80, 70)
-    gfx.fillStyle(0xC8A84B, 0.25)
-    gfx.fillCircle(VP_W - 98, 72, 7)
-    gfx.fillCircle(VP_W - 64, 72, 7)
-    gfx.lineStyle(2, 0xC8A84B, 0.3)
-    gfx.beginPath()
-    gfx.arc(VP_W - 80, 82, 16, 0.2, Math.PI - 0.2, false)
-    gfx.strokePath()
-    this.moonFaceGfx = gfx
+    // Moon face is hidden during gameplay and revealed only at round end.
+    if (this.textures.exists(MOON_SMILE_KEY)) {
+      this.moonImg = this.add.image(VP_W - 72, 72, MOON_SMILE_KEY)
+        .setDisplaySize(120, 120)
+        .setDepth(0)
+        .setAlpha(0)
+      this.moonFaceGfx = this.add.graphics()
+      return
+    }
+    this.moonFaceGfx = this.add.graphics().setAlpha(0)
   }
 
   private boardOffset() {
@@ -178,22 +200,12 @@ export class HalfMoonScene extends Phaser.Scene {
     }
   }
 
+  // ── Board drawing with dynamic connection colors ───────────────────────────
+
   private drawBoard() {
     const { ox, oy } = this.boardOffset()
-    const g = this.add.graphics().setDepth(1)
 
-    g.lineStyle(1, 0x2A4060, 0.5)
-    for (const space of this.layout.spaces) {
-      for (const adjId of space.adjacentIds) {
-        if (adjId > space.id) continue
-        const adj = this.layout.spaces.find(s => s.id === adjId)!
-        g.strokeLineShape(new Phaser.Geom.Line(
-          ox + space.x + CELL / 2, oy + space.y + CELL / 2,
-          ox + adj.x   + CELL / 2, oy + adj.y   + CELL / 2,
-        ))
-      }
-    }
-
+    // Static slot markers
     for (const space of this.layout.spaces) {
       const sx = ox + space.x + CELL / 2
       const sy = oy + space.y + CELL / 2
@@ -202,6 +214,41 @@ export class HalfMoonScene extends Phaser.Scene {
       this.slotGraphics.set(space.id, slotG)
       this.redrawSlot(space.id, false)
     }
+
+    // Separate graphics layer for connection lines (redrawn after each placement)
+    this.connectionGfx = this.add.graphics().setDepth(1)
+    this.redrawConnections()
+  }
+
+  // Redraws all connection lines with ownership-aware colors
+  private redrawConnections() {
+    this.connectionGfx.clear()
+
+    for (const space of this.layout.spaces) {
+      for (const adjId of space.adjacentIds) {
+        if (adjId > space.id) continue   // draw each edge once
+
+        const spaceCard = this.placed.find(c => c.spaceId === space.id)
+        const adjCard   = this.placed.find(c => c.spaceId === adjId)
+
+        // Choose connection color based on shared ownership
+        let lineColor = CONNECTION_NEUTRAL
+        let lineAlpha = 0.4
+        let lineWidth = 1
+
+        if (spaceCard?.owner && adjCard?.owner && spaceCard.owner === adjCard.owner) {
+          lineColor = spaceCard.owner === 'player' ? CONNECTION_PLAYER : CONNECTION_AI
+          lineAlpha = 0.75
+          lineWidth = 2
+        }
+
+        const { x: sx, y: sy } = this.slotPositions.get(space.id)!
+        const { x: ax, y: ay } = this.slotPositions.get(adjId)!
+
+        this.connectionGfx.lineStyle(lineWidth, lineColor, lineAlpha)
+        this.connectionGfx.strokeLineShape(new Phaser.Geom.Line(sx, sy, ax, ay))
+      }
+    }
   }
 
   private redrawSlot(spaceId: number, dropTarget: boolean) {
@@ -209,16 +256,17 @@ export class HalfMoonScene extends Phaser.Scene {
     if (!slotG) return
     const { x: sx, y: sy } = this.slotPositions.get(spaceId)!
     const occupied = !!this.placed.find(c => c.spaceId === spaceId)
+
     slotG.clear()
     if (dropTarget && !occupied) {
-      slotG.fillStyle(0x0D2E18, 1)
+      slotG.fillStyle(SLOT_HOVER_BG, 1)
       slotG.fillRoundedRect(sx - CARD_W / 2, sy - CARD_H / 2, CARD_W, CARD_H, 10)
-      slotG.lineStyle(2, 0x44EE88, 0.9)
+      slotG.lineStyle(2, SLOT_HOVER_BORDER, 0.9)
       slotG.strokeRoundedRect(sx - CARD_W / 2, sy - CARD_H / 2, CARD_W, CARD_H, 10)
     } else {
-      slotG.fillStyle(0x111C30, 1)
+      slotG.fillStyle(SLOT_EMPTY_BG, 1)
       slotG.fillRoundedRect(sx - CARD_W / 2, sy - CARD_H / 2, CARD_W, CARD_H, 10)
-      slotG.lineStyle(1, 0x2A4060, 0.8)
+      slotG.lineStyle(1, SLOT_EMPTY_BORDER, 0.8)
       slotG.strokeRoundedRect(sx - CARD_W / 2, sy - CARD_H / 2, CARD_W, CARD_H, 10)
     }
   }
@@ -234,15 +282,15 @@ export class HalfMoonScene extends Phaser.Scene {
 
     this.scoreText = this.add.text(VP_W / 2, 24, 'You: 0   Half Moon: 0', {
       fontSize: '18px', fontStyle: 'bold',
-      color: '#F0EAD2', fontFamily: 'Georgia, serif',
+      color: '#D6D3A9', fontFamily: numberFontFamily,
     }).setOrigin(0.5, 0.5).setDepth(21).setScrollFactor(0)
 
     this.turnText = this.add.text(14, 24, 'Your turn — drag a card to the board', {
-      fontSize: '13px', color: '#ADC178', fontFamily: 'Georgia, serif',
+      fontSize: '13px', color: '#D6D3A9', fontFamily: '"Flamante Round", system-ui, sans-serif',
     }).setOrigin(0, 0.5).setDepth(21).setScrollFactor(0)
 
     this.add.text(VP_W - 14, 24, `Level ${this.level}: ${this.layout.label}`, {
-      fontSize: '12px', color: '#C8A84B', fontFamily: 'Georgia, serif',
+      fontSize: '12px', color: '#D6D3A9', fontFamily: '"Flamante Round", system-ui, sans-serif',
     }).setOrigin(1, 0.5).setDepth(21).setScrollFactor(0)
   }
 
@@ -354,7 +402,6 @@ export class HalfMoonScene extends Phaser.Scene {
     const phase = this.playerHand[idx]
     const pos   = this.slotPositions.get(spaceId)!
 
-    // Remove from hand tracking before renderHand so it won't be destroyed
     this.handCards.splice(idx, 1)
     this.handCardHomePos.splice(idx, 1)
     this.playerHand.splice(idx, 1)
@@ -408,7 +455,7 @@ export class HalfMoonScene extends Phaser.Scene {
     })
   }
 
-  // ── Placement (shared logic + scoring) ───────────────────────────────────
+  // ── Card placement + scoring ──────────────────────────────────────────────
 
   private placeCard(spaceId: number, phase: Phase, by: 'player' | 'ai', existingCard?: Card) {
     const { ox, oy } = this.boardOffset()
@@ -427,7 +474,7 @@ export class HalfMoonScene extends Phaser.Scene {
     card.setDepth(5)
     card.setOwner(by)
     this.boardCards.set(spaceId, card)
-    this.redrawSlot(spaceId, false)   // hide slot graphic under placed card
+    this.redrawSlot(spaceId, false)
 
     const newPlaced: PlacedCard = { spaceId, phase, owner: by, chainId: null }
     this.placed.push(newPlaced)
@@ -440,12 +487,13 @@ export class HalfMoonScene extends Phaser.Scene {
     this.scores.ai     += result.aiDelta
 
     for (const ev of result.events) {
-      if (ev.type === 'phase-pair')     this.cb.onEvent(`Phase Pair! +${ev.points}`, ev.owner === 'player' ? '#88AAFF' : '#FF88BB')
-      if (ev.type === 'full-moon-pair') this.cb.onEvent(`Full Moon Pair! +${ev.points}`, '#FFF8C0')
-      if (ev.type === 'lunar-cycle')    this.cb.onEvent(`Lunar Cycle! +${ev.points}`, ev.owner === 'player' ? '#AADDFF' : '#FFB0B0')
-      if (ev.type === 'chain-stolen')   this.cb.onEvent(`Chain Stolen! +${ev.points}`, '#FF7744')
+      if (ev.type === 'same-match')         this.cb.onEvent(`Same Match! +${ev.points}`,         ev.owner === 'player' ? '#88AAFF' : '#FF88BB')
+      if (ev.type === 'complementary-match') this.cb.onEvent(`Complementary! +${ev.points}`,      '#FFF8C0')
+      if (ev.type === 'moon-cycle')          this.cb.onEvent(`Moon Cycle! +${ev.points}`,         ev.owner === 'player' ? '#AADDFF' : '#FFB0B0')
+      if (ev.type === 'chain-stolen')        this.cb.onEvent(`Chain Stolen! +${ev.points}`,       '#FF7744')
     }
 
+    // Sync ownership changes from chain-stealing back to card visuals
     for (const pc of this.placed) {
       this.boardCards.get(pc.spaceId)?.setOwner(pc.owner)
     }
@@ -454,34 +502,57 @@ export class HalfMoonScene extends Phaser.Scene {
       card.pulseDelivery(by)
     }
 
-    this.moonFaceReact(result.aiDelta > result.playerDelta)
+    // Redraw connection lines after every placement
+    this.redrawConnections()
+
     this.refreshScoreHUD()
   }
 
-  private moonFaceReact(aiWinning: boolean) {
+  private showEndMoon(playerWon: boolean) {
+    // playerWon=true → moon lost → sad face; playerWon=false → moon won → smiling face
+    if (this.moonImg) {
+      const key = playerWon ? MOON_SAD_KEY : MOON_SMILE_KEY
+      if (this.textures.exists(key)) this.moonImg.setTexture(key)
+      this.tweens.add({
+        targets: this.moonImg,
+        alpha: 0.92, scaleX: 1.15, scaleY: 1.15,
+        duration: 500, ease: 'Back.Out',
+        onComplete: () => {
+          this.tweens.add({
+            targets: this.moonImg,
+            scaleX: 1, scaleY: 1,
+            duration: 280, ease: 'Sine.Out',
+          })
+        },
+      })
+      return
+    }
+
+    // Procedural fallback: draw the face then fade in
     this.moonFaceGfx.clear()
-    this.moonFaceGfx.fillStyle(0xFFF8C0, aiWinning ? 0.14 : 0.06)
+    this.moonFaceGfx.fillStyle(0xFFF8C0, 0.12)
     this.moonFaceGfx.fillCircle(VP_W - 80, 80, 70)
-    this.moonFaceGfx.lineStyle(1, 0xC8A84B, aiWinning ? 0.35 : 0.2)
+    this.moonFaceGfx.lineStyle(1, 0xC8A84B, 0.28)
     this.moonFaceGfx.strokeCircle(VP_W - 80, 80, 70)
-    this.moonFaceGfx.fillStyle(0xC8A84B, aiWinning ? 0.45 : 0.2)
+    this.moonFaceGfx.fillStyle(0xC8A84B, 0.35)
     this.moonFaceGfx.fillCircle(VP_W - 98, 72, 7)
     this.moonFaceGfx.fillCircle(VP_W - 64, 72, 7)
-    this.moonFaceGfx.lineStyle(2, 0xC8A84B, aiWinning ? 0.5 : 0.3)
+    this.moonFaceGfx.lineStyle(2, 0xC8A84B, 0.4)
     this.moonFaceGfx.beginPath()
-    if (aiWinning) {
-      this.moonFaceGfx.arc(VP_W - 80, 82, 16, 0.2, Math.PI - 0.2, false)
+    if (!playerWon) {
+      this.moonFaceGfx.arc(VP_W - 80, 82, 16, 0.2, Math.PI - 0.2, false)   // smile
     } else {
-      this.moonFaceGfx.arc(VP_W - 80, 96, 16, Math.PI + 0.2, -0.2, false)
+      this.moonFaceGfx.arc(VP_W - 80, 96, 16, Math.PI + 0.2, -0.2, false)  // frown
     }
     this.moonFaceGfx.strokePath()
+    this.tweens.add({ targets: this.moonFaceGfx, alpha: 1, duration: 500, ease: 'Sine.Out' })
   }
 
-  // ── AI turn — animated card fly-in ────────────────────────────────────────
+  // ── AI turn ───────────────────────────────────────────────────────────────
 
   private doAITurn() {
-    if ((this as any)._shieldActive) {
-      ;(this as any)._shieldActive = false
+    if (this.shieldActive) {
+      this.shieldActive = false
       this.inputLocked = false
       this.isPlayerTurn = true
       this.cb.onTurnChange(true)
@@ -491,16 +562,22 @@ export class HalfMoonScene extends Phaser.Scene {
 
     if (this.aiHand.length === 0) this.drawForAI(3)
 
-    const move = this.ai
-      ? this.ai.choosePlacement(this.aiHand, this.placed, this.layout, this.scoredPairs)
-      : { spaceId: this.layout.spaces.find(s => !this.placed.find(c => c.spaceId === s.id))!.id, phase: this.aiHand[0] }
+    // AIOpponent.choosePlacement is async (supports Gemini mode)
+    this.ai.choosePlacement(this.aiHand, this.placed, this.layout, this.scoredPairs)
+      .then(move => this.executeAIMove(move))
+      .catch(() => {
+        // Fallback to synchronous local AI on any async error
+        const move = this.ai.choosePlacementSync(this.aiHand, this.placed, this.layout, this.scoredPairs)
+        this.executeAIMove(move)
+      })
+  }
 
+  private executeAIMove(move: { spaceId: number; phase: Phase }) {
     const { ox, oy } = this.boardOffset()
     const space   = this.layout.spaces.find(s => s.id === move.spaceId)!
     const targetX = ox + space.x + CELL / 2
     const targetY = oy + space.y + CELL / 2
 
-    // Spawn card at the moon face (top-right) — AI's "deck"
     const deckX = VP_W - 80
     const deckY = 80
     const flyCard = new Card(this, move.phase, move.spaceId, deckX, deckY)
@@ -510,18 +587,15 @@ export class HalfMoonScene extends Phaser.Scene {
     flyCard.scaleX = 0.6
     flyCard.scaleY = 0.6
 
-    // Arc midpoint rises above the straight line between deck and target
     const midX = (deckX + targetX) / 2
     const midY = Math.min(oy - 20, (deckY + targetY) / 2 - 50)
 
-    // Phase 1: rise toward arc peak
     this.tweens.add({
       targets: flyCard,
       x: midX, y: midY,
       alpha: 1, scaleX: 1, scaleY: 1,
       duration: 300, ease: 'Quad.Out',
       onComplete: () => {
-        // Phase 2: drop into target slot with a slight bounce
         this.tweens.add({
           targets: flyCard,
           x: targetX, y: targetY,
@@ -547,7 +621,7 @@ export class HalfMoonScene extends Phaser.Scene {
     })
   }
 
-  // ── Board full / level end ────────────────────────────────────────────────
+  // ── Level end ─────────────────────────────────────────────────────────────
 
   private isBoardFull(): boolean {
     return this.placed.length >= this.layout.spaces.length
@@ -563,6 +637,7 @@ export class HalfMoonScene extends Phaser.Scene {
     this.scores.aiCards     = this.placed.filter(c => c.owner === 'ai').length
     this.refreshScoreHUD()
     const won = this.scores.player > this.scores.ai
+    this.showEndMoon(won)
     this.time.delayedCall(600, () => {
       this.cb.onLevelEnd({ ...this.scores }, won, this.level)
     })
@@ -570,15 +645,16 @@ export class HalfMoonScene extends Phaser.Scene {
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-  startLevel(level: number, difficulty: Difficulty) {
+  startLevel(level: number, difficulty: Difficulty, aiMode: AIMode = 'local') {
     this.difficulty = difficulty
+    this.aiMode     = aiMode
     this.level      = level
-    this.ai         = new AIOpponent(difficulty)
-    this.scene.restart({ ...this.cb, difficulty, level } as any)
+    this.ai         = new AIOpponent(difficulty, aiMode)
+    this.scene.restart({ ...this.cb, difficulty, aiMode, level })
   }
 
   create() {
-    if (!this.ai) this.ai = new AIOpponent(this.difficulty)
+    if (!this.ai) this.ai = new AIOpponent(this.difficulty, this.aiMode)
     this.drawStarfield()
     this.drawMoonFace()
     this.buildLayout()

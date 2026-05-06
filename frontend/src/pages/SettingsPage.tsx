@@ -1,14 +1,18 @@
 import React, { useState } from 'react'
-import { bodyFontFamily, headingFontFamily } from '../theme/typography'
+import { uiFontFamily, titleFontFamily } from '../theme/typography'
+import { useTheme } from '../context/ThemeContext'
+import { THEME_META, type ColorTheme } from '../context/themeTypes'
 
 type Toggle = { key: string; label: string; description: string }
 
 const TOGGLES: Toggle[] = [
-  { key: 'sound',        label: 'Sound Effects',    description: 'Play in-game sounds and click audio.' },
-  { key: 'music',        label: 'Background Music',  description: 'Ambient grove music during gameplay.' },
-  { key: 'reduceMotion', label: 'Reduce Motion',     description: 'Limit animations for accessibility.' },
-  { key: 'particles',    label: 'Particle Effects',  description: 'Wind particles and sparkle bursts.' },
+  { key: 'sound',        label: 'Sound Effects',   description: 'Play in-game sounds and click audio.' },
+  { key: 'music',        label: 'Background Music', description: 'Ambient grove music during gameplay.' },
+  { key: 'reduceMotion', label: 'Reduce Motion',    description: 'Limit animations for accessibility.' },
+  { key: 'particles',    label: 'Particle Effects', description: 'Wind particles and sparkle bursts.' },
 ]
+
+const THEME_ORDER: ColorTheme[] = ['light', 'dark', 'sapling', 'delivery', 'drift', 'halfmoon']
 
 function loadSettings(): Record<string, boolean> {
   try {
@@ -20,6 +24,7 @@ function loadSettings(): Record<string, boolean> {
 }
 
 export default function SettingsPage() {
+  const { theme, setTheme } = useTheme()
   const [settings, setSettings] = useState<Record<string, boolean>>(loadSettings)
   const [saved, setSaved] = useState(false)
 
@@ -40,6 +45,41 @@ export default function SettingsPage() {
         {saved && <span style={s.savedBadge}>✓ Saved</span>}
       </div>
 
+      {/* ── Appearance / Themes ───────────────────────────────────── */}
+      <div style={s.section}>
+        <h3 style={s.sectionTitle}>Appearance</h3>
+        <p style={s.sectionDesc}>Choose a color theme for the Whisperwind dashboard.</p>
+        <div style={s.themeGrid}>
+          {THEME_ORDER.map((t) => {
+            const meta = THEME_META[t]
+            const active = theme === t
+            return (
+              <button
+                key={t}
+                style={{
+                  ...s.themeCard,
+                  ...(active ? s.themeCardActive : {}),
+                }}
+                onClick={() => setTheme(t)}
+                aria-pressed={active}
+                title={meta.label}
+              >
+                {/* Color swatches */}
+                <div style={s.swatchRow}>
+                  {meta.colors.map((c, i) => (
+                    <span key={i} style={{ ...s.swatch, background: c }} />
+                  ))}
+                </div>
+                <span style={s.themeIcon}>{meta.icon}</span>
+                <span style={s.themeLabel}>{meta.label}</span>
+                {active && <span style={s.activeCheck}>✓</span>}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Game Preferences ──────────────────────────────────────── */}
       <div style={s.section}>
         <h3 style={s.sectionTitle}>Game Preferences</h3>
         <div style={s.toggleList}>
@@ -54,13 +94,17 @@ export default function SettingsPage() {
                 onClick={() => toggle(t.key)}
                 aria-pressed={settings[t.key]}
               >
-                <span style={{ ...s.toggleThumb, transform: settings[t.key] ? 'translateX(20px)' : 'translateX(0)' }} />
+                <span style={{
+                  ...s.toggleThumb,
+                  transform: settings[t.key] ? 'translateX(20px)' : 'translateX(0)',
+                }} />
               </button>
             </div>
           ))}
         </div>
       </div>
 
+      {/* ── About ─────────────────────────────────────────────────── */}
       <div style={s.section}>
         <h3 style={s.sectionTitle}>About</h3>
         <div style={s.aboutCard}>
@@ -74,16 +118,70 @@ export default function SettingsPage() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 28, maxWidth: 580 },
+  page: {
+    padding: '28px 32px',
+    display: 'flex', flexDirection: 'column', gap: 28,
+    maxWidth: 680,
+    fontFamily: uiFontFamily,
+  },
   header: { display: 'flex', alignItems: 'center', gap: 14 },
-  pageTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 32, color: 'var(--text-h)' },
+  pageTitle: { margin: 0, fontFamily: titleFontFamily, fontSize: 32, color: 'var(--text-h)' },
   savedBadge: {
     fontSize: 13, fontWeight: 700, color: 'var(--accent-dark)',
     background: 'var(--bg-accent-soft)', border: '1px solid var(--border-focus)',
-    borderRadius: 8, padding: '4px 10px', fontFamily: bodyFontFamily,
+    borderRadius: 8, padding: '4px 10px', fontFamily: uiFontFamily,
   },
-  section: { display: 'flex', flexDirection: 'column', gap: 14 },
-  sectionTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 20, color: 'var(--text-secondary)' },
+
+  section: { display: 'flex', flexDirection: 'column', gap: 12 },
+  sectionTitle: {
+    margin: 0, fontFamily: titleFontFamily, fontSize: 20, color: 'var(--text-secondary)',
+  },
+  sectionDesc: {
+    margin: 0, fontSize: 14, color: 'var(--text-muted)', fontFamily: uiFontFamily,
+  },
+
+  /* Theme grid */
+  themeGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))',
+    gap: 10,
+  },
+  themeCard: {
+    position: 'relative',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+    padding: '14px 10px 12px',
+    borderRadius: 14,
+    border: '2px solid var(--border)',
+    background: 'var(--bg-surface)',
+    cursor: 'pointer',
+    fontFamily: uiFontFamily,
+    transition: 'border-color 180ms ease, box-shadow 180ms ease, transform 120ms ease',
+    boxShadow: 'var(--shadow-sm)',
+  },
+  themeCardActive: {
+    borderColor: 'var(--accent)',
+    boxShadow: '0 0 0 3px rgba(var(--accent), 0.15), var(--shadow-md)',
+    transform: 'translateY(-2px)',
+  },
+  swatchRow: {
+    display: 'flex', gap: 4, marginBottom: 2,
+  },
+  swatch: {
+    width: 18, height: 18, borderRadius: 5,
+    border: '1px solid rgba(0,0,0,0.15)',
+    flexShrink: 0,
+  },
+  themeIcon: { fontSize: 22, lineHeight: 1 },
+  themeLabel: {
+    fontSize: 12, fontWeight: 600, color: 'var(--text-body)',
+    textAlign: 'center', lineHeight: 1.25,
+  },
+  activeCheck: {
+    position: 'absolute', top: 8, right: 10,
+    fontSize: 12, fontWeight: 700, color: 'var(--accent)',
+  },
+
+  /* Toggles */
   toggleList: {
     background: 'var(--bg-surface)',
     borderRadius: 16,
@@ -92,24 +190,18 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: 'var(--shadow-sm)',
   },
   toggleRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     padding: '16px 20px',
-    borderBottom: '1px solid var(--border-muted)',
-    gap: 16,
+    borderBottom: '1px solid var(--border-muted)', gap: 16,
   },
-  toggleInfo: { display: 'flex', flexDirection: 'column', gap: 3 },
-  toggleLabel: { margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--text-body)', fontFamily: bodyFontFamily },
-  toggleDesc: { margin: 0, fontSize: 13, color: 'var(--text-muted)', fontFamily: bodyFontFamily },
+  toggleInfo:  { display: 'flex', flexDirection: 'column', gap: 3 },
+  toggleLabel: { margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--text-body)', fontFamily: uiFontFamily },
+  toggleDesc:  { margin: 0, fontSize: 13, color: 'var(--text-muted)', fontFamily: uiFontFamily },
   toggleBtn: {
     position: 'relative',
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    border: 'none',
-    cursor: 'pointer',
-    flexShrink: 0,
+    width: 44, height: 24,
+    borderRadius: 12, border: 'none',
+    cursor: 'pointer', flexShrink: 0,
     transition: 'background 200ms ease',
     padding: 0,
   },
@@ -117,24 +209,22 @@ const s: Record<string, React.CSSProperties> = {
   toggleOff: { background: 'var(--border-strong)' },
   toggleThumb: {
     position: 'absolute',
-    top: 3,
-    left: 3,
-    width: 18,
-    height: 18,
+    top: 3, left: 3,
+    width: 18, height: 18,
     borderRadius: '50%',
     background: '#fff',
     boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
     transition: 'transform 200ms ease',
   },
+
+  /* About */
   aboutCard: {
     background: 'var(--bg-surface)',
     borderRadius: 14,
     border: '1px solid var(--border)',
     padding: '18px 22px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
+    display: 'flex', flexDirection: 'column', gap: 6,
     boxShadow: 'var(--shadow-sm)',
   },
-  aboutLine: { margin: 0, fontSize: 14, color: 'var(--text-secondary)', fontFamily: bodyFontFamily },
+  aboutLine: { margin: 0, fontSize: 14, color: 'var(--text-secondary)', fontFamily: uiFontFamily },
 }

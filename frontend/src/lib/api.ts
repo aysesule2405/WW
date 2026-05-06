@@ -1,4 +1,8 @@
-const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1'
+export const API_BASE = import.meta.env.VITE_API_BASE ?? '/api/v1'
+
+export function apiUrl(path: string): string {
+  return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
+}
 
 // AuthContext stores { token, username } under 'ww_auth'
 export function getToken(): string | null {
@@ -29,7 +33,7 @@ function authHeaders(): Record<string, string> {
 }
 
 export async function register(email: string, username: string, password: string) {
-  const res = await fetch(`${API_BASE}/auth/register`, {
+  const res = await fetch(apiUrl('/auth/register'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, username, password }),
@@ -38,7 +42,7 @@ export async function register(email: string, username: string, password: string
 }
 
 export async function login(email: string, password: string) {
-  const res = await fetch(`${API_BASE}/auth/login`, {
+  const res = await fetch(apiUrl('/auth/login'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -52,7 +56,7 @@ export async function saveProgress(payload: {
   xp?: number
   completionPercent?: number
 }) {
-  const res = await fetch(`${API_BASE}/progress`, {
+  const res = await fetch(apiUrl('/progress'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(payload),
@@ -61,7 +65,7 @@ export async function saveProgress(payload: {
 }
 
 export async function getMyProgress() {
-  const res = await fetch(`${API_BASE}/progress`, {
+  const res = await fetch(apiUrl('/progress'), {
     method: 'GET',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
   })
@@ -69,14 +73,14 @@ export async function getMyProgress() {
 }
 
 export async function getProfile() {
-  const res = await fetch(`${API_BASE}/users/profile`, {
+  const res = await fetch(apiUrl('/users/profile'), {
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
   })
   return res.json()
 }
 
 export async function updateProfile(username: string) {
-  const res = await fetch(`${API_BASE}/users/profile`, {
+  const res = await fetch(apiUrl('/users/profile'), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ username }),
@@ -85,7 +89,7 @@ export async function updateProfile(username: string) {
 }
 
 export async function uploadAvatar(avatarBase64: string) {
-  const res = await fetch(`${API_BASE}/users/profile/avatar`, {
+  const res = await fetch(apiUrl('/users/profile/avatar'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ avatarBase64 }),
@@ -93,4 +97,158 @@ export async function uploadAvatar(avatarBase64: string) {
   return res.json()
 }
 
-export default { getToken, getUsername, register, login, saveProgress, getMyProgress, getProfile, updateProfile, uploadAvatar }
+// ── Session recording ─────────────────────────────────────────────────────────
+
+export async function submitSession(
+  gameSlug: string,
+  data: {
+    completed: boolean
+    score?: number | null
+    completionTimeSeconds?: number | null
+    deliveriesCompleted?: number | null
+    guardianId?: string | null
+    growthStageReached?: string | null
+    waterActions?: number | null
+    sunActions?: number | null
+    talkActions?: number | null
+    harmonyBonus?: boolean | null
+    totalCardPoints?: number | null
+    moonScore?: number | null
+    winner?: string | null
+    won?: boolean | null
+    saplingsGrown?: number | null
+    fruitsCollected?: number | null
+    shortestGrowthTimeSeconds?: number | null
+    levelReached?: number | null
+    finalPlayerScore?: number | null
+    completionTime?: number | null
+    shortestTime?: number | null
+  }
+) {
+  try {
+    const res = await fetch(apiUrl(`/games/${gameSlug}/sessions`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(data),
+    })
+    return res.ok ? res.json() : null
+  } catch {
+    return null
+  }
+}
+
+export async function submitScore(
+  gameSlug: string,
+  data: {
+    score: number
+    durationMs?: number | null
+    metadata?: Record<string, unknown>
+  }
+) {
+  try {
+    const res = await fetch(apiUrl(`/games/${gameSlug}/scores`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(data),
+    })
+    return res.ok ? res.json() : null
+  } catch {
+    return null
+  }
+}
+
+export async function getGameSessions(gameSlug: string, limit = 20) {
+  try {
+    const res = await fetch(apiUrl(`/games/${gameSlug}/sessions/me?limit=${limit}`), {
+      headers: authHeaders(),
+    })
+    if (!res.ok) return { sessions: [] }
+    return res.json()
+  } catch {
+    return { sessions: [] }
+  }
+}
+
+export async function getProgressSummary() {
+  try {
+    const res = await fetch(apiUrl('/games/progress/summary'), {
+      headers: authHeaders(),
+    })
+    if (!res.ok) return { games: [] }
+    return res.json()
+  } catch {
+    return { games: [] }
+  }
+}
+
+export async function getScoreLeaderboard(gameSlug: string, limit = 25) {
+  try {
+    const res = await fetch(apiUrl(`/games/${gameSlug}/leaderboard?limit=${limit}`))
+    if (!res.ok) return { leaderboard: [] }
+    return res.json()
+  } catch {
+    return { leaderboard: [] }
+  }
+}
+
+export async function getDeliveryLeaderboard() {
+  try {
+    const res = await fetch(apiUrl('/games/delivery-on-the-wind/leaderboard/fastest'))
+    if (!res.ok) return { leaderboard: [] }
+    return res.json()
+  } catch {
+    return { leaderboard: [] }
+  }
+}
+
+export async function getMyBest(gameSlug: string) {
+  try {
+    const res = await fetch(apiUrl(`/games/${gameSlug}/me`), { headers: authHeaders() })
+    if (!res.ok) return { best: null }
+    return res.json()
+  } catch {
+    return { best: null }
+  }
+}
+
+export async function getRecentScores(gameSlug: string, limit = 5) {
+  try {
+    const res = await fetch(apiUrl(`/games/${gameSlug}/recent?limit=${limit}`), {
+      headers: authHeaders(),
+    })
+    if (!res.ok) return { recent: [] }
+    return res.json()
+  } catch {
+    return { recent: [] }
+  }
+}
+
+export async function getAchievements() {
+  try {
+    const res = await fetch(apiUrl('/achievements/me'), {
+      headers: authHeaders(),
+    })
+    if (!res.ok) return getAchievementCatalog()
+    return res.json()
+  } catch {
+    return getAchievementCatalog()
+  }
+}
+
+export async function getAchievementCatalog() {
+  try {
+    const res = await fetch(apiUrl('/achievements/catalog'))
+    if (!res.ok) return { achievements: [] }
+    return res.json()
+  } catch {
+    return { achievements: [] }
+  }
+}
+
+export default {
+  getToken, getUsername, register, login,
+  apiUrl, saveProgress, getMyProgress, getProfile, updateProfile, uploadAvatar,
+  submitScore, submitSession, getGameSessions, getProgressSummary,
+  getScoreLeaderboard, getDeliveryLeaderboard, getMyBest, getRecentScores,
+  getAchievements, getAchievementCatalog,
+}

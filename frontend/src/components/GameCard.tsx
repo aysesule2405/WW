@@ -21,6 +21,7 @@ const GAME_META: Record<string, { mode: string; duration: string }> = {
   'spirit-drift':         { mode: 'Arcade',   duration: '~1 min' },
   'delivery-on-the-wind': { mode: 'Strategy', duration: '~2 min' },
   'spirit-sapling':       { mode: 'Nurture',  duration: '~3 min' },
+  'half-moon':            { mode: 'Puzzle',   duration: '~5 min' },
 }
 
 export default function GameCard({ game, onPlay, revealDelayMs = 0, status }: Props) {

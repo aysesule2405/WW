@@ -3,6 +3,7 @@
 export type Phase = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 export type Owner = 'player' | 'ai' | null
 export type Difficulty = 'easy' | 'medium' | 'hard'
+export type AIMode = 'local' | 'gemini'
 export type WildCardType = 'eclipse-shield' | 'moonrise' | 'star-burst' | 'crescent-charm'
 
 export interface SpaceDef {
@@ -22,7 +23,7 @@ export interface PlacedCard {
   spaceId: number
   phase: Phase
   owner: Owner
-  chainId: number | null   // which chain owns this card, if any
+  chainId: number | null
 }
 
 export interface ScoreState {
@@ -54,51 +55,62 @@ export const PHASE_NAMES: Record<Phase, string> = {
   4: 'Waxing Gibbous',
   5: 'Full Moon',
   6: 'Waning Gibbous',
-  7: 'Last Quarter',
+  7: 'Third Quarter',
   8: 'Waning Crescent',
 }
 
-// Opposite pairs that sum to 9 (phase + opposite = 9)
-export function oppositePhase(p: Phase): Phase {
-  return (9 - p) as Phase
+// ── Moon cycle logic ──────────────────────────────────────────────────────────
+
+// Circular moon cycle: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 1
+export function isConsecutive(a: Phase, b: Phase): boolean {
+  const diff = Math.abs(a - b)
+  return Math.min(diff, 8 - diff) === 1
 }
 
-export function isOpposite(a: Phase, b: Phase): boolean {
-  return a + b === 9
+// Complementary pairs (differ by exactly 4 in the 8-phase cycle):
+//   1 + 5,  2 + 6,  3 + 7,  4 + 8
+export function isComplementary(a: Phase, b: Phase): boolean {
+  return Math.abs(a - b) === 4
+}
+
+// Legacy alias so old call-sites don't break during migration
+export const isOpposite = isComplementary
+
+// Returns the complementary phase for a given phase
+export function complementaryPhase(p: Phase): Phase {
+  return ((((p - 1) + 4) % 8) + 1) as Phase
 }
 
 // ── Board layouts ─────────────────────────────────────────────────────────────
 
-// CELL_SIZE determines spacing between space centers in the scene
 export const CELL = 110
 
 function grid(level: number, label: string, rows: number, cols: number, skip: number[] = []): BoardLayout {
   const spaces: SpaceDef[] = []
   let id = 0
-  const grid: (number | null)[][] = []
+  const gridArr: (number | null)[][] = []
 
   for (let r = 0; r < rows; r++) {
-    grid[r] = []
+    gridArr[r] = []
     for (let c = 0; c < cols; c++) {
       const linearIdx = r * cols + c
       if (skip.includes(linearIdx)) {
-        grid[r][c] = null
+        gridArr[r][c] = null
       } else {
-        grid[r][c] = id++
-        spaces.push({ id: grid[r][c]!, x: c * CELL, y: r * CELL, adjacentIds: [] })
+        gridArr[r][c] = id++
+        spaces.push({ id: gridArr[r][c]!, x: c * CELL, y: r * CELL, adjacentIds: [] })
       }
     }
   }
 
-  // Wire adjacency (4-directional)
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const sid = grid[r]?.[c]
+      const sid = gridArr[r]?.[c]
       if (sid == null) continue
       const space = spaces.find(s => s.id === sid)!
       const neighbors = [
-        grid[r - 1]?.[c], grid[r + 1]?.[c],
-        grid[r]?.[c - 1], grid[r]?.[c + 1],
+        gridArr[r - 1]?.[c], gridArr[r + 1]?.[c],
+        gridArr[r]?.[c - 1], gridArr[r]?.[c + 1],
       ]
       space.adjacentIds = neighbors.filter((n): n is number => n != null)
     }
@@ -107,45 +119,101 @@ function grid(level: number, label: string, rows: number, cols: number, skip: nu
   return { level, label, spaces }
 }
 
-// Level 1 — 3×3 (9 spaces)
-const L1 = grid(1, 'Moonrise', 3, 3)
-
-// Level 2 — 4×3 (12 spaces)
+const L1 = grid(1, 'Moonrise',        3, 3)
 const L2 = grid(2, 'Crescent Hollow', 4, 3)
-
-// Level 3 — 4×4, skip 4 corner cells (12 spaces — plus-shape)
-const L3 = grid(3, 'Silver Glade', 4, 4, [0, 3, 12, 15])
-
-// Level 4 — 5×3 (15 spaces)
-const L4 = grid(4, 'Starlit Marsh', 5, 3)
-
-// Level 5 — Crescent C-shape: 5 rows × 4 cols, skip right column on rows 1-3
-const L5 = grid(5, 'Crescent Cove', 5, 4, [3, 7, 11])
-
-// Level 6 — 4×4, skip middle 2×2 (two clusters bridged at edges)
-const L6 = grid(6, 'Twin Peaks', 4, 4, [5, 6, 9, 10])
-
-// Level 7 — 5×4 (20 spaces)
-const L7 = grid(7, 'Lunar Vale', 5, 4)
-
-// Level 8 — 5×5, skip 5 scattered cells
-const L8 = grid(8, 'Eclipse Reach', 5, 5, [2, 8, 16, 22])
-
-// Level 9 — 6×5 (30 spaces, hardest)
-const L9 = grid(9, 'Half Moon Summit', 6, 5)
+const L3 = grid(3, 'Silver Glade',    4, 4, [0, 3, 12, 15])
+const L4 = grid(4, 'Starlit Marsh',   5, 3)
+const L5 = grid(5, 'Crescent Cove',   5, 4, [3, 7, 11])
+const L6 = grid(6, 'Twin Peaks',      4, 4, [5, 6, 9, 10])
+const L7 = grid(7, 'Lunar Vale',      5, 4)
+const L8 = grid(8, 'Eclipse Reach',   5, 5, [2, 8, 16, 22])
+const L9 = grid(9, 'Half Moon Summit',6, 5)
 
 export const BOARD_LAYOUTS: BoardLayout[] = [L1, L2, L3, L4, L5, L6, L7, L8, L9]
 
+// ── Random board generator ────────────────────────────────────────────────────
+
+const LEVEL_SPACE_COUNTS = [9, 12, 12, 15, 17, 12, 20, 21, 30]
+
+const LEVEL_NAMES: string[][] = [
+  ['Moonrise', 'Twilight Hollow', 'Silver Creek', 'Dusk Vale'],
+  ['Crescent Hollow', 'Nightfall Glen', 'Ember Reach', 'Mist Path'],
+  ['Silver Glade', 'Lunar Arch', 'Shadow Crest', 'Pale Crossing'],
+  ['Starlit Marsh', 'Mystic Shore', 'Tide Mirror', 'Night Basin'],
+  ['Crescent Cove', 'Tidal Ledge', 'Dusk Reef', 'Eclipse Bay'],
+  ['Twin Peaks', 'Double Ridge', 'Mirror Spires', 'Binary Rise'],
+  ['Lunar Vale', 'Moon Garden', 'Star Meadow', 'Night Prairie'],
+  ['Eclipse Reach', 'Obsidian Field', 'Dark Crossing', 'Void Step'],
+  ['Half Moon Summit', 'Celestial Crown', 'Apex Lunar', 'Peak of Night'],
+]
+
+// Grows a random connected blob of `targetSize` cells within a ROWS×COLS grid,
+// then converts it to a SpaceDef array with correct adjacency.
+export function generateRandomLayout(level: number): BoardLayout {
+  const idx         = Math.min(level - 1, LEVEL_SPACE_COUNTS.length - 1)
+  const targetSize  = LEVEL_SPACE_COUNTS[idx]
+  const namePool    = LEVEL_NAMES[idx]
+  const label       = namePool[Math.floor(Math.random() * namePool.length)]
+
+  const ROWS = 7, COLS = 5
+  const DIRS: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+
+  const included = new Set<string>()
+  const frontier: [number, number][] = []
+
+  const startR = Math.floor(Math.random() * ROWS)
+  const startC = Math.floor(Math.random() * COLS)
+  const startKey = `${startR},${startC}`
+  included.add(startKey)
+  frontier.push([startR, startC])
+
+  while (included.size < targetSize) {
+    const pivot = frontier[Math.floor(Math.random() * frontier.length)]
+    const neighbors = DIRS
+      .map(([dr, dc]) => [pivot[0] + dr, pivot[1] + dc] as [number, number])
+      .filter(([r, c]) => r >= 0 && r < ROWS && c >= 0 && c < COLS && !included.has(`${r},${c}`))
+
+    if (neighbors.length === 0) continue
+
+    const chosen = neighbors[Math.floor(Math.random() * neighbors.length)]
+    included.add(`${chosen[0]},${chosen[1]}`)
+    frontier.push(chosen)
+  }
+
+  const cells = Array.from(included)
+    .map(k => { const [r, c] = k.split(',').map(Number); return { r, c } })
+    .sort((a, b) => a.r - b.r || a.c - b.c)
+
+  const minR = Math.min(...cells.map(c => c.r))
+  const minC = Math.min(...cells.map(c => c.c))
+
+  const cellMap = new Map<string, number>()
+  cells.forEach(({ r, c }, i) => cellMap.set(`${r},${c}`, i))
+
+  const spaces: SpaceDef[] = cells.map(({ r, c }, i) => {
+    const adjacentIds: number[] = []
+    for (const [dr, dc] of DIRS) {
+      const adjId = cellMap.get(`${r + dr},${c + dc}`)
+      if (adjId !== undefined) adjacentIds.push(adjId)
+    }
+    return { id: i, x: (c - minC) * CELL, y: (r - minR) * CELL, adjacentIds }
+  })
+
+  return { level, label, spaces }
+}
+
 // ── Scoring constants ─────────────────────────────────────────────────────────
 
-export const SCORE_PHASE_PAIR   = 1   // same phase adjacent
-export const SCORE_FULL_MOON    = 2   // opposite phases adjacent (sum = 9)
-export const SCORE_CARD_CONTROL = 1   // per owned card at game end
+export const SCORE_SAME_MATCH    = 1  // same phase adjacent: +1
+export const SCORE_COMPLEMENTARY = 2  // complementary pair adjacent (1+5, 2+6, 3+7, 4+8): +2
+export const SCORE_CYCLE_PER_CARD = 1 // moon cycle match: +1 per card in chain (min 3 cards)
+export const SCORE_CARD_CONTROL  = 1  // per owned card at game end
 
-// Lunar cycle (consecutive chain 3+) = chain length points
-// Chain stealing: if opponent extends your chain to 3+, they steal it all
+// Legacy aliases
+export const SCORE_PHASE_PAIR = SCORE_SAME_MATCH
+export const SCORE_FULL_MOON  = SCORE_COMPLEMENTARY
 
-// ── Scoring engine ────────────────────────────────────────────────────────────
+// ── Scoring result types ──────────────────────────────────────────────────────
 
 export interface ScoringResult {
   playerDelta: number
@@ -155,15 +223,19 @@ export interface ScoringResult {
 }
 
 export interface ScoringEvent {
-  type: 'phase-pair' | 'full-moon-pair' | 'lunar-cycle' | 'chain-stolen'
+  type: 'same-match' | 'complementary-match' | 'moon-cycle' | 'chain-stolen'
   points: number
   owner: 'player' | 'ai'
   spaceIds: number[]
 }
 
+// ── Chain ID counter ──────────────────────────────────────────────────────────
+
 let _nextChainId = 1
 export function nextChainId() { return _nextChainId++ }
 export function resetChainIds() { _nextChainId = 1 }
+
+// ── Main scoring engine ───────────────────────────────────────────────────────
 
 export function runScoringAfterPlacement(
   placed: PlacedCard[],
@@ -179,80 +251,85 @@ export function runScoringAfterPlacement(
   if (!newCard) return result
 
   const space = layout.spaces.find(s => s.id === newSpaceId)!
+  const mult  = doublePlacement ? 2 : 1
 
-  const mult = doublePlacement ? 2 : 1
-
-  // ── Pair scoring ──────────────────────────────────────────────────────────
+  // ── A. Adjacent pair scoring ──────────────────────────────────────────────
   for (const adjId of space.adjacentIds) {
     const adjCard = placed.find(c => c.spaceId === adjId)
     if (!adjCard || adjCard.owner === null) continue
+
+    // Only score pairs between cards of the same owner (mixed ownership doesn't score)
+    if (adjCard.owner !== placedBy) continue
 
     const pairKey = [newSpaceId, adjId].sort((a, b) => a - b).join('-')
     if (scoredPairs.has(pairKey)) continue
     scoredPairs.add(pairKey)
 
     if (adjCard.phase === newCard.phase) {
-      // Phase pair — points go to whoever placed the new card
-      const pts = SCORE_PHASE_PAIR * mult
+      // B. Same-card match: +1
+      const pts = SCORE_SAME_MATCH * mult
       if (placedBy === 'player') result.playerDelta += pts
       else result.aiDelta += pts
-      result.events.push({ type: 'phase-pair', points: pts, owner: placedBy, spaceIds: [newSpaceId, adjId] })
-    } else if (isOpposite(adjCard.phase, newCard.phase)) {
-      // Full moon pair
-      const pts = SCORE_FULL_MOON * mult
+      result.events.push({ type: 'same-match', points: pts, owner: placedBy, spaceIds: [newSpaceId, adjId] })
+
+    } else if (isComplementary(adjCard.phase, newCard.phase)) {
+      // B. Complementary match (1+5, 2+6, 3+7, 4+8): +2
+      const pts = SCORE_COMPLEMENTARY * mult
       if (placedBy === 'player') result.playerDelta += pts
       else result.aiDelta += pts
-      result.events.push({ type: 'full-moon-pair', points: pts, owner: placedBy, spaceIds: [newSpaceId, adjId] })
+      result.events.push({ type: 'complementary-match', points: pts, owner: placedBy, spaceIds: [newSpaceId, adjId] })
     }
   }
 
-  // ── Lunar cycle (DFS for consecutive chain through newSpaceId) ────────────
+  // ── C. Moon cycle scoring (3+ consecutive phases, circular wrap) ──────────
   const chain = findConsecutiveChain(placed, newSpaceId, layout)
 
   if (chain.length >= 3) {
     const chainCards = chain.map(id => placed.find(c => c.spaceId === id)!)
-    const ownerCounts = { player: 0, ai: 0 }
-    for (const cc of chainCards) {
-      if (cc.owner === 'player') ownerCounts.player++
-      else if (cc.owner === 'ai') ownerCounts.ai++
-    }
 
-    // Determine if this is stealing: new card extends an existing chain owned by opponent
-    const prevChainOwner = getMajorityOwner(chainCards.filter(cc => cc.spaceId !== newSpaceId))
+    // Chains must belong to a single owner to score
+    const chainOwnerCounts = countOwners(chainCards)
+    const prevChainCards   = chainCards.filter(cc => cc.spaceId !== newSpaceId)
+    const prevChainOwner   = getMajorityOwner(prevChainCards)
 
     let chainOwner: 'player' | 'ai'
-    if (prevChainOwner && prevChainOwner !== placedBy && chainCards.filter(c => c.spaceId !== newSpaceId).length >= 2) {
-      // Steal!
+
+    // Chain stealing: opponent placed card extends our 2-card run to 3+
+    if (prevChainOwner && prevChainOwner !== placedBy && prevChainCards.length >= 2) {
       chainOwner = placedBy
       result.stolenChainId = chainCards[0].chainId ?? null
       result.events.push({ type: 'chain-stolen', points: chain.length * mult, owner: placedBy, spaceIds: chain })
-    } else {
+    } else if (chainOwnerCounts[placedBy] >= chainOwnerCounts[placedBy === 'player' ? 'ai' : 'player']) {
       chainOwner = placedBy
+    } else {
+      // Mixed ownership — don't score
+      return result
     }
 
     const cid = nextChainId()
     for (const cc of chainCards) {
       cc.chainId = cid
-      cc.owner = chainOwner
+      cc.owner   = chainOwner
     }
 
-    const pts = chain.length * mult
+    const pts = chain.length * SCORE_CYCLE_PER_CARD * mult
     if (chainOwner === 'player') result.playerDelta += pts
     else result.aiDelta += pts
 
     if (result.events[result.events.length - 1]?.type !== 'chain-stolen') {
-      result.events.push({ type: 'lunar-cycle', points: pts, owner: chainOwner, spaceIds: chain })
+      result.events.push({ type: 'moon-cycle', points: pts, owner: chainOwner, spaceIds: chain })
     }
   }
 
   return result
 }
 
+// ── Consecutive chain DFS (handles circular 8→1 wrap) ────────────────────────
+
 function findConsecutiveChain(placed: PlacedCard[], startId: number, layout: BoardLayout): number[] {
   const startCard = placed.find(c => c.spaceId === startId)
   if (!startCard) return []
 
-  // BFS/DFS: find longest connected path of consecutive phases including startId
   const best: number[] = []
 
   function dfs(currentId: number, path: number[], visited: Set<number>) {
@@ -268,8 +345,8 @@ function findConsecutiveChain(placed: PlacedCard[], startId: number, layout: Boa
       const adjCard = placed.find(c => c.spaceId === adjId)
       if (!adjCard || adjCard.owner === null) continue
 
-      const diff = Math.abs(adjCard.phase - currentCard.phase)
-      if (diff === 1) {
+      // Circular consecutive check: handles 8→1 and 1→8 wrap
+      if (isConsecutive(adjCard.phase, currentCard.phase)) {
         visited.add(adjId)
         dfs(adjId, [...path, adjId], visited)
         visited.delete(adjId)
@@ -281,21 +358,25 @@ function findConsecutiveChain(placed: PlacedCard[], startId: number, layout: Boa
   return best.length >= 3 ? best : []
 }
 
+function countOwners(cards: PlacedCard[]): { player: number; ai: number } {
+  let player = 0, ai = 0
+  for (const c of cards) {
+    if (c.owner === 'player') player++
+    else if (c.owner === 'ai') ai++
+  }
+  return { player, ai }
+}
+
 function getMajorityOwner(cards: PlacedCard[]): 'player' | 'ai' | null {
   if (cards.length === 0) return null
-  let p = 0, a = 0
-  for (const c of cards) {
-    if (c.owner === 'player') p++
-    else if (c.owner === 'ai') a++
-  }
-  if (p === a) return null
-  return p > a ? 'player' : 'ai'
+  const { player, ai } = countOwners(cards)
+  if (player === ai) return null
+  return player > ai ? 'player' : 'ai'
 }
 
 // ── Deck helpers ──────────────────────────────────────────────────────────────
 
 export function buildDeck(): Phase[] {
-  // 4 copies of each phase (1–8) = 32 cards
   const deck: Phase[] = []
   for (let phase = 1; phase <= 8; phase++) {
     for (let copy = 0; copy < 4; copy++) {

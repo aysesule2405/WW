@@ -4,6 +4,7 @@ import games from './gameData'
 import { bodyFontFamily, headingFontFamily } from '../theme/typography'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { apiUrl } from '../lib/api'
 
 type Props = {
   onSelect?: (id: string) => void
@@ -42,7 +43,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
   }, [filter])
 
   useEffect(() => {
-    fetch('/api/v1/games/spirit-drift/leaderboard?limit=5')
+    fetch(apiUrl('/games/spirit-drift/leaderboard?limit=5'))
       .then((r) => r.json())
       .then((d) => setLeaderboard(d.leaderboard ?? []))
       .catch(() => setLeaderboard([]))
@@ -54,7 +55,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
     const slugs = games.filter((g) => g.available).map((g) => g.id)
     Promise.all(
       slugs.map((slug) =>
-        fetch(`/api/v1/games/${slug}/me`, { headers: { Authorization: `Bearer ${user.token}` } })
+        fetch(apiUrl(`/games/${slug}/me`), { headers: { Authorization: `Bearer ${user.token}` } })
           .then((r) => r.json())
           .then((d) => ({ slug, score: d.best?.score ?? null }))
           .catch(() => ({ slug, score: null }))

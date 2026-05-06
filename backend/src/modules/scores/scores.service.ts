@@ -2,6 +2,8 @@ import { Types } from 'mongoose'
 import { ScoreSubmission } from '../../models/ScoreSubmission'
 import { UserHighScore } from '../../models/UserHighScore'
 import { User } from '../../models/User'
+import { Game } from '../../models/Game'
+import achievementsService from '../achievements/achievements.service'
 
 export default {
   submitScore: async ({ userId, gameId, score, durationMs, metadata }: {
@@ -35,7 +37,12 @@ export default {
       newPersonalBest = true
     }
 
-    return { success: true, id: submission._id.toString(), newPersonalBest }
+    const game = await Game.findById(gameOid).select('slug').lean()
+    const achievements = game
+      ? await achievementsService.awardForScore({ userId, gameSlug: game.slug, score })
+      : []
+
+    return { success: true, id: submission._id.toString(), newPersonalBest, achievements }
   },
 
   getLeaderboard: async (gameId: string, limit = 100) => {
@@ -47,16 +54,17 @@ export default {
       .lean()
 
     const userIds = rows.map((r) => r.userId)
-    const users = await User.find({ _id: { $in: userIds } }).select('_id username avatarUrl').lean()
+    const users   = await User.find({ _id: { $in: userIds } }).select('_id username avatarUrl').lean()
     const userMap = new Map(users.map((u) => [u._id.toString(), u]))
 
-    return rows.map((r) => {
+    return rows.map((r, i) => {
       const u = userMap.get(r.userId.toString())
       return {
-        userId: r.userId.toString(),
-        username: u?.username ?? 'Unknown',
-        avatarUrl: u?.avatarUrl ?? null,
-        score: r.score,
+        rank:       i + 1,
+        userId:     r.userId.toString(),
+        username:   u?.username ?? 'Unknown',
+        avatarUrl:  u?.avatarUrl ?? null,
+        score:      r.score,
         achievedAt: r.achievedAt,
       }
     })
@@ -68,5 +76,24 @@ export default {
       .lean()
     if (!row) return null
     return { score: row.score, achievedAt: row.achievedAt }
+  },
+
+  // Returns the most recent score submissions for a player in one game.
+  getRecentScores: async (userId: string, gameId: string, limit = 10) => {
+    const rows = await ScoreSubmission
+      .find({
+        userId: new Types.ObjectId(userId),
+        gameId: new Types.ObjectId(gameId),
+      })
+      .sort({ createdAt: -1 })
+      .limit(Math.min(limit, 50))
+      .lean()
+
+    return rows.map((r) => ({
+      id:        r._id.toString(),
+      score:     r.score,
+      metadata:  r.metadata ?? {},
+      createdAt: r.createdAt,
+    }))
   },
 }

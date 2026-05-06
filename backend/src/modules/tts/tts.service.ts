@@ -85,6 +85,10 @@ export default {
     if (!voiceId) {
       throw new Error(`No ElevenLabs voice ID configured for guardian: ${guardianId}`)
     }
+    const modelId = process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2'
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[TTS] guardian=${gid} voice=*${voiceId.slice(-4)} model=${modelId}`)
+    }
 
     const elevenRes = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
@@ -97,7 +101,7 @@ export default {
         },
         body: JSON.stringify({
           text,
-          model_id: process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2',
+          model_id: modelId,
           voice_settings: VOICE_SETTINGS[gid],
         }),
       }

@@ -31,7 +31,7 @@ const submitScore = async (req: AuthRequest, res: Response) => {
 
 const getLeaderboard = async (req: Request, res: Response) => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 100, 500)
+    const limit  = Math.min(Number(req.query.limit) || 100, 500)
     const gameId = await resolveGameId(String(req.params.gameSlug))
     if (!gameId) return res.status(404).json({ error: 'Game not found' })
     const rows = await scoresService.getLeaderboard(gameId, limit)
@@ -56,4 +56,19 @@ const getMyBest = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export default { submitScore, getLeaderboard, getMyBest }
+const getRecentScores = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+    const gameId = await resolveGameId(String(req.params.gameSlug))
+    if (!gameId) return res.status(404).json({ error: 'Game not found' })
+    const limit = Math.min(Number(req.query.limit) || 10, 50)
+    const rows  = await scoresService.getRecentScores(userId, gameId, limit)
+    return res.status(200).json({ recent: rows })
+  } catch (err: any) {
+    console.error('getRecentScores error', err)
+    return res.status(500).json({ error: err.message })
+  }
+}
+
+export default { submitScore, getLeaderboard, getMyBest, getRecentScores }
