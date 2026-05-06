@@ -1,4 +1,4 @@
-export type DeliveryType = 'apple' | 'star' | 'leaf' | 'moon'
+export type DeliveryType = 'mushroom' | 'wildflower' | 'dew' | 'rose'
 
 export interface DeliveryConfig {
   type: DeliveryType
@@ -9,10 +9,10 @@ export interface DeliveryConfig {
 }
 
 export const DELIVERY_TYPES: DeliveryConfig[] = [
-  { type: 'apple', letter: 'A', colorNum: 0xC0392B, colorHex: '#C0392B', label: 'Apple Parcel'  },
-  { type: 'star',  letter: '★', colorNum: 0x2471A3, colorHex: '#2471A3', label: 'Star Package'  },
-  { type: 'leaf',  letter: 'L', colorNum: 0x1E8449, colorHex: '#1E8449', label: 'Leaf Bundle'   },
-  { type: 'moon',  letter: 'M', colorNum: 0xC8860A, colorHex: '#C8860A', label: 'Moon Lantern'  },
+  { type: 'mushroom',   letter: 'M', colorNum: 0xC0392B, colorHex: '#C0392B', label: 'Mushroom Mycelium' },
+  { type: 'wildflower', letter: 'W', colorNum: 0x2471A3, colorHex: '#2471A3', label: 'Wild Flower'       },
+  { type: 'dew',        letter: 'D', colorNum: 0x1E8449, colorHex: '#1E8449', label: 'Mount Dew'         },
+  { type: 'rose',       letter: 'R', colorNum: 0xC8860A, colorHex: '#C8860A', label: 'Rose Bud'          },
 ]
 
 export const TILE = 48

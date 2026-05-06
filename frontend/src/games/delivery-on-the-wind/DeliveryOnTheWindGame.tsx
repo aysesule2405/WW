@@ -7,6 +7,7 @@ import { submitSession } from '../../lib/api'
 import GameShell from '../../components/game/GameShell'
 import AchievementToast from '../../components/AchievementToast'
 import type { UnlockedAchievement } from '../../components/AchievementToast'
+import { useGameMusic } from '../../hooks/useGameMusic'
 
 type Props = { onExit: () => void }
 
@@ -16,7 +17,7 @@ type EndResult = {
   timeRemaining: number
 }
 
-const BG = `radial-gradient(ellipse at top, #1a3a0a 0%, #0d1a06 100%)`
+const BG = `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url('/assets/backgrounds/delivery-on-the-wind/game-bg.png') center/cover no-repeat`
 
 const STEPS = [
   { heading: 'Objective', items: ['Help Kiki deliver all 4 packages to the correct houses within 2 minutes.'] },
@@ -53,6 +54,8 @@ function formatTime(sec: number) {
 }
 
 export default function DeliveryOnTheWindGame({ onExit }: Props) {
+  useGameMusic('delivery')
+
   const containerRef = useRef<HTMLDivElement | null>(null)
   const apiRef = useRef<DeliveryGameAPI | null>(null)
 

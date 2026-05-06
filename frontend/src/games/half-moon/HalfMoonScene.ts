@@ -4,6 +4,15 @@ import {
   buildDeck, shuffle, runScoringAfterPlacement, resetChainIds,
   generateRandomLayout,
 } from './data/halfMoonConfig'
+import { audioManager } from '../../lib/AudioManager'
+
+const SFX = {
+  cardPlace: '/assets/audio/sfx/halfmoon/card-place.mp3',
+  match:     '/assets/audio/sfx/halfmoon/match.mp3',
+  chain:     '/assets/audio/sfx/halfmoon/chain.mp3',
+  win:       '/assets/audio/sfx/halfmoon/win.mp3',
+  lose:      '/assets/audio/sfx/halfmoon/lose.mp3',
+} as const
 import type {
   Phase, PlacedCard, BoardLayout, Difficulty, AIMode,
   ScoreState, WildCardType,
@@ -113,6 +122,7 @@ export class HalfMoonScene extends Phaser.Scene {
     // Silently loads PNGs from /assets/cards/ and /assets/ui/
     // Missing files are ignored — the game falls back to procedural graphics
     preloadHalfMoonAssets(this)
+    audioManager.preload(Object.values(SFX), 3)
   }
 
   // ── Wild cards ────────────────────────────────────────────────────────────
@@ -478,6 +488,7 @@ export class HalfMoonScene extends Phaser.Scene {
 
     const newPlaced: PlacedCard = { spaceId, phase, owner: by, chainId: null }
     this.placed.push(newPlaced)
+    audioManager.play(SFX.cardPlace, 0.65)
 
     const result = runScoringAfterPlacement(
       this.placed, spaceId, by, this.layout, this.scoredPairs, this.doublePlacement,
@@ -487,10 +498,10 @@ export class HalfMoonScene extends Phaser.Scene {
     this.scores.ai     += result.aiDelta
 
     for (const ev of result.events) {
-      if (ev.type === 'same-match')         this.cb.onEvent(`Same Match! +${ev.points}`,         ev.owner === 'player' ? '#88AAFF' : '#FF88BB')
-      if (ev.type === 'complementary-match') this.cb.onEvent(`Complementary! +${ev.points}`,      '#FFF8C0')
-      if (ev.type === 'moon-cycle')          this.cb.onEvent(`Moon Cycle! +${ev.points}`,         ev.owner === 'player' ? '#AADDFF' : '#FFB0B0')
-      if (ev.type === 'chain-stolen')        this.cb.onEvent(`Chain Stolen! +${ev.points}`,       '#FF7744')
+      if (ev.type === 'same-match')         { this.cb.onEvent(`Same Match! +${ev.points}`,         ev.owner === 'player' ? '#88AAFF' : '#FF88BB'); audioManager.play(SFX.match, 0.75) }
+      if (ev.type === 'complementary-match') { this.cb.onEvent(`Complementary! +${ev.points}`,      '#FFF8C0'); audioManager.play(SFX.match, 0.75) }
+      if (ev.type === 'moon-cycle')          { this.cb.onEvent(`Moon Cycle! +${ev.points}`,         ev.owner === 'player' ? '#AADDFF' : '#FFB0B0'); audioManager.play(SFX.match, 0.75) }
+      if (ev.type === 'chain-stolen')        { this.cb.onEvent(`Chain Stolen! +${ev.points}`,       '#FF7744'); audioManager.play(SFX.chain, 0.8) }
     }
 
     // Sync ownership changes from chain-stealing back to card visuals
@@ -637,6 +648,7 @@ export class HalfMoonScene extends Phaser.Scene {
     this.scores.aiCards     = this.placed.filter(c => c.owner === 'ai').length
     this.refreshScoreHUD()
     const won = this.scores.player > this.scores.ai
+    audioManager.play(won ? SFX.win : SFX.lose, 0.9)
     this.showEndMoon(won)
     this.time.delayedCall(600, () => {
       this.cb.onLevelEnd({ ...this.scores }, won, this.level)

@@ -202,7 +202,6 @@
 [data-theme="sapling"] {
   color-scheme: dark;
 
-  /* Sidebar: dark-1 → dark-2 background; light-3/light-4 text */
   --sidebar-bg:        linear-gradient(180deg, #241c09 0%, #202a0f 100%);
   --sidebar-highlight: #bcd191;
   --sidebar-muted:     #80925b;
@@ -210,32 +209,32 @@
   --sidebar-border:    rgba(131,105,50,0.18);
   --sidebar-active-bg: rgba(119,146,72,0.18);
 
-  --bg-page:         #1a1506;
-  --bg-surface:      rgba(44, 35, 14, 0.96);
-  --bg-surface-2:    rgba(62, 79, 33, 0.96);
-  --bg-muted:        rgba(26, 21, 6, 0.88);
+  --bg-page:         #241c09;
+  --bg-surface:      rgba(68, 53, 21, 0.97);
+  --bg-surface-2:    rgba(68, 53, 21, 0.97);
+  --bg-muted:        rgba(36, 28, 9, 0.88);
   --bg-input:        rgba(36, 28, 9, 0.97);
-  --bg-badge:        rgba(119, 146, 72, 0.12);
-  --bg-accent-soft:  rgba(119, 146, 72, 0.16);
+  --bg-badge:        rgba(188, 209, 145, 0.12);
+  --bg-accent-soft:  rgba(119, 146, 72, 0.18);
   --bg-danger-soft:  rgba(200, 80, 80, 0.14);
   --bg-success-soft: rgba(119, 146, 72, 0.16);
-  --bg-photo-blend:  rgba(20, 16, 4, 0.88);
+  --bg-photo-blend:  rgba(36, 28, 9, 0.88);
 
   --text-h:           #faefcb;
   --text-body:        #d8cca6;
   --text-secondary:   #ab9e76;
-  --text-muted:       #80925b;
+  --text-muted:       #ab9e76;
   --text-placeholder: #556436;
   --text-on-dark:     #faefcb;
 
-  --border:        rgba(131, 105, 50, 0.28);
-  --border-muted:  rgba(131, 105, 50, 0.13);
-  --border-strong: rgba(131, 105, 50, 0.48);
-  --border-focus:  rgba(119, 146, 72, 0.60);
+  --border:        rgba(171, 158, 118, 0.30);
+  --border-muted:  rgba(171, 158, 118, 0.14);
+  --border-strong: rgba(171, 158, 118, 0.52);
+  --border-focus:  rgba(188, 209, 145, 0.60);
 
-  --accent:      #779248;
-  --accent-dark: #556436;
-  --leaf:        #bcd191;
+  --accent:      #bcd191;
+  --accent-dark: #80925b;
+  --leaf:        #d8cca6;
   --bark:        #836932;
   --paper:       #faefcb;
 
@@ -244,8 +243,8 @@
   --shadow-lg:    0 16px 36px rgba(0, 0, 0, 0.65);
   --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.72);
 
-  --scrollbar-track: rgba(131, 105, 50, 0.06);
-  --scrollbar-thumb: rgba(131, 105, 50, 0.22);
+  --scrollbar-track: rgba(171, 158, 118, 0.06);
+  --scrollbar-thumb: rgba(171, 158, 118, 0.22);
 }
 
 /* ── Delivery on the Wind theme ───────────────────────────────── */
@@ -253,39 +252,38 @@
 [data-theme="delivery"] {
   color-scheme: dark;
 
-  /* Sidebar: dark-1 (rust) fading to near-black; light-3/medium-4 text */
-  --sidebar-bg:        linear-gradient(180deg, #762715 0%, #120903 100%);
-  --sidebar-highlight: #e9dfc2;
-  --sidebar-muted:     #9aa253;
-  --sidebar-pip:       #c6cf79;
-  --sidebar-border:    rgba(153,59,37,0.22);
-  --sidebar-active-bg: rgba(154,162,83,0.18);
+  --sidebar-bg:        linear-gradient(180deg, #993b25 0%, #762715 100%);
+  --sidebar-highlight: #fff7e0;
+  --sidebar-muted:     #c6cf79;
+  --sidebar-pip:       #9eecf8;
+  --sidebar-border:    rgba(153,59,37,0.28);
+  --sidebar-active-bg: rgba(158,236,248,0.14);
 
-  --bg-page:         #120903;
-  --bg-surface:      rgba(118, 39, 21, 0.24);
-  --bg-surface-2:    rgba(118, 125, 56, 0.18);
-  --bg-muted:        rgba(18, 9, 3, 0.88);
-  --bg-input:        rgba(18, 9, 3, 0.96);
-  --bg-badge:        rgba(154, 162, 83, 0.12);
-  --bg-accent-soft:  rgba(154, 162, 83, 0.16);
-  --bg-danger-soft:  rgba(203, 91, 64, 0.18);
-  --bg-success-soft: rgba(154, 162, 83, 0.16);
-  --bg-photo-blend:  rgba(18, 9, 3, 0.88);
+  --bg-page:         #762715;
+  --bg-surface:      rgba(153, 59, 37, 0.97);
+  --bg-surface-2:    rgba(153, 59, 37, 0.97);
+  --bg-muted:        rgba(118, 39, 21, 0.88);
+  --bg-input:        rgba(118, 39, 21, 0.97);
+  --bg-badge:        rgba(158, 236, 248, 0.12);
+  --bg-accent-soft:  rgba(109, 182, 193, 0.18);
+  --bg-danger-soft:  rgba(203, 91, 64, 0.22);
+  --bg-success-soft: rgba(198, 207, 121, 0.16);
+  --bg-photo-blend:  rgba(118, 39, 21, 0.88);
 
   --text-h:           #fff7e0;
-  --text-body:        #e9dfc2;
-  --text-secondary:   #d4c69e;
-  --text-muted:       #9aa253;
+  --text-body:        #fff7e0;
+  --text-secondary:   #e9dfc2;
+  --text-muted:       #d4c69e;
   --text-placeholder: #767d38;
   --text-on-dark:     #fff7e0;
 
-  --border:        rgba(153, 59, 37, 0.32);
-  --border-muted:  rgba(153, 59, 37, 0.16);
-  --border-strong: rgba(153, 59, 37, 0.52);
-  --border-focus:  rgba(154, 162, 83, 0.60);
+  --border:        rgba(212, 198, 158, 0.30);
+  --border-muted:  rgba(212, 198, 158, 0.14);
+  --border-strong: rgba(212, 198, 158, 0.52);
+  --border-focus:  rgba(158, 236, 248, 0.60);
 
-  --accent:      #9aa253;
-  --accent-dark: #767d38;
+  --accent:      #9eecf8;
+  --accent-dark: #6db6c1;
   --leaf:        #c6cf79;
   --bark:        #993b25;
   --paper:       #fff7e0;
@@ -295,8 +293,8 @@
   --shadow-lg:    0 16px 36px rgba(0, 0, 0, 0.68);
   --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.75);
 
-  --scrollbar-track: rgba(153, 59, 37, 0.06);
-  --scrollbar-thumb: rgba(153, 59, 37, 0.22);
+  --scrollbar-track: rgba(212, 198, 158, 0.06);
+  --scrollbar-thumb: rgba(212, 198, 158, 0.22);
 }
 
 /* ── Spirit Drift theme ───────────────────────────────────────── */
@@ -304,41 +302,40 @@
 [data-theme="drift"] {
   color-scheme: dark;
 
-  /* Sidebar: dark-1 (deep navy) → bg-page; light-3/medium-3 text */
-  --sidebar-bg:        linear-gradient(180deg, #0c1e34 0%, #09141f 100%);
+  --sidebar-bg:        linear-gradient(180deg, #162e4c 0%, #0c1e34 100%);
   --sidebar-highlight: #aeddd9;
   --sidebar-muted:     #7aaca8;
   --sidebar-pip:       #4cb7f1;
   --sidebar-border:    rgba(49,86,132,0.22);
-  --sidebar-active-bg: rgba(44,141,194,0.18);
+  --sidebar-active-bg: rgba(76,183,241,0.16);
 
-  --bg-page:         #09141f;
-  --bg-surface:      rgba(22, 46, 76, 0.94);
-  --bg-surface-2:    rgba(24, 107, 153, 0.18);
-  --bg-muted:        rgba(9, 20, 31, 0.88);
-  --bg-input:        rgba(9, 20, 31, 0.96);
-  --bg-badge:        rgba(44, 141, 194, 0.12);
-  --bg-accent-soft:  rgba(44, 141, 194, 0.16);
+  --bg-page:         #0c1e34;
+  --bg-surface:      rgba(22, 46, 76, 0.97);
+  --bg-surface-2:    rgba(22, 46, 76, 0.97);
+  --bg-muted:        rgba(12, 30, 52, 0.88);
+  --bg-input:        rgba(12, 30, 52, 0.97);
+  --bg-badge:        rgba(76, 183, 241, 0.12);
+  --bg-accent-soft:  rgba(44, 141, 194, 0.18);
   --bg-danger-soft:  rgba(200, 80, 80, 0.14);
-  --bg-success-soft: rgba(122, 172, 168, 0.16);
-  --bg-photo-blend:  rgba(9, 20, 31, 0.88);
+  --bg-success-soft: rgba(174, 221, 217, 0.16);
+  --bg-photo-blend:  rgba(12, 30, 52, 0.88);
 
   --text-h:           #fffbdc;
-  --text-body:        #e3deb9;
-  --text-secondary:   #c4bd8e;
-  --text-muted:       #7aaca8;
-  --text-placeholder: #186b99;
+  --text-body:        #fffbdc;
+  --text-secondary:   #e3deb9;
+  --text-muted:       #c4bd8e;
+  --text-placeholder: #578d89;
   --text-on-dark:     #fffbdc;
 
-  --border:        rgba(49, 86, 132, 0.35);
-  --border-muted:  rgba(49, 86, 132, 0.17);
-  --border-strong: rgba(49, 86, 132, 0.55);
-  --border-focus:  rgba(44, 141, 194, 0.60);
+  --border:        rgba(196, 189, 142, 0.28);
+  --border-muted:  rgba(196, 189, 142, 0.13);
+  --border-strong: rgba(196, 189, 142, 0.50);
+  --border-focus:  rgba(76, 183, 241, 0.60);
 
-  --accent:      #2c8dc2;
-  --accent-dark: #186b99;
-  --leaf:        #4cb7f1;
-  --bark:        #315684;
+  --accent:      #4cb7f1;
+  --accent-dark: #2c8dc2;
+  --leaf:        #aeddd9;
+  --bark:        #578d89;
   --paper:       #fffbdc;
 
   --shadow-sm:    0 4px 12px rgba(0, 0, 0, 0.40);
@@ -346,8 +343,8 @@
   --shadow-lg:    0 16px 36px rgba(0, 0, 0, 0.68);
   --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.74);
 
-  --scrollbar-track: rgba(49, 86, 132, 0.06);
-  --scrollbar-thumb: rgba(49, 86, 132, 0.24);
+  --scrollbar-track: rgba(196, 189, 142, 0.06);
+  --scrollbar-thumb: rgba(196, 189, 142, 0.24);
 }
 
 /* ── Rise of the Half Moon theme ─────────────────────────────── */
@@ -355,40 +352,39 @@
 [data-theme="halfmoon"] {
   color-scheme: dark;
 
-  /* Sidebar: medium-1 (dark indigo) → dark-1 (near-black); light-4/light-3 text */
   --sidebar-bg:        linear-gradient(180deg, #181429 0%, #040307 100%);
   --sidebar-highlight: #fffce6;
-  --sidebar-muted:     #3aaaa9;
+  --sidebar-muted:     #63e8e7;
   --sidebar-pip:       #ffafba;
   --sidebar-border:    rgba(66,58,102,0.28);
-  --sidebar-active-bg: rgba(224,132,145,0.16);
+  --sidebar-active-bg: rgba(255,175,186,0.14);
 
   --bg-page:         #040307;
-  --bg-surface:      rgba(24, 20, 41, 0.96);
-  --bg-surface-2:    rgba(66, 58, 102, 0.22);
+  --bg-surface:      rgba(24, 20, 41, 0.97);
+  --bg-surface-2:    rgba(24, 20, 41, 0.97);
   --bg-muted:        rgba(4, 3, 7, 0.90);
   --bg-input:        rgba(4, 3, 7, 0.97);
-  --bg-badge:        rgba(224, 132, 145, 0.12);
-  --bg-accent-soft:  rgba(224, 132, 145, 0.16);
+  --bg-badge:        rgba(255, 175, 186, 0.12);
+  --bg-accent-soft:  rgba(224, 132, 145, 0.18);
   --bg-danger-soft:  rgba(189, 95, 108, 0.18);
-  --bg-success-soft: rgba(58, 170, 169, 0.16);
+  --bg-success-soft: rgba(99, 232, 231, 0.14);
   --bg-photo-blend:  rgba(4, 3, 7, 0.90);
 
   --text-h:           #fffce6;
-  --text-body:        #e3deba;
-  --text-secondary:   #bfb98c;
-  --text-muted:       #3aaaa9;
-  --text-placeholder: #258988;
+  --text-body:        #fffce6;
+  --text-secondary:   #e3deba;
+  --text-muted:       #bfb98c;
+  --text-placeholder: #423a66;
   --text-on-dark:     #fffce6;
 
-  --border:        rgba(66, 58, 102, 0.40);
-  --border-muted:  rgba(66, 58, 102, 0.20);
-  --border-strong: rgba(66, 58, 102, 0.60);
-  --border-focus:  rgba(58, 170, 169, 0.60);
+  --border:        rgba(191, 185, 140, 0.28);
+  --border-muted:  rgba(191, 185, 140, 0.13);
+  --border-strong: rgba(191, 185, 140, 0.50);
+  --border-focus:  rgba(255, 175, 186, 0.60);
 
-  --accent:      #e08491;
-  --accent-dark: #bd5f6c;
-  --leaf:        #ffafba;
+  --accent:      #ffafba;
+  --accent-dark: #e08491;
+  --leaf:        #63e8e7;
   --bark:        #423a66;
   --paper:       #fffce6;
 
@@ -397,13 +393,63 @@
   --shadow-lg:    0 16px 36px rgba(0, 0, 0, 0.78);
   --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.85);
 
-  --scrollbar-track: rgba(66, 58, 102, 0.08);
-  --scrollbar-thumb: rgba(66, 58, 102, 0.28);
+  --scrollbar-track: rgba(191, 185, 140, 0.08);
+  --scrollbar-thumb: rgba(191, 185, 140, 0.28);
+}
+
+/* ── Dashboard theme ──────────────────────────────────────────── */
+
+[data-theme="dashboard"] {
+  color-scheme: light;
+
+  --sidebar-bg:        linear-gradient(180deg, #2a3618 0%, #1a1f12 100%);
+  --sidebar-highlight: #a8b88a;
+  --sidebar-muted:     #80925b;
+  --sidebar-pip:       #96a872;
+  --sidebar-border:    rgba(80,102,56,0.22);
+  --sidebar-active-bg: rgba(128,146,91,0.18);
+
+  --bg-page:         #f5f2e8;
+  --bg-surface:      rgba(232, 228, 212, 0.96);
+  --bg-surface-2:    rgba(245, 242, 232, 0.99);
+  --bg-muted:        rgba(245, 242, 232, 0.85);
+  --bg-input:        #ffffff;
+  --bg-badge:        rgba(128, 146, 91, 0.10);
+  --bg-accent-soft:  rgba(128, 146, 91, 0.14);
+  --bg-danger-soft:  rgba(200, 60, 60, 0.08);
+  --bg-success-soft: rgba(128, 146, 91, 0.14);
+  --bg-photo-blend:  rgba(245, 242, 232, 0.80);
+
+  --text-h:           #2a3618;
+  --text-body:        #2a3618;
+  --text-secondary:   #3d4e24;
+  --text-muted:       #556638;
+  --text-placeholder: #c4bd9e;
+  --text-on-dark:     #f5f2e8;
+
+  --border:        rgba(196, 189, 158, 0.48);
+  --border-muted:  rgba(196, 189, 158, 0.24);
+  --border-strong: rgba(196, 189, 158, 0.70);
+  --border-focus:  rgba(128, 146, 91, 0.60);
+
+  --accent:      #80925b;
+  --accent-dark: #556638;
+  --leaf:        #a8b88a;
+  --bark:        #556638;
+  --paper:       #f5f2e8;
+
+  --shadow-sm:    0 4px 12px rgba(42, 54, 24, 0.08);
+  --shadow-md:    0 8px 22px rgba(42, 54, 24, 0.12);
+  --shadow-lg:    0 16px 36px rgba(42, 54, 24, 0.18);
+  --shadow-hover: 0 20px 40px rgba(42, 54, 24, 0.22);
+
+  --scrollbar-track: rgba(196, 189, 158, 0.06);
+  --scrollbar-thumb: rgba(196, 189, 158, 0.24);
 }
 
 /* ── Dark/Light mode overrides for game themes ────────────────── */
 
-/* Default text-box tokens (inherit from theme) */
+/* Default text-box tokens */
 :root,
 [data-theme="dark"] {
   --text-box-bg:     var(--bg-surface);
@@ -411,72 +457,182 @@
   --text-box-border: var(--border);
 }
 
-/* Spirit Sapling */
+/* ── Spirit Sapling ── */
 [data-theme="sapling"][data-mode="dark"] {
   --text-box-bg:     rgba(36, 28, 9, 0.97);
   --text-box-color:  #faefcb;
-  --text-box-border: rgba(131, 105, 50, 0.38);
+  --text-box-border: rgba(171, 158, 118, 0.38);
 }
 [data-theme="sapling"][data-mode="light"] {
+  color-scheme: light;
+  --bg-page:         #faefcb;
+  --bg-surface:      rgba(216, 204, 166, 0.96);
+  --bg-surface-2:    rgba(250, 239, 203, 0.99);
+  --bg-muted:        rgba(250, 239, 203, 0.85);
+  --bg-input:        #ffffff;
+  --bg-badge:        rgba(119, 146, 72, 0.10);
+  --bg-accent-soft:  rgba(119, 146, 72, 0.14);
+  --bg-photo-blend:  rgba(250, 239, 203, 0.80);
+  --text-h:          #241c09;
+  --text-body:       #241c09;
+  --text-secondary:  #3a2c0f;
+  --text-muted:      #556436;
+  --text-placeholder:#836932;
+  --border:          rgba(171, 158, 118, 0.45);
+  --border-muted:    rgba(171, 158, 118, 0.22);
+  --border-strong:   rgba(171, 158, 118, 0.68);
+  --accent:          #779248;
+  --accent-dark:     #556436;
+  --leaf:            #bcd191;
+  --bark:            #836932;
+  --shadow-sm:    0 4px 12px rgba(36, 28, 9, 0.08);
+  --shadow-md:    0 8px 22px rgba(36, 28, 9, 0.12);
+  --shadow-lg:    0 16px 36px rgba(36, 28, 9, 0.18);
   --text-box-bg:     rgba(250, 239, 203, 0.97);
   --text-box-color:  #241c09;
-  --text-box-border: rgba(131, 105, 50, 0.28);
-  --bg-page:         #e8dcb2;
-  --bg-surface:      rgba(250, 239, 203, 0.97);
-  --text-h:          #241c09;
-  --text-body:       #3a2e0a;
-  --text-muted:      #5d6e3a;
+  --text-box-border: rgba(171, 158, 118, 0.35);
 }
 
-/* Delivery on the Wind */
+/* ── Delivery on the Wind ── */
 [data-theme="delivery"][data-mode="dark"] {
-  --text-box-bg:     rgba(18, 9, 3, 0.97);
+  --text-box-bg:     rgba(118, 39, 21, 0.97);
   --text-box-color:  #fff7e0;
-  --text-box-border: rgba(153, 59, 37, 0.38);
+  --text-box-border: rgba(212, 198, 158, 0.35);
 }
 [data-theme="delivery"][data-mode="light"] {
+  color-scheme: light;
+  --bg-page:         #fff7e0;
+  --bg-surface:      rgba(233, 223, 194, 0.96);
+  --bg-surface-2:    rgba(255, 247, 224, 0.99);
+  --bg-muted:        rgba(255, 247, 224, 0.85);
+  --bg-input:        #ffffff;
+  --bg-badge:        rgba(109, 182, 193, 0.10);
+  --bg-accent-soft:  rgba(109, 182, 193, 0.14);
+  --bg-photo-blend:  rgba(255, 247, 224, 0.80);
+  --text-h:          #762715;
+  --text-body:       #762715;
+  --text-secondary:  #8b3020;
+  --text-muted:      #4a8e99;
+  --text-placeholder:#d4c69e;
+  --border:          rgba(212, 198, 158, 0.52);
+  --border-muted:    rgba(212, 198, 158, 0.26);
+  --border-strong:   rgba(212, 198, 158, 0.72);
+  --accent:          #6db6c1;
+  --accent-dark:     #4a8e99;
+  --leaf:            #c6cf79;
+  --bark:            #762715;
+  --shadow-sm:    0 4px 12px rgba(118, 39, 21, 0.08);
+  --shadow-md:    0 8px 22px rgba(118, 39, 21, 0.12);
+  --shadow-lg:    0 16px 36px rgba(118, 39, 21, 0.18);
   --text-box-bg:     rgba(255, 247, 224, 0.97);
-  --text-box-color:  #120903;
-  --text-box-border: rgba(153, 59, 37, 0.28);
-  --bg-page:         #f0e4be;
-  --bg-surface:      rgba(255, 247, 224, 0.97);
-  --text-h:          #120903;
-  --text-body:       #2a1408;
-  --text-muted:      #767d38;
+  --text-box-color:  #762715;
+  --text-box-border: rgba(212, 198, 158, 0.42);
 }
 
-/* Spirit Drift */
+/* ── Spirit Drift ── */
 [data-theme="drift"][data-mode="dark"] {
-  --text-box-bg:     rgba(9, 20, 31, 0.97);
+  --text-box-bg:     rgba(12, 30, 52, 0.97);
   --text-box-color:  #fffbdc;
-  --text-box-border: rgba(49, 86, 132, 0.38);
+  --text-box-border: rgba(196, 189, 142, 0.35);
 }
 [data-theme="drift"][data-mode="light"] {
+  color-scheme: light;
+  --bg-page:         #fffbdc;
+  --bg-surface:      rgba(227, 222, 185, 0.96);
+  --bg-surface-2:    rgba(255, 251, 220, 0.99);
+  --bg-muted:        rgba(255, 251, 220, 0.85);
+  --bg-input:        #ffffff;
+  --bg-badge:        rgba(76, 183, 241, 0.10);
+  --bg-accent-soft:  rgba(76, 183, 241, 0.14);
+  --bg-photo-blend:  rgba(255, 251, 220, 0.80);
+  --text-h:          #0c1e34;
+  --text-body:       #0c1e34;
+  --text-secondary:  #162e4c;
+  --text-muted:      #578d89;
+  --text-placeholder:#c4bd8e;
+  --border:          rgba(196, 189, 142, 0.50);
+  --border-muted:    rgba(196, 189, 142, 0.25);
+  --border-strong:   rgba(196, 189, 142, 0.70);
+  --accent:          #4cb7f1;
+  --accent-dark:     #578d89;
+  --leaf:            #aeddd9;
+  --bark:            #0c1e34;
+  --shadow-sm:    0 4px 12px rgba(12, 30, 52, 0.08);
+  --shadow-md:    0 8px 22px rgba(12, 30, 52, 0.12);
+  --shadow-lg:    0 16px 36px rgba(12, 30, 52, 0.18);
   --text-box-bg:     rgba(255, 251, 220, 0.97);
-  --text-box-color:  #09141f;
-  --text-box-border: rgba(49, 86, 132, 0.28);
-  --bg-page:         #d8eef8;
-  --bg-surface:      rgba(255, 251, 220, 0.97);
-  --text-h:          #09141f;
-  --text-body:       #0d2035;
-  --text-muted:      #315684;
+  --text-box-color:  #0c1e34;
+  --text-box-border: rgba(196, 189, 142, 0.42);
 }
 
-/* Rise of the Half Moon */
+/* ── Rise of the Half Moon ── */
 [data-theme="halfmoon"][data-mode="dark"] {
   --text-box-bg:     rgba(4, 3, 7, 0.97);
   --text-box-color:  #fffce6;
-  --text-box-border: rgba(66, 58, 102, 0.42);
+  --text-box-border: rgba(191, 185, 140, 0.35);
 }
 [data-theme="halfmoon"][data-mode="light"] {
+  color-scheme: light;
+  --bg-page:         #fffce6;
+  --bg-surface:      rgba(227, 222, 186, 0.96);
+  --bg-surface-2:    rgba(255, 252, 230, 0.99);
+  --bg-muted:        rgba(255, 252, 230, 0.85);
+  --bg-input:        #ffffff;
+  --bg-badge:        rgba(224, 132, 145, 0.10);
+  --bg-accent-soft:  rgba(224, 132, 145, 0.14);
+  --bg-photo-blend:  rgba(255, 252, 230, 0.80);
+  --text-h:          #040307;
+  --text-body:       #040307;
+  --text-secondary:  #12101c;
+  --text-muted:      #423a66;
+  --text-placeholder:#bfb98c;
+  --border:          rgba(191, 185, 140, 0.50);
+  --border-muted:    rgba(191, 185, 140, 0.25);
+  --border-strong:   rgba(191, 185, 140, 0.70);
+  --accent:          #e08491;
+  --accent-dark:     #423a66;
+  --leaf:            #ffafba;
+  --bark:            #423a66;
+  --shadow-sm:    0 4px 12px rgba(4, 3, 7, 0.08);
+  --shadow-md:    0 8px 22px rgba(4, 3, 7, 0.12);
+  --shadow-lg:    0 16px 36px rgba(4, 3, 7, 0.18);
   --text-box-bg:     rgba(255, 252, 230, 0.97);
   --text-box-color:  #040307;
-  --text-box-border: rgba(66, 58, 102, 0.28);
-  --bg-page:         #e8e4f8;
-  --bg-surface:      rgba(255, 252, 230, 0.97);
-  --text-h:          #040307;
-  --text-body:       #12101c;
-  --text-muted:      #423a66;
+  --text-box-border: rgba(191, 185, 140, 0.42);
+}
+
+/* ── Dashboard ── */
+[data-theme="dashboard"][data-mode="dark"] {
+  color-scheme: dark;
+  --bg-page:         #1a1f12;
+  --bg-surface:      rgba(42, 54, 24, 0.97);
+  --bg-surface-2:    rgba(42, 54, 24, 0.97);
+  --bg-muted:        rgba(26, 31, 18, 0.88);
+  --bg-input:        rgba(26, 31, 18, 0.97);
+  --bg-badge:        rgba(168, 184, 138, 0.12);
+  --bg-accent-soft:  rgba(168, 184, 138, 0.16);
+  --bg-photo-blend:  rgba(26, 31, 18, 0.88);
+  --text-h:          #f5f2e8;
+  --text-body:       #f5f2e8;
+  --text-secondary:  #d8d4c0;
+  --text-muted:      #c4bd9e;
+  --text-placeholder:#556638;
+  --border:          rgba(85, 102, 56, 0.38);
+  --border-muted:    rgba(85, 102, 56, 0.18);
+  --border-strong:   rgba(85, 102, 56, 0.58);
+  --accent:          #a8b88a;
+  --accent-dark:     #80925b;
+  --shadow-sm:    0 4px 12px rgba(0, 0, 0, 0.28);
+  --shadow-md:    0 8px 22px rgba(0, 0, 0, 0.42);
+  --shadow-lg:    0 16px 36px rgba(0, 0, 0, 0.55);
+  --text-box-bg:     rgba(26, 31, 18, 0.97);
+  --text-box-color:  #f5f2e8;
+  --text-box-border: rgba(85, 102, 56, 0.40);
+}
+[data-theme="dashboard"][data-mode="light"] {
+  --text-box-bg:     rgba(245, 242, 232, 0.97);
+  --text-box-color:  #2a3618;
+  --text-box-border: rgba(196, 189, 158, 0.42);
 }
 
 /* ── Base elements ────────────────────────────────────────────── */

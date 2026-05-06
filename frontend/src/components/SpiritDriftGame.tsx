@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { createGame } from '../game/createGame';
 import { uiFontFamily, titleFontFamily, numberFontFamily } from '../theme/typography';
 import { getScoreLeaderboard, getMyBest, submitScore, submitSession } from '../lib/api';
@@ -59,6 +60,8 @@ type LeaderboardRow = { rank: number; username: string; score: number; achievedA
 type PersonalBest   = { score: number; achievedAt: string } | null
 
 export default function SpiritDriftGame({ onExit }: Props) {
+  useGameMusic('spirit-drift')
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const apiRef = useRef<ReturnType<typeof createGame> | null>(null);
   const [showRules,   setShowRules]   = useState(true);

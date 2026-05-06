@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import LandingPage from './components/LandingPage'
@@ -9,6 +9,7 @@ import SpiritDriftGame from './components/SpiritDriftGame'
 import DeliveryOnTheWindGame from './games/delivery-on-the-wind/DeliveryOnTheWindGame'
 import SpiritSaplingGame from './components/SpiritSaplingGame'
 import HalfMoonGame from './games/half-moon/HalfMoonGame'
+import { audioManager } from './lib/AudioManager'
 
 type GameView = 'spirit-drift' | 'delivery-on-the-wind' | 'spirit-sapling' | 'half-moon'
 type RootView = 'landing' | 'login' | 'register'
@@ -17,6 +18,16 @@ function AppContent() {
   const { user, logout } = useAuth()
   const [rootView, setRootView] = useState<RootView>('landing')
   const [activeGame, setActiveGame] = useState<GameView | null>(null)
+
+  // Menu music plays whenever the user is logged in and not inside a game.
+  // Persists across Settings, Leaderboard, and all other shell tabs.
+  useEffect(() => {
+    if (user && !activeGame) {
+      audioManager.playMusic('menu', 0.35)
+    } else {
+      audioManager.stopMusic(600)
+    }
+  }, [user, activeGame])
 
   // ── Logged in ──────────────────────────────────────────────────────────────
   if (user) {

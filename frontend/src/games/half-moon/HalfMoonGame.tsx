@@ -5,10 +5,11 @@ import { WILD_CARDS } from './data/halfMoonConfig'
 import type { Phase, Difficulty, AIMode, WildCardType } from './data/halfMoonConfig'
 import { getScoreLeaderboard, getMyBest, getRecentScores, submitScore, submitSession } from '../../lib/api'
 import { uiFontFamily, titleFontFamily, numberFontFamily } from '../../theme/typography'
-import { MOON_LOGO_HTML, GAME_BG_HTML } from './assets'
+import { GAME_BG_HTML } from './assets'
 import GameShell from '../../components/game/GameShell'
 import AchievementToast from '../../components/AchievementToast'
 import type { UnlockedAchievement } from '../../components/AchievementToast'
+import { useGameMusic } from '../../hooks/useGameMusic'
 
 const bodyFontFamily    = uiFontFamily
 const headingFontFamily = titleFontFamily
@@ -35,6 +36,8 @@ async function fetchHighScore(): Promise<HighScore> {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function HalfMoonGame({ onExit }: Props) {
+  useGameMusic('halfmoon')
+
   const containerRef = useRef<HTMLDivElement | null>(null)
   const apiRef       = useRef<HalfMoonAPI | null>(null)
 
@@ -258,13 +261,6 @@ export default function HalfMoonGame({ onExit }: Props) {
         )}
         <div style={s.centre}>
           <div style={s.rulesCard}>
-            {/* Logo illustration — falls back to text title if image fails */}
-            <img
-              src={MOON_LOGO_HTML}
-              alt="Rise of the Half Moon"
-              style={s.logoImg}
-              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-            />
             <h2 style={s.rulesTitle}>Rise of the Half Moon</h2>
             <p style={s.rulesSub}>A moon-phase card placement game. Win all 3 levels to complete the ritual — one loss ends your run.</p>
 
@@ -550,8 +546,9 @@ const s: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid rgba(200,168,75,0.1)',
   },
   centre: {
-    flex: 1, display: 'flex', alignItems: 'center',
-    justifyContent: 'center', padding: 28,
+    flex: 1, display: 'flex', alignItems: 'flex-start',
+    justifyContent: 'center', padding: '28px 20px 36px',
+    overflowY: 'auto', boxSizing: 'border-box',
   },
 
   // ── Rules ──
@@ -560,14 +557,6 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 22, boxShadow: '0 24px 56px rgba(0,0,0,0.7)',
     padding: '36px 42px', maxWidth: 680, width: '100%',
     display: 'flex', flexDirection: 'column', gap: 22,
-  },
-  logoImg: {
-    width: '100%',
-    maxHeight: 220,
-    objectFit: 'contain',
-    objectPosition: 'center',
-    borderRadius: 14,
-    marginBottom: -8,
   },
   rulesTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 32, color: '#FFF8C0', textAlign: 'center' },
   rulesSub:   { margin: 0, fontSize: 15, color: '#AABBCC', textAlign: 'center', lineHeight: 1.5 },

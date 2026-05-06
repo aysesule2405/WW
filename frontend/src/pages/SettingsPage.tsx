@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { uiFontFamily, titleFontFamily } from '../theme/typography'
 import { useTheme } from '../context/ThemeContext'
-import { THEME_META, type ColorTheme } from '../context/themeTypes'
+import { THEME_META, GAME_THEMES, type ColorTheme } from '../context/themeTypes'
 
 type Toggle = { key: string; label: string; description: string }
 
@@ -12,7 +12,8 @@ const TOGGLES: Toggle[] = [
   { key: 'particles',    label: 'Particle Effects', description: 'Wind particles and sparkle bursts.' },
 ]
 
-const THEME_ORDER: ColorTheme[] = ['light', 'dark', 'sapling', 'delivery', 'drift', 'halfmoon']
+const THEME_ORDER: ColorTheme[] = ['light', 'dark', 'sapling', 'delivery', 'drift', 'halfmoon', 'dashboard']
+const BG_COUNT = 9
 
 function loadSettings(): Record<string, boolean> {
   try {
@@ -23,10 +24,17 @@ function loadSettings(): Record<string, boolean> {
   }
 }
 
+function loadDashBg(): string {
+  try { return localStorage.getItem('ww_dashboard_bg') ?? '' } catch { return '' }
+}
+
 export default function SettingsPage() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, mode, toggleMode } = useTheme()
   const [settings, setSettings] = useState<Record<string, boolean>>(loadSettings)
   const [saved, setSaved] = useState(false)
+  const [dashBg, setDashBg] = useState<string>(loadDashBg)
+
+  const flash = () => { setSaved(true); setTimeout(() => setSaved(false), 1800) }
 
   const toggle = (key: string) => {
     setSettings((prev) => {
@@ -34,8 +42,14 @@ export default function SettingsPage() {
       localStorage.setItem('ww_settings', JSON.stringify(next))
       return next
     })
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1800)
+    flash()
+  }
+
+  const pickBg = (num: number) => {
+    const val = `/assets/backgrounds/dashboard-background/bg_selection_${num}.png`
+    setDashBg(val)
+    try { localStorage.setItem('ww_dashboard_bg', val) } catch {}
+    flash()
   }
 
   return (
@@ -73,6 +87,59 @@ export default function SettingsPage() {
                 <span style={s.themeIcon}>{meta.icon}</span>
                 <span style={s.themeLabel}>{meta.label}</span>
                 {active && <span style={s.activeCheck}>✓</span>}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Light / Dark mode toggle — only for game themes */}
+        {GAME_THEMES.includes(theme) && (
+          <div style={s.modeRow}>
+            <div style={s.toggleInfo}>
+              <p style={s.toggleLabel}>Theme Mode</p>
+              <p style={s.toggleDesc}>Switch between dark and light variants of the selected theme.</p>
+            </div>
+            <div style={s.modePills}>
+              {(['dark', 'light'] as const).map((m) => (
+                <button
+                  key={m}
+                  style={{
+                    ...s.modePill,
+                    ...(mode === m ? s.modePillActive : {}),
+                  }}
+                  onClick={() => { if (mode !== m) toggleMode() }}
+                  aria-pressed={mode === m}
+                >
+                  {m === 'dark' ? '🌙 Dark' : '☀️ Light'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Dashboard Background ──────────────────────────────────── */}
+      <div style={s.section}>
+        <h3 style={s.sectionTitle}>Dashboard Background</h3>
+        <p style={s.sectionDesc}>Choose a background image for the main game selection screen.</p>
+        <div style={s.bgGrid}>
+          {Array.from({ length: BG_COUNT }, (_, i) => i + 1).map((num) => {
+            const val = `/assets/backgrounds/dashboard-background/bg_selection_${num}.png`
+            const active = dashBg === val
+            return (
+              <button
+                key={num}
+                style={{ ...s.bgThumb, ...(active ? s.bgThumbActive : {}) }}
+                onClick={() => pickBg(num)}
+                aria-pressed={active}
+                title={`Background ${num}`}
+              >
+                <img
+                  src={val}
+                  alt={`Background option ${num}`}
+                  style={s.bgImg}
+                />
+                {active && <span style={s.bgCheck}>✓</span>}
               </button>
             )
           })}
@@ -179,6 +246,82 @@ const s: Record<string, React.CSSProperties> = {
   activeCheck: {
     position: 'absolute', top: 8, right: 10,
     fontSize: 12, fontWeight: 700, color: 'var(--accent)',
+  },
+
+  /* Mode toggle row */
+  modeRow: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '14px 16px',
+    background: 'var(--bg-surface)',
+    borderRadius: 14,
+    border: '1px solid var(--border)',
+    boxShadow: 'var(--shadow-sm)',
+    gap: 16,
+    flexWrap: 'wrap',
+  },
+  modePills: { display: 'flex', gap: 8 },
+  modePill: {
+    padding: '7px 16px',
+    borderRadius: 999,
+    border: '2px solid var(--border)',
+    background: 'var(--bg-badge)',
+    color: 'var(--text-secondary)',
+    fontFamily: uiFontFamily,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 160ms ease',
+  },
+  modePillActive: {
+    borderColor: 'var(--accent)',
+    background: 'var(--bg-accent-soft)',
+    color: 'var(--accent-dark)',
+  },
+
+  /* Background grid */
+  bgGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+    gap: 10,
+  },
+  bgThumb: {
+    position: 'relative',
+    padding: 0,
+    border: '3px solid var(--border)',
+    borderRadius: 12,
+    overflow: 'hidden',
+    cursor: 'pointer',
+    aspectRatio: '16/9',
+    background: 'var(--bg-surface)',
+    transition: 'border-color 180ms ease, transform 120ms ease, box-shadow 180ms ease',
+    boxShadow: 'var(--shadow-sm)',
+  },
+  bgThumbActive: {
+    borderColor: 'var(--accent)',
+    transform: 'translateY(-2px)',
+    boxShadow: '0 0 0 3px rgba(var(--accent), 0.2), var(--shadow-md)',
+  },
+  bgImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    display: 'block',
+  },
+  bgCheck: {
+    position: 'absolute',
+    top: 6,
+    right: 8,
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#fff',
+    background: 'var(--accent)',
+    borderRadius: '50%',
+    width: 20,
+    height: 20,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
   },
 
   /* Toggles */

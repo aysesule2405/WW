@@ -4,6 +4,7 @@ import games from './gameData'
 import { bodyFontFamily, headingFontFamily } from '../theme/typography'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { GAME_THEMES } from '../context/themeTypes'
 import { apiUrl } from '../lib/api'
 
 type Props = {
@@ -20,10 +21,16 @@ type LeaderboardEntry = {
   score: number
 }
 
+function getDashboardBg(): string {
+  try { return localStorage.getItem('ww_dashboard_bg') ?? '' } catch { return '' }
+}
+
 export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
   const { user } = useAuth()
-  const { theme } = useTheme()
-  const isDark = theme === 'dark'
+  const { theme, mode } = useTheme()
+  const isDark = theme === 'dark' || (GAME_THEMES.includes(theme) && mode === 'dark')
+
+  const [dashBg, setDashBg] = useState<string>(getDashboardBg)
 
   const [filter, setFilter] = useState<FilterKey>('all')
   const [parallax, setParallax] = useState({ x: 0, y: 0 })
@@ -67,6 +74,14 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
     })
   }, [user])
 
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'ww_dashboard_bg') setDashBg(e.newValue ?? '')
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   useEffect(() => () => {
     if (parallaxFrameRef.current) window.cancelAnimationFrame(parallaxFrameRef.current)
   }, [])
@@ -95,7 +110,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
       style={{
         minHeight: '100vh',
         padding: 24,
-        backgroundImage: `url('/assets/whisperwind-grove.jpg')`,
+        backgroundImage: `url('${dashBg || '/assets/whisperwind-grove.jpg'}')`,
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
         backgroundBlendMode: 'multiply',
@@ -350,33 +365,35 @@ const s: Record<string, React.CSSProperties> = {
   },
   leaderPanel: {
     borderRadius: 15,
-    border: '1px solid rgba(173,193,120,0.2)',
-    background: 'linear-gradient(180deg, rgba(22,34,14,0.96), rgba(16,26,10,0.98))',
+    border: '1px solid var(--border)',
+    background: 'var(--bg-surface)',
     boxShadow: 'var(--shadow-md)',
     padding: '14px 16px',
-    color: '#d4e8b4',
+    color: 'var(--text-body)',
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
     flex: 1,
+    backdropFilter: 'blur(10px)',
   },
   leaderHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
-  leaderTitle:  { margin: 0, fontFamily: headingFontFamily, fontSize: 19 },
-  leaderSub:    { fontSize: 11, opacity: 0.6, letterSpacing: 0.5 },
+  leaderTitle:  { margin: 0, fontFamily: headingFontFamily, fontSize: 19, color: 'var(--text-h)' },
+  leaderSub:    { fontSize: 11, opacity: 0.6, letterSpacing: 0.5, color: 'var(--text-muted)' },
   leaderRow: {
     display: 'flex', alignItems: 'center', gap: 8,
-    padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.06)',
+    padding: '6px 8px', borderRadius: 8, background: 'var(--bg-badge)',
+    border: '1px solid var(--border-muted)',
   },
-  leaderRank:   { fontSize: 12, opacity: 0.65, width: 20, textAlign: 'center', flexShrink: 0 },
+  leaderRank:   { fontSize: 12, width: 20, textAlign: 'center', flexShrink: 0, color: 'var(--text-muted)' },
   leaderAvatar: {
     width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
     background: 'linear-gradient(135deg,#ADC178,#6C584C)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontSize: 10, fontWeight: 700, color: '#fff',
   },
-  leaderName:   { flex: 1, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  leaderScore:  { fontSize: 14, fontWeight: 700 },
-  leaderEmpty:  { fontSize: 13, opacity: 0.55, textAlign: 'center', padding: '4px 0', margin: 0 },
+  leaderName:   { flex: 1, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-body)' },
+  leaderScore:  { fontSize: 14, fontWeight: 700, color: 'var(--accent)' },
+  leaderEmpty:  { fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0', margin: 0 },
 
   filterBar: {
     display: 'flex',

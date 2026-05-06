@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { TILE } from '../data/deliveryConfig'
+import { TILE, HOUSE_SIZE } from '../data/deliveryConfig'
 import type { DeliveryType } from '../data/deliveryConfig'
 
 export class House {
@@ -32,25 +32,28 @@ export class House {
     this.colorHex = colorHex
     this.imageIndex = imageIndex
 
+    const halfBlock = (HOUSE_SIZE / 2) * TILE  // 72px — half the 3×3 block
+
     // Shadow ellipse beneath house
     const shadow = scene.add.graphics()
     shadow.fillStyle(0x000000, 0.18)
-    shadow.fillEllipse(0, 28, 62, 16)
+    shadow.fillEllipse(0, halfBlock - 12, 132, 34)
 
-    // House image — display at 68×68
-    this.sprite = scene.add.image(0, -4, `house-${imageIndex}`)
-    this.sprite.setDisplaySize(68, 68)
+    // House image — display at HOUSE_SIZE × HOUSE_SIZE tiles
+    this.sprite = scene.add.image(0, -8, `house-${imageIndex}`)
+    this.sprite.setDisplaySize(HOUSE_SIZE * TILE, HOUSE_SIZE * TILE)
 
     // Color-coded badge ring around the base
     const badge = scene.add.graphics()
-    badge.lineStyle(3, colorNum, 0.8)
-    badge.strokeCircle(0, 26, 26)
-    badge.fillStyle(colorNum, 0.12)
-    badge.fillCircle(0, 26, 26)
+    badge.lineStyle(4, colorNum, 0.8)
+    badge.strokeCircle(0, halfBlock - 18, halfBlock - 18)
+    badge.fillStyle(colorNum, 0.10)
+    badge.fillCircle(0, halfBlock - 18, halfBlock - 18)
 
+    // Container anchored at the center of the 3×3 block
     this.container = scene.add.container(
-      gridX * TILE + TILE / 2,
-      gridY * TILE + TILE / 2,
+      (gridX + 1) * TILE + TILE / 2,
+      (gridY + 1) * TILE + TILE / 2,
       [shadow, badge, this.sprite],
     )
     this.container.setDepth(2)
@@ -59,10 +62,10 @@ export class House {
   markDelivered() {
     this.isDelivered = true
 
-    // Sparkle burst
+    // Sparkle burst — fires from center of 3×3 block
     const px = this.scene.add.particles(
-      this.gridX * TILE + TILE / 2,
-      this.gridY * TILE + TILE / 2,
+      (this.gridX + 1) * TILE + TILE / 2,
+      (this.gridY + 1) * TILE + TILE / 2,
       'pixel',
       {
         speed: { min: 70, max: 180 },
@@ -80,15 +83,15 @@ export class House {
     // Green tint on sprite
     this.sprite.setTint(0x88EE88)
 
-    // Green glow overlay
+    // Green glow overlay spans the full 3×3 block
     const overlay = this.scene.add.graphics()
     overlay.fillStyle(0x00CC44, 0.18)
     overlay.fillRoundedRect(
       this.gridX * TILE - 4,
       this.gridY * TILE - 4,
-      TILE + 8,
-      TILE + 8,
-      6,
+      HOUSE_SIZE * TILE + 8,
+      HOUSE_SIZE * TILE + 8,
+      10,
     )
     overlay.setDepth(2)
 

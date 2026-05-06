@@ -1,4 +1,4 @@
-export type DeliveryType = 'apple' | 'star' | 'leaf' | 'moon'
+export type DeliveryType = 'mushroom' | 'wildflower' | 'dew' | 'rose'
 export type TileType = 'grass' | 'path' | 'tree' | 'water' | 'swamp'
 
 export interface DeliveryConfig {
@@ -33,11 +33,21 @@ export interface InspectData {
 // ── World dimensions ──────────────────────────────────────────────────────────
 
 export const TILE       = 48
+export const HOUSE_SIZE = 3        // each house occupies a HOUSE_SIZE × HOUSE_SIZE tile block
 export const MAP_COLS   = 40
 export const MAP_ROWS   = 30
 export const VIEWPORT_W = 960
 export const VIEWPORT_H = 540
 export const GAME_DURATION_MS = 120_000
+
+// ── House positions (top-left tile of each HOUSE_SIZE×HOUSE_SIZE block) ───────
+
+export const HOUSE_POSITIONS = [
+  { col: 3,  row: 3  },   // apple — NW
+  { col: 35, row: 3  },   // star  — NE
+  { col: 3,  row: 25 },   // leaf  — SW
+  { col: 35, row: 25 },   // moon  — SE
+]
 
 // ── Tile rules ────────────────────────────────────────────────────────────────
 
@@ -122,18 +132,22 @@ function buildMap(): TileType[][] {
     for (let c = 32; c <= 36; c++) set(r, c, 'swamp')
   }
 
-  // Small decorative tree clusters near house corners
-  set(5, 6, 'tree'); set(5, 7, 'tree'); set(4, 6, 'tree')   // near NW house
-  set(5, 32, 'tree'); set(5, 33, 'tree'); set(4, 33, 'tree')  // near NE house
-  set(24, 6, 'tree'); set(24, 7, 'tree'); set(25, 6, 'tree')  // near SW house
-  set(24, 32, 'tree'); set(24, 33, 'tree'); set(25, 33, 'tree') // near SE house
+  // Stamp each house as a HOUSE_SIZE×HOUSE_SIZE non-walkable block, then clear
+  // a 1-tile approach ring around it (paths are preserved)
+  for (const { col, row } of HOUSE_POSITIONS) {
+    for (let r = row; r < row + HOUSE_SIZE; r++)
+      for (let c = col; c < col + HOUSE_SIZE; c++)
+        set(r, c, 'tree')
+    for (let r = row - 1; r <= row + HOUSE_SIZE; r++) {
+      for (let c = col - 1; c <= col + HOUSE_SIZE; c++) {
+        const inside = r >= row && r < row + HOUSE_SIZE && c >= col && c < col + HOUSE_SIZE
+        if (!inside && map[r]?.[c] && map[r][c] !== 'path') set(r, c, 'grass')
+      }
+    }
+  }
 
-  // Clear 2×2 pads around each house and each package (guarantee walkable)
+  // Clear walkable zones around packages and player start
   const clearZones: [number, number][] = [
-    [3,3],[3,4],[4,3],[4,4],           // NW house (apple)
-    [3,35],[3,36],[4,35],[4,36],       // NE house (star)
-    [25,3],[25,4],[26,3],[26,4],       // SW house (leaf)
-    [25,35],[25,36],[26,35],[26,36],   // SE house (moon)
     [9,14],[9,15],[10,14],[10,15],     // pkg 1
     [9,24],[9,25],[10,24],[10,25],     // pkg 2
     [19,14],[19,15],[20,14],[20,15],   // pkg 3
@@ -151,40 +165,40 @@ export const MAP_DATA: TileType[][] = buildMap()
 
 export const DELIVERY_TYPES: DeliveryConfig[] = [
   {
-    type: 'apple',
-    letter: 'A',
+    type: 'mushroom',
+    letter: 'M',
     colorNum: 0xC0392B,
     colorHex: '#C0392B',
-    label: 'Apple Parcel',
+    label: 'Mushroom Mycelium',
     imageIndex: 1,
-    hint: 'Deliver to the red-signed house in the north-west corner.',
+    hint: 'Deliver to the red-ringed house in the north-west corner.',
   },
   {
-    type: 'star',
-    letter: 'S',
+    type: 'wildflower',
+    letter: 'W',
     colorNum: 0x2471A3,
     colorHex: '#2471A3',
-    label: 'Star Package',
+    label: 'Wild Flower',
     imageIndex: 2,
-    hint: 'Deliver to the blue-starred house in the north-east corner.',
+    hint: 'Deliver to the blue-ringed house in the north-east corner.',
   },
   {
-    type: 'leaf',
-    letter: 'L',
+    type: 'dew',
+    letter: 'D',
     colorNum: 0x1E8449,
     colorHex: '#1E8449',
-    label: 'Leaf Bundle',
+    label: 'Mount Dew',
     imageIndex: 3,
-    hint: 'Deliver to the green-leaf house in the south-west corner.',
+    hint: 'Deliver to the green-ringed house in the south-west corner.',
   },
   {
-    type: 'moon',
-    letter: 'M',
+    type: 'rose',
+    letter: 'R',
     colorNum: 0xC8860A,
     colorHex: '#C8860A',
-    label: 'Moon Lantern',
+    label: 'Rose Bud',
     imageIndex: 4,
-    hint: 'Deliver to the golden-moon house in the south-east corner.',
+    hint: 'Deliver to the golden-ringed house in the south-east corner.',
   },
 ]
 
@@ -203,13 +217,6 @@ export const WRONG_MESSAGES = [
 ]
 
 // ── Object positions ──────────────────────────────────────────────────────────
-
-export const HOUSE_POSITIONS = [
-  { col: 3,  row: 3  },   // apple — NW
-  { col: 35, row: 3  },   // star  — NE
-  { col: 3,  row: 25 },   // leaf  — SW
-  { col: 35, row: 25 },   // moon  — SE
-]
 
 export const PACKAGE_POSITIONS = [
   { col: 14, row: 9  },   // matches DELIVERY_TYPES order

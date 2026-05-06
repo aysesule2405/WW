@@ -18,7 +18,7 @@ const MODE_STORAGE_KEY = 'ww_theme_mode'
 function getInitialTheme(): ColorTheme {
   try {
     const stored = localStorage.getItem(STORAGE_KEY) as ColorTheme
-    const valid: ColorTheme[] = ['light', 'dark', 'sapling', 'delivery', 'drift', 'halfmoon']
+    const valid: ColorTheme[] = ['light', 'dark', 'sapling', 'delivery', 'drift', 'halfmoon', 'dashboard']
     if (stored && valid.includes(stored)) return stored
   } catch { /* ignore */ }
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'

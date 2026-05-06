@@ -1,5 +1,16 @@
 import Phaser from "phaser";
 import { bodyFontFamily, headingFontFamily, numberFontFamily } from '../theme/typography';
+import { audioManager } from '../lib/AudioManager';
+
+const SFX = {
+  pop:      '/assets/audio/sfx/spirit-drift/pop.mp3',
+  gold:     '/assets/audio/sfx/spirit-drift/gold.mp3',
+  combo:    '/assets/audio/sfx/spirit-drift/combo.mp3',
+  miss:     '/assets/audio/sfx/spirit-drift/miss.mp3',
+  curse:    '/assets/audio/sfx/spirit-drift/curse.mp3',
+  surge:    '/assets/audio/sfx/spirit-drift/surge.mp3',
+  gameover: '/assets/audio/sfx/spirit-drift/gameover.mp3',
+} as const
 
 type GameAPI = {
   start: () => void;
@@ -146,6 +157,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     this.load.image("spirit-3", "/assets/sprites/wind-spirit-3.png");
     this.load.image("spirit-gold", "/assets/sprites/wind-spirit-gold.png");
     this.load.image("bg", "/assets/backgrounds/spirit-drift/game-bg.png");
+    audioManager.preload(Object.values(SFX), 4)
   }
 
   create() {
@@ -418,6 +430,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
   private triggerWindSurge() {
     if (!this.running) return;
     this.inSurge = true;
+    audioManager.play(SFX.surge, 0.8);
 
     this.cameras.main.flash(350, 180, 230, 255, false);
     this.showFloatingText('✦ WIND SURGE ✦', this.scale.width / 2, this.scale.height / 2, '#7dd3fc');
@@ -452,6 +465,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     this.spawnEvent?.remove(false);
     this.tickEvent?.remove(false);
     this.surgeEvent?.remove(false);
+    if (!manual) audioManager.play(SFX.gameover, 0.75);
 
     this.children.list
       .filter(
@@ -590,6 +604,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
       this.targetScore = Math.max(0, this.targetScore - 3);
       this.showFloatingText('CURSED! −3', spirit.x, spirit.y, '#ff6b6b');
       this.cameras.main.shake(200, 0.006);
+      audioManager.play(SFX.curse, 0.75);
       this.tweens.add({
         targets: spirit,
         scale: 0, alpha: 0,
@@ -607,6 +622,8 @@ class CatchWindSpritesScene extends Phaser.Scene {
     this.targetScore += earned;
 
     this.playPop(this.multiplier);
+    const isGold = spirit.getData('isGold') as boolean;
+    audioManager.play(isGold ? SFX.gold : SFX.pop, 0.6);
     this.resetComboDecay();
 
     // Floating label — shows multiplier and surge info when active
@@ -620,6 +637,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     if (this.comboCount % 5 === 0) {
       this.cameras.main.shake(120, 0.003);
       this.showFloatingText(`${this.comboCount} COMBO!`, this.scale.width / 2, 180, '#a78bfa');
+      audioManager.play(SFX.combo, 0.65);
     }
 
     this.tweens.add({

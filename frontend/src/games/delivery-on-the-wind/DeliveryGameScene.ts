@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import {
-  TILE, MAP_COLS, MAP_ROWS, MAP_DATA, TILE_RULES,
+  TILE, HOUSE_SIZE, MAP_COLS, MAP_ROWS, MAP_DATA, TILE_RULES,
   VIEWPORT_W, VIEWPORT_H,
   DELIVERY_TYPES, CORRECT_MESSAGES, WRONG_MESSAGES,
   HOUSE_POSITIONS, PACKAGE_POSITIONS, PLAYER_START,
@@ -10,6 +10,17 @@ import type { TileType, HUDState, InspectData } from './data/deliveryConfig'
 import { Player } from './entities/Player'
 import { Package } from './entities/Package'
 import { House } from './entities/House'
+import { audioManager } from '../../lib/AudioManager'
+
+const SFX = {
+  pickup:   '/assets/audio/sfx/delivery/pickup.mp3',
+  deliver:  '/assets/audio/sfx/delivery/deliver.mp3',
+  wrong:    '/assets/audio/sfx/delivery/wrong.mp3',
+  footstep: '/assets/audio/sfx/delivery/footstep.mp3',
+  tick:     '/assets/audio/sfx/delivery/tick.mp3',
+  win:      '/assets/audio/sfx/delivery/win.mp3',
+  lose:     '/assets/audio/sfx/delivery/lose.mp3',
+} as const
 
 export type SceneCallbacks = {
   onGameEnd: (result: 'win' | 'lose', deliveries: number, timeRemaining: number) => void
@@ -70,6 +81,14 @@ export class DeliveryGameScene extends Phaser.Scene {
       this.load.image(`house-${i}`,   `/assets/backgrounds/delivery-on-the-wind/house-${i}.png`)
       this.load.image(`package-${i}`, `/assets/backgrounds/delivery-on-the-wind/package-${i}.png`)
     }
+    const TILE_KEYS = [
+      'grass', 'grass_alt', 'path', 'tree', 'tree_alt', 'tree_alt2',
+      'water', 'swamp', 'bridge', 'beach', 'ocean', 'ocean_shore',
+    ]
+    for (const key of TILE_KEYS) {
+      this.load.image(`tile-${key}`, `/assets/tiles/${key}.png`)
+    }
+    audioManager.preload(Object.values(SFX), 3)
   }
 
   create() {
@@ -126,89 +145,34 @@ export class DeliveryGameScene extends Phaser.Scene {
   // ── Tile map ──────────────────────────────────────────────────────────────────
 
   private drawTiles() {
-    const g = this.add.graphics().setDepth(0)
+    // Bake all tiles into a single RenderTexture for best performance
+    const rt = this.add.renderTexture(0, 0, WORLD_W, WORLD_H).setDepth(0).setOrigin(0, 0)
     for (let row = 0; row < MAP_ROWS; row++) {
       for (let col = 0; col < MAP_COLS; col++) {
-        this.drawTile(g, MAP_DATA[row][col], col * TILE, row * TILE, row, col)
+        const key = this.tileKey(MAP_DATA[row][col], row, col)
+        rt.draw(key, col * TILE, row * TILE)
       }
     }
   }
 
-  private drawTile(
-    g: Phaser.GameObjects.Graphics,
-    tile: TileType,
-    px: number, py: number,
-    row: number, col: number,
-  ) {
+  private tileKey(tile: TileType, row: number, col: number): string {
     const alt = (row + col) % 2 === 0
-
     switch (tile) {
-      case 'grass': {
-        g.fillStyle(alt ? 0x6BAD36 : 0x74B83E)
-        g.fillRect(px, py, TILE, TILE)
-        g.fillStyle(0x5A9A2E, 0.28)
-        g.fillRect(px + 8,  py + 11, 3, 8)
-        g.fillRect(px + 22, py + 30, 3, 6)
-        g.fillRect(px + 36, py + 17, 3, 6)
-        break
-      }
-      case 'path': {
-        g.fillStyle(alt ? 0xC8A06A : 0xBE965E)
-        g.fillRect(px, py, TILE, TILE)
-        g.fillStyle(0xAA8850, 0.35)
-        g.fillCircle(px + 12, py + 14, 3)
-        g.fillCircle(px + 30, py + 28, 2)
-        g.fillCircle(px + 22, py + 8,  2)
-        break
-      }
+      case 'grass':
+        return alt ? 'tile-grass' : 'tile-grass_alt'
+      case 'path':
+        // Path tiles that cross the river rows use the bridge graphic
+        return (row === 13 || row === 14) ? 'tile-bridge' : 'tile-path'
       case 'tree': {
-        g.fillStyle(0x243D14)
-        g.fillRect(px, py, TILE, TILE)
-        // Trunk
-        g.fillStyle(0x8B5E3C)
-        g.fillRect(px + 20, py + 30, 8, 18)
-        // Foliage layers
-        g.fillStyle(0x2C5E0E)
-        g.fillCircle(px + 24, py + 20, 18)
-        g.fillStyle(0x3A7520)
-        g.fillCircle(px + 17, py + 16, 12)
-        g.fillStyle(0x4B8E28)
-        g.fillCircle(px + 31, py + 18, 11)
-        g.fillStyle(0x5EA632)
-        g.fillCircle(px + 24, py + 10, 11)
-        g.fillStyle(0x76BD42, 0.5)
-        g.fillCircle(px + 20, py + 8, 5)
-        break
+        const v = (row * MAP_COLS + col) % 3
+        return v === 0 ? 'tile-tree' : v === 1 ? 'tile-tree_alt' : 'tile-tree_alt2'
       }
-      case 'water': {
-        g.fillStyle(alt ? 0x3478BF : 0x3F87CC)
-        g.fillRect(px, py, TILE, TILE)
-        // Wave lines
-        g.lineStyle(1.5, 0x7AB8F0, 0.5)
-        g.beginPath()
-        g.moveTo(px + 5,  py + 15)
-        g.lineTo(px + 14, py + 11)
-        g.lineTo(px + 24, py + 15)
-        g.lineTo(px + 34, py + 11)
-        g.strokePath()
-        g.beginPath()
-        g.moveTo(px + 5,  py + 30)
-        g.lineTo(px + 14, py + 26)
-        g.lineTo(px + 24, py + 30)
-        g.lineTo(px + 34, py + 26)
-        g.strokePath()
-        break
-      }
-      case 'swamp': {
-        g.fillStyle(alt ? 0x4E6B3A : 0x455F33)
-        g.fillRect(px, py, TILE, TILE)
-        g.fillStyle(0x344826, 0.55)
-        g.fillCircle(px + 13, py + 18, 7)
-        g.fillCircle(px + 30, py + 10, 4)
-        g.fillStyle(0x7A9A60, 0.3)
-        g.fillCircle(px + 22, py + 32, 5)
-        break
-      }
+      case 'water':
+        return 'tile-water'
+      case 'swamp':
+        return 'tile-swamp'
+      default:
+        return 'tile-grass'
     }
   }
 
@@ -344,6 +308,7 @@ export class DeliveryGameScene extends Phaser.Scene {
     }
 
     const duration = BASE_MOVE / TILE_RULES[tile].speedMultiplier
+    audioManager.play(SFX.footstep, 0.35)
     this.player.tryMove(dx, dy, duration, () => {
       this.checkPickup()
       this.checkDelivery()
@@ -368,12 +333,16 @@ export class DeliveryGameScene extends Phaser.Scene {
     this.player.setHeld(pkg.type, pkg.imageIndex, cfg.colorNum)
     this.updateHoldHUD(cfg.colorNum, cfg.colorHex, cfg.label)
     this.floatText(`Picked up ${cfg.label}!`, this.player.x, this.player.y - 28, '#FFE566')
+    audioManager.play(SFX.pickup, 0.7)
   }
 
   private checkDelivery() {
     if (this.player.heldType === null) return
-    const house = this.houses.find(
-      h => !h.isDelivered && h.gridX === this.player.gridX && h.gridY === this.player.gridY,
+    // Player must be in the 1-tile approach ring around the 3×3 house block
+    const house = this.houses.find(h =>
+      !h.isDelivered &&
+      this.player.gridX >= h.gridX - 1 && this.player.gridX <= h.gridX + HOUSE_SIZE &&
+      this.player.gridY >= h.gridY - 1 && this.player.gridY <= h.gridY + HOUSE_SIZE,
     )
     if (!house) return
 
@@ -385,6 +354,7 @@ export class DeliveryGameScene extends Phaser.Scene {
       this.deliveryText.setText(`${this.deliveredCount} / 4  delivered`)
       this.showBubble(CORRECT_MESSAGES[this.correctMsgIdx++ % CORRECT_MESSAGES.length], house.gridX, house.gridY, true)
       this.cameras.main.flash(300, 180, 220, 120)
+      audioManager.play(SFX.deliver, 0.9)
       if (this.deliveredCount === 4) this.time.delayedCall(800, () => this.endGame('win'))
     } else {
       house.shake()
@@ -392,14 +362,15 @@ export class DeliveryGameScene extends Phaser.Scene {
       this.cameras.main.shake(220, 0.007)
       this.timeLeftMs = Math.max(0, this.timeLeftMs - 5_000)
       this.floatText('-5 sec', this.player.x, this.player.y - 22, '#FF7766')
+      audioManager.play(SFX.wrong, 0.7)
     }
   }
 
   private updateNearHouse() {
-    this.nearHouseIdx = this.houses.findIndex(
-      h => !h.isDelivered &&
-        Math.abs(h.gridX - this.player.gridX) <= 1 &&
-        Math.abs(h.gridY - this.player.gridY) <= 1,
+    this.nearHouseIdx = this.houses.findIndex(h =>
+      !h.isDelivered &&
+      this.player.gridX >= h.gridX - 2 && this.player.gridX <= h.gridX + HOUSE_SIZE + 1 &&
+      this.player.gridY >= h.gridY - 2 && this.player.gridY <= h.gridY + HOUSE_SIZE + 1,
     )
   }
 
@@ -458,7 +429,7 @@ export class DeliveryGameScene extends Phaser.Scene {
       fontFamily: 'Georgia, serif',
     }).setOrigin(0.5, 0.5)
 
-    const wx = Phaser.Math.Clamp(gridX * TILE + TILE / 2, bW / 2 + 6, WORLD_W - bW / 2 - 6)
+    const wx = Phaser.Math.Clamp((gridX + 1) * TILE + TILE / 2, bW / 2 + 6, WORLD_W - bW / 2 - 6)
     const wy = Phaser.Math.Clamp(gridY * TILE - 18, bH / 2 + 48, WORLD_H - bH - 18)
     const bubble = this.add.container(wx, wy, [g, t])
     bubble.setDepth(12).setAlpha(0).setScale(0.7)
@@ -492,6 +463,9 @@ export class DeliveryGameScene extends Phaser.Scene {
     if (this.timeLeftMs < 30_000) {
       this.timerText.setColor('#FF6B6B')
       this.timerText.setScale(Math.floor(this.timeLeftMs / 500) % 2 === 0 ? 1.12 : 1.0)
+      if (Math.floor(this.timeLeftMs / 1000) !== Math.floor((this.timeLeftMs + 16) / 1000)) {
+        audioManager.play(SFX.tick, 0.4)
+      }
     } else if (this.timeLeftMs < 60_000) {
       this.timerText.setColor('#FFD166').setScale(1.0)
     } else {
@@ -504,6 +478,7 @@ export class DeliveryGameScene extends Phaser.Scene {
   private endGame(result: 'win' | 'lose') {
     if (!this.running) return
     this.running = false
+    audioManager.play(result === 'win' ? SFX.win : SFX.lose, 0.9)
 
     const cx = VIEWPORT_W / 2
     const cy = VIEWPORT_H / 2

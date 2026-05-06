@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
-import { checkKindness, generateGuardianMessage } from './spiritSapling.service'
+import { checkKindness, generateGuardianMessage, chatWithSapling } from './spiritSapling.service'
+import type { HistoryItem } from './spiritSapling.service'
 import ttsService from '../tts/tts.service'
 import { AuthRequest } from '../../core/middleware/auth.middleware'
 
@@ -14,6 +15,27 @@ export async function kindnessCheck(req: Request, res: Response) {
     return res.status(200).json(result)
   } catch (err: any) {
     console.error('[SpiritSapling] kindnessCheck error', err)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// POST /api/v1/spirit-sapling/chat
+export async function saplingChat(req: Request, res: Response) {
+  try {
+    const { message, history, guardianId } = req.body ?? {}
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'message is required' })
+    }
+    const safeHistory: HistoryItem[] = Array.isArray(history)
+      ? history
+          .filter((h: any) => (h.role === 'player' || h.role === 'sapling') && typeof h.text === 'string')
+          .slice(-20)   // cap at last 20 turns to stay within token limits
+      : []
+    const safeGuardianId = typeof guardianId === 'string' ? guardianId.toLowerCase() : 'deer'
+    const result = await chatWithSapling(message, safeHistory, safeGuardianId)
+    return res.status(200).json(result)
+  } catch (err: any) {
+    console.error('[SpiritSapling] saplingChat error', err)
     return res.status(500).json({ error: 'Internal server error' })
   }
 }
