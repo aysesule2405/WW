@@ -22,10 +22,21 @@ export class UserRepository {
     return User.findById(id).lean()
   }
 
-  async updateProfile(id: string, data: { username?: string; avatarUrl?: string }) {
-    const update: Record<string, string> = {}
+  async updateProfile(id: string, data: {
+    username?: string
+    avatarUrl?: string
+    status?: string
+    favoriteSong?: string
+    favoriteSteamGames?: string
+    avatarConfig?: { face?: string; color?: string; accessory?: string }
+  }) {
+    const update: Record<string, unknown> = {}
     if (data.username) update.username = data.username
     if (data.avatarUrl) update.avatarUrl = data.avatarUrl
+    if (data.status !== undefined) update.status = data.status
+    if (data.favoriteSong !== undefined) update.favoriteSong = data.favoriteSong
+    if (data.favoriteSteamGames !== undefined) update.favoriteSteamGames = data.favoriteSteamGames
+    if (data.avatarConfig !== undefined) update.avatarConfig = data.avatarConfig
     if (Object.keys(update).length === 0) return { updated: false }
     await User.findByIdAndUpdate(id, { $set: update })
     return { updated: true }

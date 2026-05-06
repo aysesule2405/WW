@@ -4,6 +4,14 @@ export function apiUrl(path: string): string {
   return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
 }
 
+export function mediaUrl(path: string | null | undefined): string {
+  if (!path) return ''
+  if (/^(https?:|data:|blob:)/.test(path)) return path
+  const normalized = path.startsWith('/') ? path : `/${path}`
+  if (!/^https?:/.test(API_BASE)) return normalized
+  return new URL(normalized, API_BASE).toString()
+}
+
 // AuthContext stores { token, username } under 'ww_auth'
 export function getToken(): string | null {
   try {
@@ -79,11 +87,17 @@ export async function getProfile() {
   return res.json()
 }
 
-export async function updateProfile(username: string) {
+export async function updateProfile(profile: {
+  username: string
+  status?: string
+  favoriteSong?: string
+  favoriteSteamGames?: string
+  avatarConfig?: { face: string; color: string; accessory: string }
+}) {
   const res = await fetch(apiUrl('/users/profile'), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ username }),
+    body: JSON.stringify(profile),
   })
   return res.json()
 }
@@ -247,7 +261,7 @@ export async function getAchievementCatalog() {
 
 export default {
   getToken, getUsername, register, login,
-  apiUrl, saveProgress, getMyProgress, getProfile, updateProfile, uploadAvatar,
+  apiUrl, mediaUrl, saveProgress, getMyProgress, getProfile, updateProfile, uploadAvatar,
   submitScore, submitSession, getGameSessions, getProgressSummary,
   getScoreLeaderboard, getDeliveryLeaderboard, getMyBest, getRecentScores,
   getAchievements, getAchievementCatalog,

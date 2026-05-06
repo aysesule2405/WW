@@ -246,7 +246,7 @@ class CatchWindSpritesScene extends Phaser.Scene {
     Object.assign(this.debugPanel.style, {
       position: 'fixed', right: '14px', top: '14px',
       background: 'rgba(0,0,0,0.6)', color: '#fff',
-      padding: '8px', fontSize: '12px', fontFamily: 'monospace',
+      padding: '8px', fontSize: '12px', fontFamily: bodyFontFamily,
       borderRadius: '6px', zIndex: '9999', display: 'none',
     });
 

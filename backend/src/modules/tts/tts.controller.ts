@@ -15,6 +15,8 @@ const synthesizeGuardian = async (req: AuthRequest, res: Response) => {
     if (result.stream) {
       // stream raw audio back
       res.set('Content-Type', result.contentType || 'audio/mpeg')
+      if (result.voiceId) res.set('X-ElevenLabs-Voice-Id', result.voiceId)
+      if (result.modelId) res.set('X-ElevenLabs-Model-Id', result.modelId)
       result.stream.pipe(res)
       return
     }

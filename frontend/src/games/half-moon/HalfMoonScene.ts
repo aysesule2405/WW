@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import {
   CELL, SCORE_CARD_CONTROL,
   buildDeck, shuffle, runScoringAfterPlacement, resetChainIds,
-  generateRandomLayout,
+  BOARD_LAYOUTS, generateRandomLayout,
 } from './data/halfMoonConfig'
 import { audioManager } from '../../lib/AudioManager'
 
@@ -27,7 +27,7 @@ import {
   CONNECTION_PLAYER, CONNECTION_AI, CONNECTION_NEUTRAL,
   SLOT_HOVER_BG, SLOT_HOVER_BORDER, SLOT_EMPTY_BG, SLOT_EMPTY_BORDER,
 } from './visuals/glowEffects'
-import { numberFontFamily } from '../../theme/typography'
+import { numberFontFamily, uiFontFamily } from '../../theme/typography'
 
 // ── Callback contract with React ──────────────────────────────────────────────
 
@@ -163,7 +163,7 @@ export class HalfMoonScene extends Phaser.Scene {
   // ── Board layout ──────────────────────────────────────────────────────────
 
   private buildLayout() {
-    this.layout = generateRandomLayout(this.level)
+    this.layout = BOARD_LAYOUTS[this.level - 1] ?? generateRandomLayout(this.level)
   }
 
   private drawStarfield() {
@@ -296,11 +296,11 @@ export class HalfMoonScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5).setDepth(21).setScrollFactor(0)
 
     this.turnText = this.add.text(14, 24, 'Your turn — drag a card to the board', {
-      fontSize: '13px', color: '#D6D3A9', fontFamily: '"Flamante Round", system-ui, sans-serif',
+      fontSize: '13px', color: '#D6D3A9', fontFamily: uiFontFamily,
     }).setOrigin(0, 0.5).setDepth(21).setScrollFactor(0)
 
     this.add.text(VP_W - 14, 24, `Level ${this.level}: ${this.layout.label}`, {
-      fontSize: '12px', color: '#D6D3A9', fontFamily: '"Flamante Round", system-ui, sans-serif',
+      fontSize: '12px', color: '#D6D3A9', fontFamily: uiFontFamily,
     }).setOrigin(1, 0.5).setDepth(21).setScrollFactor(0)
   }
 

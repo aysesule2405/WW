@@ -4,18 +4,25 @@ import { apiUrl, getToken } from '../../lib/api'
 
 type RecordState = 'idle' | 'recording'
 type HistoryItem = { role: 'player' | 'sapling'; text: string }
+type SaplingSentiment = 'positive' | 'negative' | 'neutral'
 
 type ChatMessage = {
   id: number
   speaker: 'sapling' | 'player'
   text: string
   growthBoost?: number
+  sentiment?: SaplingSentiment
+  energyDeltaSeconds?: number
 }
 
 type Props = {
   guardianName: string
   onClose: () => void
-  onApproved: (growthBoost: number) => void
+  onEnergyEvaluated: (result: {
+    sentiment: SaplingSentiment
+    energyDeltaSeconds: number
+    growthBoost: number
+  }) => void
 }
 
 declare global {
@@ -61,7 +68,12 @@ async function sendChat(
   message: string,
   history: HistoryItem[],
   guardianId: string,
-): Promise<{ reply: string; growthBoost: number }> {
+): Promise<{
+  reply: string
+  sentiment: SaplingSentiment
+  energyDeltaSeconds: number
+  growthBoost: number
+}> {
   const token = getToken()
   const res = await fetch(apiUrl('/spirit-sapling/chat'), {
     method: 'POST',
@@ -75,7 +87,7 @@ async function sendChat(
   return res.json()
 }
 
-export default function TalkToSaplingPanel({ guardianName, onClose, onApproved }: Props) {
+export default function TalkToSaplingPanel({ guardianName, onClose, onEnergyEvaluated }: Props) {
   const guardianId = guardianName.toLowerCase()
   const openingText = OPENING_MESSAGES[guardianId] ?? OPENING_MESSAGES.deer
 
@@ -163,10 +175,21 @@ export default function TalkToSaplingPanel({ guardianName, onClose, onApproved }
         { role: 'sapling', text: res.reply },
       ]
 
-      addMessage({ speaker: 'sapling', text: res.reply, growthBoost: res.growthBoost })
+      addMessage({
+        speaker: 'sapling',
+        text: res.reply,
+        growthBoost: res.growthBoost,
+        sentiment: res.sentiment,
+        energyDeltaSeconds: res.energyDeltaSeconds,
+      })
+
+      onEnergyEvaluated({
+        sentiment: res.sentiment,
+        energyDeltaSeconds: res.energyDeltaSeconds,
+        growthBoost: res.growthBoost,
+      })
 
       if (res.growthBoost > 0) {
-        onApproved(res.growthBoost)
         setSessionGrowth(g => g + res.growthBoost)
       }
     } catch {
@@ -233,6 +256,20 @@ export default function TalkToSaplingPanel({ guardianName, onClose, onApproved }
                 {msg.speaker === 'sapling' && (msg.growthBoost ?? 0) > 0 && (
                   <span style={s.boostPip} title={`+${msg.growthBoost} growth`}>
                     {'✦'.repeat(msg.growthBoost ?? 1)}
+                  </span>
+                )}
+                {msg.speaker === 'sapling' && msg.sentiment && (
+                  <span
+                    style={{
+                      ...s.energyTag,
+                      ...(msg.sentiment === 'positive'
+                        ? s.energyTagPositive
+                        : msg.sentiment === 'negative'
+                          ? s.energyTagNegative
+                          : s.energyTagNeutral),
+                    }}
+                  >
+                    {energyTagText(msg.sentiment, msg.energyDeltaSeconds ?? 0)}
                   </span>
                 )}
               </div>
@@ -312,6 +349,12 @@ export default function TalkToSaplingPanel({ guardianName, onClose, onApproved }
       </div>
     </div>
   )
+}
+
+function energyTagText(sentiment: SaplingSentiment, delta: number): string {
+  if (sentiment === 'positive') return `${delta}s recharge`
+  if (sentiment === 'negative') return `+${delta}s recharge`
+  return 'energy unchanged'
 }
 
 const s: Record<string, React.CSSProperties> = {
@@ -458,6 +501,31 @@ const s: Record<string, React.CSSProperties> = {
     color: '#a8e080',
     letterSpacing: 1,
     textShadow: '0 0 8px rgba(100,200,80,0.6)',
+  },
+  energyTag: {
+    display: 'block',
+    width: 'fit-content',
+    marginTop: 7,
+    padding: '2px 8px',
+    borderRadius: 999,
+    fontFamily: uiFontFamily,
+    fontSize: 11,
+    fontWeight: 700,
+  },
+  energyTagPositive: {
+    color: '#dff7b8',
+    background: 'rgba(102, 190, 84, 0.18)',
+    border: '1px solid rgba(102, 190, 84, 0.32)',
+  },
+  energyTagNegative: {
+    color: '#ffd2c7',
+    background: 'rgba(217, 95, 73, 0.16)',
+    border: '1px solid rgba(217, 95, 73, 0.3)',
+  },
+  energyTagNeutral: {
+    color: '#d9c9a3',
+    background: 'rgba(255,255,255,0.07)',
+    border: '1px solid rgba(255,255,255,0.12)',
   },
 
   /* Input */

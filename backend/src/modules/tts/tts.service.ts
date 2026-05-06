@@ -20,42 +20,27 @@ const parseBool = (value: string | undefined, fallback: boolean): boolean => {
   return fallback
 }
 
-const VOICE_IDS: Record<GuardianId, string> = {
-  deer:     process.env.ELEVENLABS_VOICE_ID_DEER     || '',
-  fox:      process.env.ELEVENLABS_VOICE_ID_FOX      || '',
-  kodama:   process.env.ELEVENLABS_VOICE_ID_KODAMA   || '',
-  mononoke: process.env.ELEVENLABS_VOICE_ID_MONONOKE || '',
+const voiceIdFor = (guardianId: GuardianId): string => {
+  const envKey = `ELEVENLABS_VOICE_ID_${guardianId.toUpperCase()}`
+  return process.env[envKey] || ''
 }
 
-const VOICE_SETTINGS: Record<GuardianId, VoiceSettings> = {
-  deer: {
-    // Steady, warm, minimally stylised
-    stability:        clamp01(process.env.ELEVENLABS_DEER_STABILITY,       0.86),
-    similarity_boost: clamp01(process.env.ELEVENLABS_DEER_SIMILARITY,      0.58),
-    style:            clamp01(process.env.ELEVENLABS_DEER_STYLE,           0.08),
-    use_speaker_boost: parseBool(process.env.ELEVENLABS_DEER_SPEAKER_BOOST, false),
-  },
-  fox: {
-    // Playful, expressive, trickster energy
-    stability:        clamp01(process.env.ELEVENLABS_FOX_STABILITY,        0.28),
-    similarity_boost: clamp01(process.env.ELEVENLABS_FOX_SIMILARITY,       0.92),
-    style:            clamp01(process.env.ELEVENLABS_FOX_STYLE,            0.82),
-    use_speaker_boost: parseBool(process.env.ELEVENLABS_FOX_SPEAKER_BOOST,  true),
-  },
-  kodama: {
-    // Airy, fragile, spirit-like
-    stability:        clamp01(process.env.ELEVENLABS_KODAMA_STABILITY,     0.18),
-    similarity_boost: clamp01(process.env.ELEVENLABS_KODAMA_SIMILARITY,    0.63),
-    style:            clamp01(process.env.ELEVENLABS_KODAMA_STYLE,         0.38),
-    use_speaker_boost: parseBool(process.env.ELEVENLABS_KODAMA_SPEAKER_BOOST, false),
-  },
-  mononoke: {
-    // Bold, dramatic, theatrical
-    stability:        clamp01(process.env.ELEVENLABS_MONONOKE_STABILITY,   0.22),
-    similarity_boost: clamp01(process.env.ELEVENLABS_MONONOKE_SIMILARITY,  0.97),
-    style:            clamp01(process.env.ELEVENLABS_MONONOKE_STYLE,       0.95),
-    use_speaker_boost: parseBool(process.env.ELEVENLABS_MONONOKE_SPEAKER_BOOST, true),
-  },
+const DEFAULT_VOICE_SETTINGS: Record<GuardianId, VoiceSettings> = {
+  deer:     { stability: 0.86, similarity_boost: 0.58, style: 0.08, use_speaker_boost: false },
+  fox:      { stability: 0.28, similarity_boost: 0.92, style: 0.82, use_speaker_boost: true },
+  kodama:   { stability: 0.18, similarity_boost: 0.63, style: 0.38, use_speaker_boost: false },
+  mononoke: { stability: 0.22, similarity_boost: 0.97, style: 0.95, use_speaker_boost: true },
+}
+
+const voiceSettingsFor = (guardianId: GuardianId): VoiceSettings => {
+  const prefix = `ELEVENLABS_${guardianId.toUpperCase()}`
+  const defaults = DEFAULT_VOICE_SETTINGS[guardianId]
+  return {
+    stability: clamp01(process.env[`${prefix}_STABILITY`], defaults.stability),
+    similarity_boost: clamp01(process.env[`${prefix}_SIMILARITY`], defaults.similarity_boost),
+    style: clamp01(process.env[`${prefix}_STYLE`], defaults.style),
+    use_speaker_boost: parseBool(process.env[`${prefix}_SPEAKER_BOOST`], defaults.use_speaker_boost),
+  }
 }
 
 export default {
@@ -81,7 +66,7 @@ export default {
       throw new Error('ELEVENLABS_API_KEY is not configured')
     }
 
-    const voiceId = VOICE_IDS[gid]
+    const voiceId = voiceIdFor(gid)
     if (!voiceId) {
       throw new Error(`No ElevenLabs voice ID configured for guardian: ${guardianId}`)
     }
@@ -102,7 +87,7 @@ export default {
         body: JSON.stringify({
           text,
           model_id: modelId,
-          voice_settings: VOICE_SETTINGS[gid],
+          voice_settings: voiceSettingsFor(gid),
         }),
       }
     )
@@ -115,6 +100,11 @@ export default {
     const audioBuffer = Buffer.from(await elevenRes.arrayBuffer())
     const stream = Readable.from(audioBuffer)
 
-    return { stream, contentType: 'audio/mpeg' }
+    return {
+      stream,
+      contentType: 'audio/mpeg',
+      voiceId,
+      modelId,
+    }
   },
 }

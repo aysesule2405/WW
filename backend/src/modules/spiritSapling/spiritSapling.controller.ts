@@ -60,6 +60,8 @@ export async function guardianVoice(req: AuthRequest, res: Response) {
     if (result.stream) {
       res.set('Content-Type', result.contentType || 'audio/mpeg')
       res.set('X-Guardian-Text', encodeURIComponent(text))
+      if (result.voiceId) res.set('X-ElevenLabs-Voice-Id', result.voiceId)
+      if (result.modelId) res.set('X-ElevenLabs-Model-Id', result.modelId)
       result.stream.pipe(res)
       return
     }

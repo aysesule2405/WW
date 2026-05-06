@@ -10,6 +10,7 @@ import DeliveryOnTheWindGame from './games/delivery-on-the-wind/DeliveryOnTheWin
 import SpiritSaplingGame from './components/SpiritSaplingGame'
 import HalfMoonGame from './games/half-moon/HalfMoonGame'
 import { audioManager } from './lib/AudioManager'
+import { SETTINGS_EVENT, loadUserSettings } from './lib/userSettings'
 
 type GameView = 'spirit-drift' | 'delivery-on-the-wind' | 'spirit-sapling' | 'half-moon'
 type RootView = 'landing' | 'login' | 'register'
@@ -18,16 +19,29 @@ function AppContent() {
   const { user, logout } = useAuth()
   const [rootView, setRootView] = useState<RootView>('landing')
   const [activeGame, setActiveGame] = useState<GameView | null>(null)
+  const [settingsTick, setSettingsTick] = useState(0)
+
+  useEffect(() => {
+    const refresh = () => setSettingsTick((value) => value + 1)
+    window.addEventListener(SETTINGS_EVENT, refresh)
+    window.addEventListener('storage', refresh)
+    return () => {
+      window.removeEventListener(SETTINGS_EVENT, refresh)
+      window.removeEventListener('storage', refresh)
+    }
+  }, [])
 
   // Menu music plays whenever the user is logged in and not inside a game.
   // Persists across Settings, Leaderboard, and all other shell tabs.
   useEffect(() => {
-    if (user && !activeGame) {
+    const settings = loadUserSettings()
+    document.documentElement.setAttribute('data-reduce-motion', settings.reduceMotion ? 'true' : 'false')
+    if (user && !activeGame && settings.music) {
       audioManager.playMusic('menu', 0.35)
     } else {
       audioManager.stopMusic(600)
     }
-  }, [user, activeGame])
+  }, [user, activeGame, settingsTick])
 
   // ── Logged in ──────────────────────────────────────────────────────────────
   if (user) {

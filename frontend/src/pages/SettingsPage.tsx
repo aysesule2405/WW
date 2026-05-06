@@ -2,8 +2,16 @@ import React, { useState } from 'react'
 import { uiFontFamily, titleFontFamily } from '../theme/typography'
 import { useTheme } from '../context/ThemeContext'
 import { THEME_META, GAME_THEMES, type ColorTheme } from '../context/themeTypes'
+import { audioManager } from '../lib/AudioManager'
+import {
+  loadDashboardBackground,
+  loadUserSettings,
+  saveDashboardBackground,
+  saveUserSettings,
+  type UserSettings,
+} from '../lib/userSettings'
 
-type Toggle = { key: string; label: string; description: string }
+type Toggle = { key: keyof UserSettings; label: string; description: string }
 
 const TOGGLES: Toggle[] = [
   { key: 'sound',        label: 'Sound Effects',   description: 'Play in-game sounds and click audio.' },
@@ -15,31 +23,19 @@ const TOGGLES: Toggle[] = [
 const THEME_ORDER: ColorTheme[] = ['light', 'dark', 'sapling', 'delivery', 'drift', 'halfmoon', 'dashboard']
 const BG_COUNT = 9
 
-function loadSettings(): Record<string, boolean> {
-  try {
-    const raw = localStorage.getItem('ww_settings')
-    return raw ? JSON.parse(raw) : { sound: true, music: true, reduceMotion: false, particles: true }
-  } catch {
-    return { sound: true, music: true, reduceMotion: false, particles: true }
-  }
-}
-
-function loadDashBg(): string {
-  try { return localStorage.getItem('ww_dashboard_bg') ?? '' } catch { return '' }
-}
-
 export default function SettingsPage() {
   const { theme, setTheme, mode, toggleMode } = useTheme()
-  const [settings, setSettings] = useState<Record<string, boolean>>(loadSettings)
+  const [settings, setSettings] = useState<UserSettings>(loadUserSettings)
   const [saved, setSaved] = useState(false)
-  const [dashBg, setDashBg] = useState<string>(loadDashBg)
+  const [dashBg, setDashBg] = useState<string>(loadDashboardBackground)
 
   const flash = () => { setSaved(true); setTimeout(() => setSaved(false), 1800) }
 
   const toggle = (key: string) => {
     setSettings((prev) => {
-      const next = { ...prev, [key]: !prev[key] }
-      localStorage.setItem('ww_settings', JSON.stringify(next))
+      const next = { ...prev, [key]: !prev[key as keyof UserSettings] }
+      saveUserSettings(next)
+      audioManager.syncSettings()
       return next
     })
     flash()
@@ -48,7 +44,7 @@ export default function SettingsPage() {
   const pickBg = (num: number) => {
     const val = `/assets/backgrounds/dashboard-background/bg_selection_${num}.png`
     setDashBg(val)
-    try { localStorage.setItem('ww_dashboard_bg', val) } catch {}
+    saveDashboardBackground(val)
     flash()
   }
 

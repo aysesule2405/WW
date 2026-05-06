@@ -52,10 +52,10 @@
 
 :root {
   /* Font system */
-  --font-ui:     'Kingthings Clarity', system-ui, sans-serif;
-  --font-title:  'Si Kancil', fantasy, sans-serif;
-  --font-accent: 'Waterlily', cursive, serif;
-  --font-number: 'Kingthings Clarity', monospace;
+  --font-ui:     'Kingthings Clarity';
+  --font-title:  'Si Kancil';
+  --font-accent: 'Waterlily';
+  --font-number: 'Kingthings Clarity';
 
   /* Legacy aliases */
   --font-heading: var(--font-title);
@@ -731,6 +731,15 @@ button:focus-visible {
 @keyframes achievement-toast-in {
   from { opacity: 0; transform: translateX(18px) translateY(8px) scale(0.98); }
   to   { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
+}
+
+[data-reduce-motion='true'] *,
+[data-reduce-motion='true'] *::before,
+[data-reduce-motion='true'] *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  scroll-behavior: auto !important;
 }
 
 @keyframes subtitle-rise {

@@ -8,6 +8,7 @@ import {
 import { Player } from './Player'
 import { PackageItem } from './PackageItem'
 import { HouseItem } from './HouseItem'
+import { uiFontFamily } from '../../theme/typography'
 
 type SceneData = {
   onGameEnd: (result: 'win' | 'lose', deliveries: number) => void
@@ -205,17 +206,19 @@ export class DeliveryGameScene extends Phaser.Scene {
       fontSize: '22px',
       fontStyle: 'bold',
       color: '#F0EAD2',
-      fontFamily: 'Georgia, serif',
+      fontFamily: uiFontFamily,
     }).setOrigin(0.5, 0.5).setDepth(10)
 
     this.deliveryText = this.add.text(14, BAR / 2, '0 / 4  📦', {
       fontSize: '15px',
       color: '#ADC178',
+      fontFamily: uiFontFamily,
     }).setOrigin(0, 0.5).setDepth(10)
 
     this.holdText = this.add.text(W - 14, BAR / 2, 'Hands empty', {
       fontSize: '14px',
       color: '#C8B89A',
+      fontFamily: uiFontFamily,
     }).setOrigin(1, 0.5).setDepth(10)
   }
 
@@ -326,6 +329,7 @@ export class DeliveryGameScene extends Phaser.Scene {
       color,
       stroke: '#000000',
       strokeThickness: 3,
+      fontFamily: uiFontFamily,
     }).setOrigin(0.5, 0.5).setDepth(15)
 
     this.tweens.add({
@@ -357,6 +361,7 @@ export class DeliveryGameScene extends Phaser.Scene {
       fontSize: '13px',
       fontStyle: 'bold',
       color: textColor,
+      fontFamily: uiFontFamily,
     }).setOrigin(0.5, 0.5)
 
     const wx = Phaser.Math.Clamp(gridX * TILE + TILE / 2, W / 2 + 4, COLS * TILE - W / 2 - 4)
@@ -438,7 +443,7 @@ export class DeliveryGameScene extends Phaser.Scene {
         color: result === 'win' ? '#FFE566' : '#FF8888',
         stroke: '#000000',
         strokeThickness: 4,
-        fontFamily: 'Georgia, serif',
+        fontFamily: uiFontFamily,
       }
     ).setOrigin(0.5, 0.5).setDepth(21).setAlpha(0)
 
@@ -452,6 +457,7 @@ export class DeliveryGameScene extends Phaser.Scene {
         color: '#F0EAD2',
         stroke: '#000000',
         strokeThickness: 3,
+        fontFamily: uiFontFamily,
       }
     ).setOrigin(0.5, 0.5).setDepth(21).setAlpha(0)
 

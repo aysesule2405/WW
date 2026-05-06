@@ -1,4 +1,5 @@
 import { headingFontFamily, bodyFontFamily } from '../theme/typography';
+import games from './gameData';
 
 type Props = {
   onSignIn: () => void;
@@ -7,32 +8,32 @@ type Props = {
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const GAMES = [
-  {
-    id: 'spirit-drift',
-    title: 'Spirit Drift',
-    tag: 'Playable now',
-    available: true,
-    bg: '/assets/game_bgs/spirit-drift.png',
-    desc: 'Catch drifting spirits across the sky before they fade. Build combos, survive Wind Surges, and chase your best score in 60 seconds.',
+const LANDING_GAME_COPY: Record<string, { tag: string; mode: string; duration: string; desc: string }> = {
+  'spirit-drift': {
+    tag: 'Score chase',
+    mode: 'Arcade',
+    duration: '~1 min',
+    desc: 'Catch drifting spirits, protect your combo, and push past 200 points for the Windcatcher achievement.',
   },
-  {
-    id: 'delivery-on-the-wind',
-    title: 'Delivery on the Wind',
-    tag: 'Playable now',
-    available: true,
-    bg: '/assets/game_bgs/delivery-on-the-wind.png',
-    desc: 'Prepare cozy orders and soar across the sky to deliver them with care. Race the breeze and climb the daily ranking.',
+  'delivery-on-the-wind': {
+    tag: 'Timed route',
+    mode: 'Delivery',
+    duration: '~2 min',
+    desc: 'Guide Kiki through a storybook village, inspect parcels, and finish under one minute to earn courier glory.',
   },
-  {
-    id: 'spirit-sapling',
-    title: 'Spirit Sapling',
-    tag: 'Playable now',
-    available: true,
-    bg: '/assets/game_bgs/spirit-sapling.png',
-    desc: 'Tend to a small sapling with patience and balance. Water it, coax sunlight, and watch it grow into a sacred fruit tree.',
+  'spirit-sapling': {
+    tag: 'AI nurture',
+    mode: 'Care',
+    duration: '~3 min',
+    desc: 'Choose a guardian, speak kind words through Gemini, grow a sacred tree, and unlock harvest achievements.',
   },
-];
+  'half-moon': {
+    tag: 'Card ritual',
+    mode: 'Strategy',
+    duration: '~5 min',
+    desc: 'Place lunar phase cards, form cycles, steal chains, and win all three levels against local or Gemini AI.',
+  },
+};
 
 const GUARDIANS = [
   { name: 'Deer Guardian',     role: 'Keeper of patience',    img: '/assets/backgrounds/spirit-sapling/guardians/deer-guardian.png',     color: '#c8a87a' },
@@ -42,18 +43,18 @@ const GUARDIANS = [
 ];
 
 const PILLARS = [
-  { icon: '🍃', title: 'Gentle worlds',      body: 'Each game is designed to be calm, beautiful, and easy to pick up — no pressure, just presence.' },
-  { icon: '⏱',  title: 'Short sessions',     body: 'Runs last 1–3 minutes. Perfect for a quiet break, a commute, or a moment between tasks.' },
-  { icon: '✦',  title: 'Track your journey', body: 'Log in to save scores, climb leaderboards, and watch your progress across every world.' },
+  { icon: '🍃', title: 'Four gentle worlds', body: 'Arcade, delivery, nurturing, and lunar strategy games share one calm grove identity.' },
+  { icon: '✦',  title: 'Progress that stays', body: 'MongoDB-backed sessions, scores, best runs, leaderboards, and badges remember every finished run.' },
+  { icon: '🤖', title: 'AI with purpose',     body: 'Gemini powers kind-word growth and Half Moon move suggestions, while ElevenLabs gives guardians a voice.' },
 ];
 
 const COMING_SOON = [
-  { icon: '🌸', title: 'Seasonal Events',       desc: 'Spring Bloom, Autumn Harvest — limited-time worlds with unique rewards and creatures.' },
-  { icon: '👥', title: 'Multiplayer Groves',     desc: 'Co-op sapling tending and spirit-catching with friends in shared sessions.' },
-  { icon: '🦊', title: 'Avatar Studio',          desc: 'Build a grove profile with a custom spirit avatar, chosen guardian, and earned titles.' },
-  { icon: '📅', title: 'Daily Challenges',       desc: 'New quests each morning — bonus score windows, rare spirits, and special conditions.' },
-  { icon: '🏆', title: 'Achievement Badges',     desc: 'Earn guardian medals, streak badges, and secret titles hidden across the worlds.' },
-  { icon: '🌿', title: 'New Worlds',             desc: 'Forest Temple, Cloud Meadow, and River Crossing are growing in the grove right now.' },
+  { icon: '🌸', title: 'Seasonal Events',    desc: 'Spring Bloom and Autumn Harvest events with limited-time goals and themed rewards.' },
+  { icon: '👥', title: 'Multiplayer Groves',  desc: 'Co-op sapling tending, shared delivery routes, and friendly score challenges.' },
+  { icon: '🦊', title: 'Avatar Studio',       desc: 'Custom grove profiles with chosen guardians, earned titles, and personal style.' },
+  { icon: '📅', title: 'Daily Challenges',    desc: 'Fresh daily quests across all four games with bonus score windows and rare objectives.' },
+  { icon: '📊', title: 'Richer Analytics',    desc: 'More detailed history for fastest runs, best streaks, guardian choices, and card strategy.' },
+  { icon: '🌿', title: 'New Worlds',          desc: 'Forest Temple, Cloud Meadow, and River Crossing are future candidates for the grove.' },
 ];
 
 const FLOATING_ANIMS: {
@@ -139,8 +140,8 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
           </h1>
 
           <p style={s.heroSubtitle}>
-            A quiet place to play, breathe, and grow.<br />
-            Short, beautiful browser games inspired by the living forest.
+            Four handcrafted browser games with saved progress, achievements,
+            leaderboards, guardian voices, and AI-powered moments of play.
           </p>
 
           <div style={s.heroCtas}>
@@ -152,7 +153,7 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
             </button>
           </div>
 
-          <p style={s.heroHint}>Free to play · No downloads · 3 worlds available now</p>
+          <p style={s.heroHint}>Free to play · No downloads · {games.filter((game) => game.available).length} worlds available now</p>
         </div>
 
         <div style={s.heroScrollHint}>
@@ -166,8 +167,9 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
           <span style={s.sectionTag}>What is the Grove?</span>
           <h2 style={s.sectionTitle}>A place made for quiet moments</h2>
           <p style={s.sectionBody}>
-            Whisperwind Grove is a collection of handcrafted browser mini-games set in a nature-inspired world.
-            Each world is short, calm, and complete — a breath of fresh air you can take anytime.
+            Whisperwind Grove is a full-stack cozy game platform: short sessions,
+            persistent player history, expressive AI interactions, and a dashboard
+            that turns every run into part of a longer journey.
           </p>
 
           <div style={s.pillarsGrid}>
@@ -186,34 +188,44 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
       <section style={s.gamesSection}>
         <div style={s.sectionInner}>
           <span style={s.sectionTagLight}>Worlds to explore</span>
-          <h2 style={s.sectionTitleLight}>Three worlds, one grove</h2>
+          <h2 style={s.sectionTitleLight}>Four playable worlds, one grove</h2>
+          <p style={s.sectionBodyLight}>
+            Every game saves its own kind of progress: score, time, harvest, level reached,
+            personal best, and achievement unlocks.
+          </p>
 
           <div style={s.gamesGrid}>
-            {GAMES.map((game, i) => (
+            {games.map((game, i) => {
+              const copy = LANDING_GAME_COPY[game.id] ?? {
+                tag: game.available ? 'Playable now' : 'Growing',
+                mode: 'Game',
+                duration: '~3 min',
+                desc: game.description,
+              };
+              const bg = game.gameBg ?? game.thumbnail ?? '';
+              return (
               <div
                 key={game.id}
                 style={{
                   ...s.gameCard,
-                  backgroundImage: `linear-gradient(180deg, rgba(10,10,10,0.18) 0%, rgba(10,10,10,0.7) 100%), url('${game.bg}')`,
+                  backgroundImage: `linear-gradient(180deg, rgba(10,20,8,0.06) 0%, rgba(10,20,8,0.42) 48%, rgba(8,12,6,0.84) 100%), url('${bg}')`,
                   animationDelay: `${i * 0.12}s`,
                 }}
               >
                 <div style={s.gameCardInner}>
-                  <span style={{
-                    ...s.gameTag,
-                    background: game.available ? 'rgba(173,193,120,0.3)' : 'rgba(255,255,255,0.12)',
-                    borderColor: game.available ? 'rgba(173,193,120,0.6)' : 'rgba(255,255,255,0.3)',
-                  }}>
-                    {game.tag}
-                  </span>
+                  <div style={s.gameMetaRow}>
+                    <span style={s.gameTag}>{copy.tag}</span>
+                    <span style={s.gameMiniTag}>{copy.mode}</span>
+                    <span style={s.gameMiniTag}>⏱ {copy.duration}</span>
+                  </div>
                   <h3 style={s.gameTitle}>{game.title}</h3>
-                  <p style={s.gameDesc}>{game.desc}</p>
+                  <p style={s.gameDesc}>{copy.desc}</p>
                   <button style={s.gamePlayBtn} onClick={onCreateAccount}>
-                    {game.available ? 'Play Now →' : 'Notify Me'}
+                    {game.available ? 'Save Progress →' : 'Notify Me'}
                   </button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       </section>
@@ -224,8 +236,8 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
           <span style={s.sectionTag}>The spirit world</span>
           <h2 style={s.sectionTitle}>Meet the Grove Guardians</h2>
           <p style={s.sectionBody}>
-            Ancient spirits watch over every world in the grove.
-            Each guardian carries their own wisdom — and their own secrets.
+            Deer, Fox, Kodama, and Mononoke guide Spirit Sapling with distinct
+            personalities and ElevenLabs-powered voices.
           </p>
 
           <div style={s.guardiansGrid}>
@@ -250,7 +262,8 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
               <span style={s.sectionTag}>What's growing</span>
               <h2 style={s.sectionTitle}>Future enhancements</h2>
               <p style={s.sectionBody}>
-                The grove is always expanding. Here's a glimpse of what's taking root.
+                The current platform is playable end to end. These are the next features
+                that would deepen replayability and social play.
               </p>
             </div>
             <img
@@ -280,7 +293,8 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
           <img src="/assets/grove-logo.png" alt="" style={s.ctaLogoImg} />
           <h2 style={s.ctaTitle}>Ready to enter the grove?</h2>
           <p style={s.ctaBody}>
-            Create a free account to save your scores, track progress, and climb the leaderboards.
+            Create a free account to save scores, unlock achievements, track progress,
+            and return to every world with your history intact.
           </p>
           <div style={s.ctaButtons}>
             <button style={s.ctaBig} onClick={onCreateAccount}>
@@ -301,7 +315,7 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
             <span style={s.footerLogoText}>Whisperwind Grove</span>
           </div>
           <p style={s.footerText}>
-            A cozy browser game grove · Built with care · Always growing
+            Four playable browser games · MongoDB progress · Gemini + ElevenLabs integrations
           </p>
         </div>
       </footer>
@@ -317,7 +331,7 @@ const s: Record<string, React.CSSProperties> = {
     width: '100vw',
     overflowX: 'hidden',
     fontFamily: bodyFontFamily,
-    background: '#f6f1de',
+    background: 'var(--bg-page)',
   },
 
   // ── Nav ────────────────────────────────────────────────────────────────
@@ -325,9 +339,9 @@ const s: Record<string, React.CSSProperties> = {
     position: 'fixed',
     top: 0, left: 0, right: 0,
     zIndex: 100,
-    background: 'rgba(246,241,222,0.82)',
+    background: 'rgba(246,241,222,0.88)',
     backdropFilter: 'blur(16px)',
-    borderBottom: '1px solid rgba(108,88,76,0.18)',
+    borderBottom: '1px solid var(--border)',
     animation: 'nav-in 0.5s ease both',
   },
   navInner: {
@@ -358,7 +372,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   navJoin: {
     padding: '8px 18px', borderRadius: 999,
-    border: 'none', background: '#A98467', color: '#F0EAD2',
+    border: 'none', background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))', color: 'var(--text-on-dark)',
     fontFamily: bodyFontFamily, fontSize: 14, fontWeight: 700,
     cursor: 'pointer',
   },
@@ -427,7 +441,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 'clamp(16px, 2.2vw, 22px)',
     color: 'rgba(245,239,219,0.78)',
     lineHeight: 1.6,
-    maxWidth: 520,
+    maxWidth: 680,
   },
   heroCtas: { display: 'flex', gap: 14, flexWrap: 'wrap' as React.CSSProperties['flexWrap'], justifyContent: 'center' },
   ctaPrimary: {
@@ -504,6 +518,13 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.65,
     maxWidth: 640,
   },
+  sectionBodyLight: {
+    margin: '0 0 28px',
+    fontSize: 16,
+    color: 'rgba(245,239,219,0.66)',
+    lineHeight: 1.6,
+    maxWidth: 720,
+  },
 
   // ── Pillars ────────────────────────────────────────────────────────────
   pillarsSection: {
@@ -538,21 +559,21 @@ const s: Record<string, React.CSSProperties> = {
   // ── Games ──────────────────────────────────────────────────────────────
   gamesSection: {
     padding: '88px 0',
-    background: 'linear-gradient(160deg, #2a1e14 0%, #1a1208 60%, #0d1a0a 100%)',
+    background: 'linear-gradient(160deg, #223015 0%, #1a2410 48%, #0f190a 100%)',
   },
   gamesGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(255px, 1fr))',
     gap: 18,
   },
   gameCard: {
-    borderRadius: 20,
+    borderRadius: 18,
     overflow: 'hidden',
-    minHeight: 320,
+    minHeight: 360,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
-    border: '1px solid rgba(255,255,255,0.1)',
-    boxShadow: '0 16px 36px rgba(0,0,0,0.45)',
+    border: '1px solid rgba(240,234,210,0.16)',
+    boxShadow: 'var(--shadow-lg)',
     display: 'flex',
     alignItems: 'flex-end',
     animation: 'fade-in-up 0.6s ease both',
@@ -565,16 +586,32 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: 8,
   },
+  gameMetaRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+  },
   gameTag: {
     display: 'inline-block',
     width: 'fit-content',
-    padding: '3px 10px',
+    padding: '4px 10px',
     borderRadius: 999,
-    border: '1px solid',
+    border: '1px solid rgba(173,193,120,0.6)',
+    background: 'rgba(173,193,120,0.22)',
     fontSize: 12,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase' as React.CSSProperties['textTransform'],
+    fontWeight: 700,
     color: '#d6edaa',
+  },
+  gameMiniTag: {
+    display: 'inline-block',
+    width: 'fit-content',
+    padding: '4px 9px',
+    borderRadius: 999,
+    border: '1px solid rgba(255,255,255,0.22)',
+    background: 'rgba(255,255,255,0.12)',
+    fontSize: 12,
+    color: 'rgba(245,239,219,0.82)',
   },
   gameTitle: {
     margin: 0,
@@ -594,16 +631,15 @@ const s: Record<string, React.CSSProperties> = {
     alignSelf: 'flex-start',
     padding: '8px 16px',
     borderRadius: 10,
-    border: 'none',
-    background: 'rgba(173,193,120,0.25)',
-    color: '#d6edaa',
+    border: '1px solid rgba(245,239,219,0.22)',
+    background: 'linear-gradient(135deg, rgba(173,193,120,0.94), rgba(90,144,48,0.94))',
+    color: '#1f2d10',
     fontFamily: bodyFontFamily,
     fontSize: 14,
     fontWeight: 700,
     cursor: 'pointer',
     letterSpacing: 0.2,
     backdropFilter: 'blur(4px)',
-    border2: '1px solid rgba(173,193,120,0.4)',
   } as React.CSSProperties,
 
   // ── Guardians ──────────────────────────────────────────────────────────

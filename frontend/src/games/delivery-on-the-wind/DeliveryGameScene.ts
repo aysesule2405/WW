@@ -11,6 +11,7 @@ import { Player } from './entities/Player'
 import { Package } from './entities/Package'
 import { House } from './entities/House'
 import { audioManager } from '../../lib/AudioManager'
+import { uiFontFamily } from '../../theme/typography'
 
 const SFX = {
   pickup:   '/assets/audio/sfx/delivery/pickup.mp3',
@@ -233,13 +234,13 @@ export class DeliveryGameScene extends Phaser.Scene {
       fontSize: '22px',
       fontStyle: 'bold',
       color: '#F0EAD2',
-      fontFamily: 'Georgia, serif',
+      fontFamily: uiFontFamily,
     }).setOrigin(0.5, 0.5).setDepth(21).setScrollFactor(0)
 
     this.deliveryText = this.add.text(14, HUD_H / 2, '0 / 4  delivered', {
       fontSize: '14px',
       color: '#ADC178',
-      fontFamily: 'Georgia, serif',
+      fontFamily: uiFontFamily,
     }).setOrigin(0, 0.5).setDepth(21).setScrollFactor(0)
 
     this.holdSwatch = this.add.graphics().setDepth(21).setScrollFactor(0)
@@ -247,7 +248,7 @@ export class DeliveryGameScene extends Phaser.Scene {
     this.holdText = this.add.text(VIEWPORT_W - 14, HUD_H / 2, 'Empty-handed', {
       fontSize: '13px',
       color: '#C8B89A',
-      fontFamily: 'Georgia, serif',
+      fontFamily: uiFontFamily,
     }).setOrigin(1, 0.5).setDepth(21).setScrollFactor(0)
   }
 
@@ -400,7 +401,7 @@ export class DeliveryGameScene extends Phaser.Scene {
     const t = this.add.text(wx, wy, text, {
       fontSize: '14px', fontStyle: 'bold', color,
       stroke: '#000000', strokeThickness: 3,
-      fontFamily: 'Georgia, serif',
+      fontFamily: uiFontFamily,
     }).setOrigin(0.5, 0.5).setDepth(15)
     this.tweens.add({
       targets: t, y: wy - 46, alpha: 0,
@@ -426,7 +427,7 @@ export class DeliveryGameScene extends Phaser.Scene {
 
     const t = this.add.text(0, 0, text, {
       fontSize: '13px', fontStyle: 'bold', color: textColor,
-      fontFamily: 'Georgia, serif',
+      fontFamily: uiFontFamily,
     }).setOrigin(0.5, 0.5)
 
     const wx = Phaser.Math.Clamp((gridX + 1) * TILE + TILE / 2, bW / 2 + 6, WORLD_W - bW / 2 - 6)
@@ -493,7 +494,7 @@ export class DeliveryGameScene extends Phaser.Scene {
       result === 'win' ? 'All Delivered!' : 'Time is up!',
       { fontSize: '36px', fontStyle: 'bold',
         color: result === 'win' ? '#FFE566' : '#FF9988',
-        stroke: '#000000', strokeThickness: 5, fontFamily: 'Georgia, serif' },
+        stroke: '#000000', strokeThickness: 5, fontFamily: uiFontFamily },
     ).setOrigin(0.5, 0.5).setDepth(21).setAlpha(0).setScrollFactor(0)
 
     const sub = this.add.text(cx, cy + 16,
@@ -501,7 +502,7 @@ export class DeliveryGameScene extends Phaser.Scene {
         ? `The grove thanks Kiki!  Time left: ${this.formatTime(this.timeLeftMs)}`
         : `${this.deliveredCount} of 4 packages delivered`,
       { fontSize: '18px', color: '#F0EAD2',
-        stroke: '#000000', strokeThickness: 3, fontFamily: 'Georgia, serif' },
+        stroke: '#000000', strokeThickness: 3, fontFamily: uiFontFamily },
     ).setOrigin(0.5, 0.5).setDepth(21).setAlpha(0).setScrollFactor(0)
 
     this.tweens.add({ targets: title, alpha: 1, y: { from: cy - 10, to: cy - 36 }, duration: 680, ease: 'Back.Out' })

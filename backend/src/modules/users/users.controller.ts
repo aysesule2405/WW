@@ -14,16 +14,32 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
     email: user.email,
     username: user.username,
     avatarUrl: user.avatarUrl ?? null,
+    status: user.status ?? '',
+    favoriteSong: user.favoriteSong ?? '',
+    favoriteSteamGames: user.favoriteSteamGames ?? '',
+    avatarConfig: user.avatarConfig ?? null,
   })
 }
 
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   const userId = req.userId
   if (!userId) return res.status(401).json({ error: 'Unauthorized' })
-  const { username } = req.body || {}
+  const { username, status, favoriteSong, favoriteSteamGames, avatarConfig } = req.body || {}
   if (!username) return res.status(400).json({ error: 'username is required' })
   try {
-    await userRepo.updateProfile(userId, { username })
+    await userRepo.updateProfile(userId, {
+      username,
+      status: String(status ?? '').slice(0, 180),
+      favoriteSong: String(favoriteSong ?? '').slice(0, 140),
+      favoriteSteamGames: String(favoriteSteamGames ?? '').slice(0, 300),
+      avatarConfig: avatarConfig && typeof avatarConfig === 'object'
+        ? {
+            face: String(avatarConfig.face ?? '🙂').slice(0, 8),
+            color: String(avatarConfig.color ?? '#ADC178').slice(0, 32),
+            accessory: String(avatarConfig.accessory ?? 'leaf').slice(0, 40),
+          }
+        : undefined,
+    })
     return res.status(200).json({ updated: true })
   } catch (err: any) {
     return res.status(500).json({ error: err.message })

@@ -119,9 +119,9 @@ function grid(level: number, label: string, rows: number, cols: number, skip: nu
   return { level, label, spaces }
 }
 
-const L1 = grid(1, 'Moonrise',        3, 3)
+const L1 = grid(1, 'Moonrise',        3, 3, [4])
 const L2 = grid(2, 'Crescent Hollow', 4, 3)
-const L3 = grid(3, 'Silver Glade',    4, 4, [0, 3, 12, 15])
+const L3 = grid(3, 'Silver Glade',    4, 4)
 const L4 = grid(4, 'Starlit Marsh',   5, 3)
 const L5 = grid(5, 'Crescent Cove',   5, 4, [3, 7, 11])
 const L6 = grid(6, 'Twin Peaks',      4, 4, [5, 6, 9, 10])
@@ -133,7 +133,18 @@ export const BOARD_LAYOUTS: BoardLayout[] = [L1, L2, L3, L4, L5, L6, L7, L8, L9]
 
 // ── Random board generator ────────────────────────────────────────────────────
 
-const LEVEL_SPACE_COUNTS = [9, 12, 12, 15, 17, 12, 20, 21, 30]
+const LEVEL_SPACE_COUNTS = [8, 12, 16, 15, 17, 12, 20, 21, 30]
+const RANDOM_GRID_DIMS = [
+  { rows: 3, cols: 3 },
+  { rows: 4, cols: 3 },
+  { rows: 4, cols: 4 },
+  { rows: 5, cols: 3 },
+  { rows: 5, cols: 4 },
+  { rows: 4, cols: 4 },
+  { rows: 5, cols: 4 },
+  { rows: 5, cols: 5 },
+  { rows: 6, cols: 5 },
+]
 
 const LEVEL_NAMES: string[][] = [
   ['Moonrise', 'Twilight Hollow', 'Silver Creek', 'Dusk Vale'],
@@ -151,11 +162,13 @@ const LEVEL_NAMES: string[][] = [
 // then converts it to a SpaceDef array with correct adjacency.
 export function generateRandomLayout(level: number): BoardLayout {
   const idx         = Math.min(level - 1, LEVEL_SPACE_COUNTS.length - 1)
-  const targetSize  = LEVEL_SPACE_COUNTS[idx]
+  const dims        = RANDOM_GRID_DIMS[idx] ?? { rows: 5, cols: 4 }
+  const ROWS        = dims.rows
+  const COLS        = dims.cols
+  const targetSize  = Math.min(LEVEL_SPACE_COUNTS[idx], ROWS * COLS)
   const namePool    = LEVEL_NAMES[idx]
   const label       = namePool[Math.floor(Math.random() * namePool.length)]
 
-  const ROWS = 7, COLS = 5
   const DIRS: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]]
 
   const included = new Set<string>()

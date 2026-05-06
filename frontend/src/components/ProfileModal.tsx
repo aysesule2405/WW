@@ -39,7 +39,7 @@ export default function ProfileModal({ onClose, onSave }: Props) {
     setSaving(true)
     setMessage(null)
     try {
-      const data = await api.updateProfile(username)
+      const data = await api.updateProfile({ username })
       if (data?.error) setMessage(data.error)
       else {
         setMessage('Profile updated')
@@ -78,7 +78,7 @@ export default function ProfileModal({ onClose, onSave }: Props) {
     <div style={overlayStyles.overlay}>
       <div style={overlayStyles.card}>
         <h3>Profile</h3>
-        {profile.avatarUrl ? <img src={profile.avatarUrl} alt="avatar" style={{ width: 96, height: 96, borderRadius: 12 }} /> : <div style={{ width: 96, height: 96, borderRadius: 12, background: '#ddd' }} />}
+        {profile.avatarUrl ? <img src={api.mediaUrl(profile.avatarUrl)} alt="avatar" style={{ width: 96, height: 96, borderRadius: 12 }} /> : <div style={{ width: 96, height: 96, borderRadius: 12, background: '#ddd' }} />}
         <div style={{ marginTop: 8 }}>
           <input type="file" accept="image/*" onChange={(e) => uploadFile(e.target.files ? e.target.files[0] : null)} />
         </div>

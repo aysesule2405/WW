@@ -1,11 +1,11 @@
 /** Primary readable font — all body text, buttons, rules, labels */
-export const uiFontFamily = '"Kingthings Clarity", system-ui, sans-serif'
+export const uiFontFamily = '"Kingthings Clarity"'
 
 /** Playful title font — game names, section headers, score displays */
-export const titleFontFamily = '"Si Kancil", fantasy, sans-serif'
+export const titleFontFamily = '"Si Kancil"'
 
 /** Decorative accent font — short decorative headings only, never long text */
-export const accentFontFamily = '"Waterlily", cursive, serif'
+export const accentFontFamily = '"Waterlily"'
 
 /** Number font — any element displaying a numeric value (scores, timers, counters) */
 export const numberFontFamily = uiFontFamily

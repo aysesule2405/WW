@@ -5,10 +5,17 @@ function musicEnabled(): boolean {
   try { return JSON.parse(localStorage.getItem('ww_settings') ?? '{}').music !== false } catch { return true }
 }
 
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext
+  }
+}
+
 class AudioManager {
   private pool = new Map<string, HTMLAudioElement[]>()
   private musicEl: HTMLAudioElement | null = null
   private currentTrack = ''
+  private audioCtx: AudioContext | null = null
 
   preload(paths: string[], poolSize = 3) {
     for (const path of paths) {
@@ -33,6 +40,63 @@ class AudioManager {
     el.volume = Math.min(1, Math.max(0, volume))
     el.currentTime = 0
     el.play().catch(() => {})
+  }
+
+  private context(): AudioContext | null {
+    if (!sfxEnabled()) return null
+    const AudioCtor = window.AudioContext ?? window.webkitAudioContext
+    if (!AudioCtor) return null
+    this.audioCtx ??= new AudioCtor()
+    if (this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume().catch(() => {})
+    }
+    return this.audioCtx
+  }
+
+  private tone({
+    frequency,
+    duration,
+    type = 'sine',
+    volume = 0.18,
+    delay = 0,
+  }: {
+    frequency: number
+    duration: number
+    type?: OscillatorType
+    volume?: number
+    delay?: number
+  }) {
+    const ctx = this.context()
+    if (!ctx) return
+    const start = ctx.currentTime + delay
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = type
+    osc.frequency.setValueAtTime(frequency, start)
+    gain.gain.setValueAtTime(0.0001, start)
+    gain.gain.exponentialRampToValueAtTime(volume, start + 0.025)
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(start)
+    osc.stop(start + duration + 0.04)
+  }
+
+  playWater(volume = 0.2) {
+    this.tone({ frequency: 540, duration: 0.16, type: 'triangle', volume })
+    this.tone({ frequency: 410, duration: 0.18, type: 'sine', volume: volume * 0.7, delay: 0.08 })
+    this.tone({ frequency: 690, duration: 0.12, type: 'triangle', volume: volume * 0.45, delay: 0.16 })
+  }
+
+  playSun(volume = 0.16) {
+    this.tone({ frequency: 620, duration: 0.22, type: 'sine', volume })
+    this.tone({ frequency: 930, duration: 0.3, type: 'sine', volume: volume * 0.62, delay: 0.04 })
+    this.tone({ frequency: 1240, duration: 0.24, type: 'triangle', volume: volume * 0.42, delay: 0.1 })
+  }
+
+  playSoftChime(volume = 0.12) {
+    this.tone({ frequency: 784, duration: 0.18, type: 'sine', volume })
+    this.tone({ frequency: 1046, duration: 0.22, type: 'sine', volume: volume * 0.75, delay: 0.09 })
   }
 
   playMusic(name: string, volume = 0.35) {

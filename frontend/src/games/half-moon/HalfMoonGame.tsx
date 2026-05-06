@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createHalfMoonGame } from './systems/createHalfMoonGame'
 import type { HalfMoonAPI, ScoreState } from './systems/createHalfMoonGame'
 import { WILD_CARDS } from './data/halfMoonConfig'
-import type { Phase, Difficulty, AIMode, WildCardType } from './data/halfMoonConfig'
+import type { Difficulty, AIMode, WildCardType } from './data/halfMoonConfig'
 import { getScoreLeaderboard, getMyBest, getRecentScores, submitScore, submitSession } from '../../lib/api'
 import { uiFontFamily, titleFontFamily, numberFontFamily } from '../../theme/typography'
 import { GAME_BG_HTML } from './assets'
@@ -27,6 +27,7 @@ type LeaderboardRow   = { rank?: number; username: string; score: number; achiev
 const MAX_LEVELS      = 3
 const STREAK_FOR_WILD = 3
 const GAME_SLUG       = 'half-moon'
+const SCOREBOARD_ACCENT = '#63e8e7'
 
 async function fetchHighScore(): Promise<HighScore> {
   const data = await getMyBest(GAME_SLUG)
@@ -53,8 +54,6 @@ export default function HalfMoonGame({ onExit }: Props) {
   const [wilds,       setWilds]       = useState<WildCardType[]>([])
   const [wildPrompt,  setWildPrompt]  = useState(false)
 
-  const [hand,          setHand]          = useState<Phase[]>([])
-  const [activeHandIdx, setActiveHandIdx] = useState<number | null>(null)
   const [isPlayerTurn,  setIsPlayerTurn]  = useState(true)
   const [eventMsg,      setEventMsg]      = useState<{ msg: string; color: string } | null>(null)
   const eventTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -184,7 +183,7 @@ export default function HalfMoonGame({ onExit }: Props) {
         setEventMsg({ msg, color })
         eventTimer.current = setTimeout(() => setEventMsg(null), 2200)
       },
-      onHandUpdate:  (h, idx) => { setHand([...h]); setActiveHandIdx(idx) },
+      onHandUpdate:  () => {},
       onTurnChange:  (pt) => setIsPlayerTurn(pt),
     })
 
@@ -320,9 +319,9 @@ export default function HalfMoonGame({ onExit }: Props) {
       <GameShell title="Rise of the Half Moon" onExit={onExit} background={SHELL_BG} accentColor="#D6D3A9">
         <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
         <div style={s.centre}>
-          <div style={{ ...s.endCard, borderColor: isVictory ? 'rgba(200,168,75,0.5)' : 'rgba(180,80,80,0.4)' }}>
+          <div style={{ ...s.endCard, borderColor: isVictory ? 'rgba(99,232,231,0.6)' : 'rgba(180,80,80,0.4)' }}>
             <div style={s.endMoon}>{isVictory ? '◯' : '☾'}</div>
-            <h2 style={{ ...s.endTitle, color: isVictory ? '#FFF8C0' : '#FF9988' }}>
+            <h2 style={{ ...s.endTitle, color: isVictory ? SCOREBOARD_ACCENT : '#FF9988' }}>
               {isVictory ? 'The Ritual is Complete' : 'The Half Moon Prevails'}
             </h2>
             <p style={s.endSub}>
@@ -339,7 +338,7 @@ export default function HalfMoonGame({ onExit }: Props) {
 
             {highScore && !(isVictory && isNewBest) && (
               <div style={s.prevBest}>
-                Personal Best: <strong style={{ color: '#FFF8C0' }}>{highScore.score}</strong>
+                Personal Best: <strong style={{ color: SCOREBOARD_ACCENT }}>{highScore.score}</strong>
               </div>
             )}
 
@@ -348,7 +347,7 @@ export default function HalfMoonGame({ onExit }: Props) {
                 <div style={s.recentTitle}>Top Scores</div>
                 {leaderboard.map((row) => (
                   <div key={row.rank} style={s.recentRow}>
-                    <span style={{ ...s.recentScore, minWidth: 24, fontSize: 11, color: '#C8A84B' }}>#{row.rank}</span>
+                    <span style={{ ...s.recentScore, minWidth: 24, fontSize: 11, color: SCOREBOARD_ACCENT }}>#{row.rank}</span>
                     <span style={{ ...s.recentMeta, textAlign: 'left' }}>{row.username}</span>
                     <span style={s.recentScore}>{row.score}</span>
                     <span style={s.recentDate}>{new Date(row.achievedAt).toLocaleDateString()}</span>
@@ -373,7 +372,7 @@ export default function HalfMoonGame({ onExit }: Props) {
             )}
 
             <div style={s.endActions}>
-              <button style={s.primaryBtn} onClick={restartGame}>Play Again</button>
+              <button style={{ ...s.primaryBtn, ...s.scoreboardPrimaryBtn }} onClick={restartGame}>Play Again</button>
               <button style={s.secondaryBtn} onClick={onExit}>Back to Grove</button>
             </div>
           </div>
@@ -387,6 +386,7 @@ export default function HalfMoonGame({ onExit }: Props) {
   if (screen === 'level-end' && levelResult) {
     const { scores: ls } = levelResult
     const isLastLevel = levelResult.level >= MAX_LEVELS
+    const wonText = `You won the ${ordinalLevel(levelResult.level)} level`
     return (
     <GameShell title="Rise of the Half Moon" onExit={onExit} background={SHELL_BG} accentColor="#D6D3A9">
       <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
@@ -394,10 +394,10 @@ export default function HalfMoonGame({ onExit }: Props) {
           <div style={{ ...s.endCard, borderColor: 'rgba(200,168,75,0.5)' }}>
             <div style={s.endMoon}>◯</div>
             <h2 style={{ ...s.endTitle, color: '#FFF8C0' }}>
-              Level {levelResult.level} Complete!
+              {wonText}
             </h2>
             <p style={s.endSub}>
-              {isLastLevel ? 'Final level cleared — complete the ritual!' : `Level ${levelResult.level + 1} awaits`}
+              {isLastLevel ? 'All three levels are cleared. Review the final score board.' : levelIntro(levelResult.level + 1)}
             </p>
             <div style={s.scoreComparison}>
               <ScoreCol label="You"       score={ls.player} cards={ls.playerCards} highlight={true} />
@@ -410,7 +410,7 @@ export default function HalfMoonGame({ onExit }: Props) {
             </div>
             <div style={s.endActions}>
               <button style={s.primaryBtn} onClick={advanceLevel}>
-                {isLastLevel ? 'Complete the Ritual ✦' : `Level ${levelResult.level + 1} →`}
+                {isLastLevel ? 'See Final Scoreboard' : `Begin Level ${levelResult.level + 1}`}
               </button>
               <button style={s.ghostBtn} onClick={onExit}>Exit</button>
             </div>
@@ -447,23 +447,6 @@ export default function HalfMoonGame({ onExit }: Props) {
             ))}
           </div>
         )}
-
-        <div style={s.handBar}>
-          <span style={s.handLabel}>Your hand:</span>
-          {hand.map((ph, i) => (
-            <div
-              key={i}
-              style={{
-                ...s.handPill,
-                background: activeHandIdx === i ? 'rgba(240,234,210,0.18)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${activeHandIdx === i ? 'rgba(240,234,210,0.5)' : 'rgba(240,234,210,0.15)'}`,
-              }}
-            >
-              {ph}
-            </div>
-          ))}
-          {!isPlayerTurn && <span style={s.handHint}>Waiting for Half Moon…</span>}
-        </div>
 
         <div style={s.scoresOverlay}>
           <span style={s.scoresYou}>You {scores.player}</span>
@@ -521,6 +504,19 @@ function ScoreCol({ label, score, cards, highlight }: { label: string; score: nu
   )
 }
 
+function ordinalLevel(level: number): string {
+  if (level === 1) return 'first'
+  if (level === 2) return 'second'
+  if (level === 3) return 'third'
+  return `${level}th`
+}
+
+function levelIntro(level: number): string {
+  if (level === 2) return 'Level 2 opens a larger crescent map.'
+  if (level === 3) return 'Level 3 reveals the full silver glade.'
+  return `Level ${level} awaits.`
+}
+
 function wildIcon(type: WildCardType): string {
   const icons: Record<WildCardType, string> = {
     'eclipse-shield': '🛡',
@@ -546,8 +542,8 @@ const s: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid rgba(200,168,75,0.1)',
   },
   centre: {
-    flex: 1, display: 'flex', alignItems: 'flex-start',
-    justifyContent: 'center', padding: '28px 20px 36px',
+    flex: 1, display: 'flex', alignItems: 'center',
+    justifyContent: 'center', padding: '18px 20px 22px',
     overflowY: 'auto', boxSizing: 'border-box',
   },
 
@@ -555,31 +551,32 @@ const s: Record<string, React.CSSProperties> = {
   rulesCard: {
     background: 'rgba(10,22,40,0.97)', border: '1px solid rgba(200,168,75,0.3)',
     borderRadius: 22, boxShadow: '0 24px 56px rgba(0,0,0,0.7)',
-    padding: '36px 42px', maxWidth: 680, width: '100%',
-    display: 'flex', flexDirection: 'column', gap: 22,
+    padding: '24px 34px', maxWidth: 920, width: '100%',
+    maxHeight: 'calc(100vh - 128px)', overflowY: 'auto',
+    display: 'flex', flexDirection: 'column', gap: 16,
   },
-  rulesTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 32, color: '#FFF8C0', textAlign: 'center' },
-  rulesSub:   { margin: 0, fontSize: 15, color: '#AABBCC', textAlign: 'center', lineHeight: 1.5 },
-  rulesGrid:  { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
+  rulesTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 30, color: '#FFF8C0', textAlign: 'center' },
+  rulesSub:   { margin: 0, fontSize: 14, color: '#AABBCC', textAlign: 'center', lineHeight: 1.45 },
+  rulesGrid:  { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 10 },
   ruleBlock: {
-    padding: '12px 14px', borderRadius: 12,
+    padding: '10px 12px', borderRadius: 12,
     background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(200,168,75,0.15)',
   },
-  ruleBlockTitle: { fontSize: 13, fontWeight: 700, color: '#C8A84B', marginBottom: 4, letterSpacing: 0.3 },
-  ruleBlockBody:  { fontSize: 13, color: '#AABBCC', lineHeight: 1.5 },
+  ruleBlockTitle: { fontSize: 13, fontWeight: 700, color: '#C8A84B', marginBottom: 3, letterSpacing: 0.3 },
+  ruleBlockBody:  { fontSize: 13, color: '#AABBCC', lineHeight: 1.38 },
 
-  diffRow: { display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center' },
+  diffRow: { display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', flexWrap: 'wrap' },
   diffLabel: { fontSize: 14, color: '#AABBCC', minWidth: 70 },
   diffBtn: {
-    padding: '7px 18px', borderRadius: 999, border: '1px solid rgba(200,168,75,0.3)',
+    padding: '7px 16px', borderRadius: 999, border: '1px solid rgba(200,168,75,0.3)',
     background: 'transparent', color: '#AABBCC',
     fontFamily: bodyFontFamily, fontSize: 14, cursor: 'pointer',
   },
   diffBtnActive: { background: 'rgba(200,168,75,0.18)', borderColor: '#C8A84B', color: '#FFF8C0' },
   startBtn: {
-    padding: '14px 0', borderRadius: 13, border: 'none',
+    padding: '12px 0', borderRadius: 13, border: 'none',
     background: 'linear-gradient(135deg, #5A9030, #3E6820)',
-    color: '#F0EAD2', fontFamily: bodyFontFamily, fontSize: 19, fontWeight: 700,
+    color: '#F0EAD2', fontFamily: bodyFontFamily, fontSize: 18, fontWeight: 700,
     cursor: 'pointer', letterSpacing: 0.3, boxShadow: '0 8px 24px rgba(58,88,32,0.45)',
   },
 
@@ -623,16 +620,6 @@ const s: Record<string, React.CSSProperties> = {
   },
   wildIcon:  { fontSize: 14 },
   wildLabel: { fontSize: 12, color: '#C8A84B' },
-  handBar: {
-    position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-    display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px',
-    borderRadius: 999, background: 'rgba(6,12,26,0.85)',
-    border: '1px solid rgba(200,168,75,0.2)', backdropFilter: 'blur(8px)',
-    pointerEvents: 'none', zIndex: 20, whiteSpace: 'nowrap',
-  },
-  handLabel:  { fontSize: 11, color: '#778899', marginRight: 4 },
-  handPill:   { padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, color: '#F0EAD2', fontFamily: bodyFontFamily },
-  handHint:   { fontSize: 11, color: '#556677', fontStyle: 'italic' },
   scoresOverlay: {
     position: 'absolute', top: 58, right: 16,
     display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px',
@@ -678,26 +665,26 @@ const s: Record<string, React.CSSProperties> = {
   runningScoreValue: { fontFamily: numberFontFamily, fontSize: 28, color: '#FFF8C0', lineHeight: 1 },
   scoreBadge: {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-    background: 'rgba(200,168,75,0.1)', border: '1px solid rgba(200,168,75,0.35)',
+    background: 'rgba(99,232,231,0.1)', border: '1px solid rgba(99,232,231,0.45)',
     borderRadius: 12, padding: '12px 28px',
   },
-  scoreBadgeLabel: { fontSize: 12, color: '#C8A84B', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' },
-  scoreBadgeValue: { fontFamily: numberFontFamily, fontSize: 42, color: '#FFF8C0', lineHeight: 1 },
+  scoreBadgeLabel: { fontSize: 12, color: SCOREBOARD_ACCENT, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' },
+  scoreBadgeValue: { fontFamily: numberFontFamily, fontSize: 42, color: SCOREBOARD_ACCENT, lineHeight: 1 },
   newBestTag: {
-    fontSize: 11, fontWeight: 700, color: '#FFF8C0',
-    background: 'rgba(200,168,75,0.25)', borderRadius: 999,
+    fontSize: 11, fontWeight: 700, color: '#062022',
+    background: SCOREBOARD_ACCENT, borderRadius: 999,
     padding: '2px 10px', letterSpacing: 0.5,
   },
 
   recentPanel: {
     width: '100%', display: 'flex', flexDirection: 'column', gap: 6,
     padding: '12px 16px', borderRadius: 12,
-    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(200,168,75,0.12)',
+    background: 'rgba(99,232,231,0.045)', border: '1px solid rgba(99,232,231,0.16)',
     boxSizing: 'border-box',
   },
-  recentTitle: { fontSize: 11, color: '#556677', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
+  recentTitle: { fontSize: 11, color: SCOREBOARD_ACCENT, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
   recentRow: { display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' },
-  recentScore: { fontSize: 13, color: '#FFF8C0', fontFamily: numberFontFamily, minWidth: 60 },
+  recentScore: { fontSize: 13, color: SCOREBOARD_ACCENT, fontFamily: numberFontFamily, minWidth: 60 },
   recentMeta:  { fontSize: 12, color: '#AABBCC', flex: 1, textAlign: 'center' },
   recentDate:  { fontSize: 11, color: '#445566' },
 
@@ -706,6 +693,11 @@ const s: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(135deg, #5A9030, #3E6820)',
     color: '#F0EAD2', fontFamily: bodyFontFamily, fontSize: 16, fontWeight: 700,
     cursor: 'pointer', boxShadow: '0 5px 16px rgba(58,88,32,0.4)',
+  },
+  scoreboardPrimaryBtn: {
+    background: `linear-gradient(135deg, ${SCOREBOARD_ACCENT}, #2aa6b0)`,
+    color: '#06191c',
+    boxShadow: '0 5px 16px rgba(99,232,231,0.28)',
   },
   secondaryBtn: {
     padding: '12px 22px', borderRadius: 11, border: '1px solid rgba(200,168,75,0.35)',

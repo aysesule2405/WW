@@ -7,6 +7,14 @@ export interface IUser extends Document {
   passwordHash: string
   lastLoginAt?: Date
   avatarUrl?: string
+  status?: string
+  favoriteSong?: string
+  favoriteSteamGames?: string
+  avatarConfig?: {
+    face?: string
+    color?: string
+    accessory?: string
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -18,6 +26,14 @@ const UserSchema = new Schema<IUser>(
     passwordHash: { type: String, required: true },
     lastLoginAt:  { type: Date },
     avatarUrl:    { type: String, maxlength: 512 },
+    status:       { type: String, trim: true, maxlength: 180 },
+    favoriteSong: { type: String, trim: true, maxlength: 140 },
+    favoriteSteamGames: { type: String, trim: true, maxlength: 300 },
+    avatarConfig: {
+      face:      { type: String, trim: true, maxlength: 8 },
+      color:     { type: String, trim: true, maxlength: 32 },
+      accessory: { type: String, trim: true, maxlength: 40 },
+    },
   },
   { timestamps: true }
 )

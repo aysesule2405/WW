@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { uiFontFamily, titleFontFamily, numberFontFamily } from '../theme/typography';
 import { apiUrl, getToken, submitSession } from '../lib/api';
+import { audioManager } from '../lib/AudioManager';
 import GameShell from './game/GameShell';
 import GameDescriptionPanel from '../games/spirit-sapling/GameDescriptionPanel';
 import TalkToSaplingPanel from '../games/spirit-sapling/TalkToSaplingPanel';
 import AchievementToast from './AchievementToast';
 import type { UnlockedAchievement } from './AchievementToast';
+import { useGameMusic } from '../hooks/useGameMusic';
 
 const bodyFontFamily    = uiFontFamily
 const headingFontFamily = titleFontFamily
@@ -84,7 +86,7 @@ const dropletOffsets = [12, 20, 28, 36, 44, 52, 60, 68, 76, 84];
 
 const BASE_ENERGY_RECHARGE_SECONDS = 20;
 const MIN_ENERGY_RECHARGE_SECONDS = 8;
-const KINDNESS_RECHARGE_REDUCTION_SECONDS = 4;
+const MAX_ENERGY_RECHARGE_SECONDS = 40;
 const energyFrames = [
   '/assets/animation/energy/energy-0.png',
   '/assets/animation/energy/energy-25.png',
@@ -98,6 +100,8 @@ type SaplingEffect = 'water' | 'sun' | 'talk' | null;
 type SaplingAction = Exclude<SaplingEffect, null> | 'harvest';
 
 export default function SpiritSaplingGame({ onExit }: Props) {
+  useGameMusic('spirit-sapling');
+
   const [screen, setScreen] = useState<GameScreen>('description');
   const [selectedGuardianId, setSelectedGuardianId] = useState<GuardianId>('deer');
   const [stageIndex, setStageIndex] = useState(0);
@@ -284,6 +288,9 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     const effectDuration = action === 'water' ? 1900 : 1800;
     const growthDelay = action === 'water' ? 780 : 680;
 
+    if (action === 'water') audioManager.playWater(0.22);
+    else audioManager.playSun(0.18);
+
     resetEnergyOnNurture();
     setActiveAction(action);
     triggerEffect(action, effectDuration);
@@ -303,17 +310,29 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     resetEnergyOnNurture();
     setActiveAction('talk');
     triggerEffect('talk', 3600);
+    audioManager.playSoftChime(0.12);
     await speakGuardian();
     advanceGrowth();
     setActiveAction(null);
   };
 
-  const handleKindnessApproved = (growthBoost: number) => {
-    setTalkBoostTotal((prev) => prev + growthBoost);
+  const handleSaplingEnergyEvaluated = ({
+    energyDeltaSeconds,
+    growthBoost,
+  }: {
+    sentiment: 'positive' | 'negative' | 'neutral';
+    energyDeltaSeconds: number;
+    growthBoost: number;
+  }) => {
+    if (growthBoost > 0) {
+      setTalkBoostTotal((prev) => prev + growthBoost);
+      talkCountRef.current += 1;
+    }
+
     setEnergyRechargeSeconds((current) =>
-      Math.max(
-        MIN_ENERGY_RECHARGE_SECONDS,
-        current - growthBoost * KINDNESS_RECHARGE_REDUCTION_SECONDS,
+      Math.min(
+        MAX_ENERGY_RECHARGE_SECONDS,
+        Math.max(MIN_ENERGY_RECHARGE_SECONDS, current + energyDeltaSeconds),
       )
     );
   };
@@ -382,25 +401,6 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     return lines[currentStage % lines.length];
   };
 
-  const browserSpeak = (text: string, guardianId: GuardianId): Promise<void> =>
-    new Promise((resolve) => {
-      if (!window.speechSynthesis) { resolve(); return; }
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      // Each guardian gets a distinct voice character
-      const cfg: Record<GuardianId, { rate: number; pitch: number }> = {
-        deer:     { rate: 0.82, pitch: 1.10 },
-        fox:      { rate: 1.08, pitch: 1.30 },
-        kodama:   { rate: 0.74, pitch: 1.55 },
-        mononoke: { rate: 0.90, pitch: 0.78 },
-      };
-      utter.rate  = cfg[guardianId].rate;
-      utter.pitch = cfg[guardianId].pitch;
-      utter.onend   = () => resolve();
-      utter.onerror = () => resolve();
-      window.speechSynthesis.speak(utter);
-    });
-
   const speakGuardian = async () => {
     if (isTalking) return;
 
@@ -429,8 +429,13 @@ export default function SpiritSaplingGame({ onExit }: Props) {
       if (!response.ok) {
         const errBody = await response.text().catch(() => '');
         console.error(`[TTS] Request failed (HTTP ${response.status}): ${errBody}`);
-        await browserSpeak(line, selectedGuardianId);
         return;
+      }
+
+      const voiceId = response.headers.get('X-ElevenLabs-Voice-Id');
+      const modelId = response.headers.get('X-ElevenLabs-Model-Id');
+      if (voiceId || modelId) {
+        console.info(`[TTS] ElevenLabs guardian=${selectedGuardianId} voice=${voiceId ?? 'unknown'} model=${modelId ?? 'unknown'}`);
       }
 
       const audioBlob = await response.blob();
@@ -444,8 +449,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
       });
     } catch (error) {
       setSpokenLine(line);
-      console.warn('Failed to play guardian voice, using browser TTS:', error);
-      await browserSpeak(line, selectedGuardianId);
+      console.warn('Failed to play ElevenLabs guardian voice:', error);
     } finally {
       const elapsedMs = Date.now() - startedAt;
       const holdMs = Math.max(0, minTalkAndSubtitleMs - elapsedMs);
@@ -687,7 +691,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
         <TalkToSaplingPanel
           guardianName={selectedGuardian.name}
           onClose={() => setShowTalkPanel(false)}
-          onApproved={handleKindnessApproved}
+          onEnergyEvaluated={handleSaplingEnergyEvaluated}
         />
       )}
       <div style={styles.gameLayout}>
