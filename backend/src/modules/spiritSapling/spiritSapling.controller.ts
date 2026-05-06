@@ -4,6 +4,13 @@ import type { HistoryItem } from './spiritSapling.service'
 import ttsService from '../tts/tts.service'
 import { AuthRequest } from '../../core/middleware/auth.middleware'
 
+const PUBLIC_GUARDIAN_INTROS: Record<string, string> = {
+  deer: 'Hi, I am the guardian Deer. I guide the grove with patience, gentleness, and steady roots.',
+  fox: 'Hi, I am the guardian Fox. I bring bright mischief, warm sunlight, and playful courage.',
+  kodama: 'Hi, I am the guardian Kodama. I speak for the old forest and the quiet spirits between leaves.',
+  mononoke: 'Hi, I am the guardian Mononoke. I carry the wild strength of mountains, storms, and sacred trees.',
+}
+
 // POST /api/v1/spirit-sapling/kindness-check
 export async function kindnessCheck(req: Request, res: Response) {
   try {
@@ -69,6 +76,40 @@ export async function guardianVoice(req: AuthRequest, res: Response) {
     return res.status(200).json({ text })
   } catch (err: any) {
     console.error('[SpiritSapling] guardianVoice error', err)
+    return res.status(500).json({ error: err.message })
+  }
+}
+
+// POST /api/v1/spirit-sapling/guardian-intro-voice
+// Public landing-page preview. Text is fixed server-side to avoid open-ended TTS abuse.
+export async function guardianIntroVoice(req: Request, res: Response) {
+  try {
+    const { guardianId } = req.body ?? {}
+    const safeGuardianId = typeof guardianId === 'string' ? guardianId.toLowerCase() : ''
+    const text = PUBLIC_GUARDIAN_INTROS[safeGuardianId]
+
+    if (!text) {
+      return res.status(400).json({ error: 'Unknown guardianId' })
+    }
+
+    const result = await ttsService.synthesizeGuardian({
+      userId: 'public-landing',
+      guardianId: safeGuardianId,
+      text,
+    }) as any
+
+    if (result.stream) {
+      res.set('Content-Type', result.contentType || 'audio/mpeg')
+      res.set('X-Guardian-Text', encodeURIComponent(text))
+      if (result.voiceId) res.set('X-ElevenLabs-Voice-Id', result.voiceId)
+      if (result.modelId) res.set('X-ElevenLabs-Model-Id', result.modelId)
+      result.stream.pipe(res)
+      return
+    }
+
+    return res.status(200).json({ text })
+  } catch (err: any) {
+    console.error('[SpiritSapling] guardianIntroVoice error', err)
     return res.status(500).json({ error: err.message })
   }
 }

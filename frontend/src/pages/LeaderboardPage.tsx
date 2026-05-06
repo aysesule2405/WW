@@ -90,6 +90,64 @@ function TimeTable({ rows }: { rows: TimeRow[] }) {
   )
 }
 
+function LeaderboardChart({ board }: { board: GameBoard }) {
+  if (board.kind === 'time') {
+    const rows = board.rows.slice(0, 6)
+    if (rows.length === 0) return null
+    const times = rows.map((row) => row.bestTimeSeconds)
+    const fastest = Math.min(...times)
+    const slowest = Math.max(...times)
+    const spread = Math.max(1, slowest - fastest)
+
+    return (
+      <div style={s.chartPanel}>
+        <div style={s.chartHeader}>
+          <span style={s.chartTitle}>Fastest run shape</span>
+          <span style={s.chartHint}>Shorter time fills more</span>
+        </div>
+        <div style={s.chartBars}>
+          {rows.map((row) => {
+            const ratio = slowest === fastest ? 1 : (slowest - row.bestTimeSeconds) / spread
+            return (
+              <div key={`${row.rank}-${row.userId}`} style={s.chartRow}>
+                <span style={s.chartName}>#{row.rank} {row.username}</span>
+                <div style={s.chartTrack}>
+                  <div style={{ ...s.chartFill, width: `${Math.max(12, ratio * 100)}%` }} />
+                </div>
+                <span style={s.chartValue}>{formatTime(row.bestTimeSeconds)}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  const rows = board.rows.slice(0, 6)
+  if (rows.length === 0) return null
+  const maxScore = Math.max(...rows.map((row) => row.score), 1)
+
+  return (
+    <div style={s.chartPanel}>
+      <div style={s.chartHeader}>
+        <span style={s.chartTitle}>Score shape</span>
+        <span style={s.chartHint}>Higher score fills more</span>
+      </div>
+      <div style={s.chartBars}>
+        {rows.map((row) => (
+          <div key={`${row.rank}-${row.userId}`} style={s.chartRow}>
+            <span style={s.chartName}>#{row.rank} {row.username}</span>
+            <div style={s.chartTrack}>
+              <div style={{ ...s.chartFill, width: `${Math.max(12, (row.score / maxScore) * 100)}%` }} />
+            </div>
+            <span style={s.chartValue}>{row.score}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function GameSection({ board }: { board: GameBoard }) {
   const [open, setOpen] = useState(false)
 
@@ -112,10 +170,15 @@ function GameSection({ board }: { board: GameBoard }) {
         <div style={s.sectionBody}>
           {board.loading ? (
             <p style={s.empty}>Loading…</p>
-          ) : board.kind === 'score' ? (
-            <ScoreTable rows={board.rows} />
           ) : (
-            <TimeTable rows={board.rows} />
+            <>
+              <LeaderboardChart board={board} />
+              {board.kind === 'score' ? (
+                <ScoreTable rows={board.rows} />
+              ) : (
+                <TimeTable rows={board.rows} />
+              )}
+            </>
           )}
         </div>
       )}
@@ -197,6 +260,48 @@ const s: Record<string, React.CSSProperties> = {
   sectionBody: {
     borderTop: '1px solid var(--border-muted)',
     padding: '12px 20px 16px',
+  },
+  chartPanel: {
+    background: 'var(--chart-bg)',
+    border: '1px solid var(--chart-border)',
+    borderRadius: 12,
+    padding: '12px',
+    marginBottom: 12,
+  },
+  chartHeader: {
+    display: 'flex', justifyContent: 'space-between', gap: 10,
+    alignItems: 'center', marginBottom: 10,
+  },
+  chartTitle: {
+    fontSize: 12, fontWeight: 700, color: 'var(--text-body)',
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  chartHint: { fontSize: 11, color: 'var(--text-muted)' },
+  chartBars: { display: 'flex', flexDirection: 'column', gap: 7 },
+  chartRow: {
+    display: 'grid', gridTemplateColumns: '116px 1fr 54px',
+    alignItems: 'center', gap: 10,
+  },
+  chartName: {
+    fontSize: 12, color: 'var(--text-muted)',
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+  chartTrack: {
+    height: 10, borderRadius: 999,
+    background: 'var(--chart-track)',
+    border: '1px solid var(--border-muted)',
+    overflow: 'hidden',
+  },
+  chartFill: {
+    height: '100%', borderRadius: 999,
+    background: 'var(--chart-fill)',
+  },
+  chartValue: {
+    fontFamily: numberFontFamily,
+    fontSize: 13,
+    color: 'var(--chart-accent)',
+    fontWeight: 700,
+    textAlign: 'right',
   },
 
   table: { display: 'flex', flexDirection: 'column', gap: 0 },

@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+import { apiUrl } from '../lib/api';
 import { headingFontFamily, bodyFontFamily } from '../theme/typography';
 import games from './gameData';
 
@@ -36,10 +38,38 @@ const LANDING_GAME_COPY: Record<string, { tag: string; mode: string; duration: s
 };
 
 const GUARDIANS = [
-  { name: 'Deer Guardian',     role: 'Keeper of patience',    img: '/assets/backgrounds/spirit-sapling/guardians/deer-guardian.png',     color: '#c8a87a' },
-  { name: 'Fox Guardian',      role: 'Trickster of the wind', img: '/assets/backgrounds/spirit-sapling/guardians/fox-guardian.png',      color: '#d4845a' },
-  { name: 'Kodama Guardian',   role: 'Voice of the forest',   img: '/assets/backgrounds/spirit-sapling/guardians/kodama-guardian.png',   color: '#9fbf76' },
-  { name: 'Mononoke Guardian', role: 'Spirit of wild things', img: '/assets/backgrounds/spirit-sapling/guardians/mononoke-guardian.png', color: '#8f8fba' },
+  {
+    id: 'deer',
+    name: 'Deer Guardian',
+    role: 'Keeper of patience',
+    intro: 'Hi, I am the guardian Deer.',
+    img: '/assets/backgrounds/spirit-sapling/guardians/deer-guardian.png',
+    color: '#c8a87a',
+  },
+  {
+    id: 'fox',
+    name: 'Fox Guardian',
+    role: 'Trickster of the wind',
+    intro: 'Hi, I am the guardian Fox.',
+    img: '/assets/backgrounds/spirit-sapling/guardians/fox-guardian.png',
+    color: '#d4845a',
+  },
+  {
+    id: 'kodama',
+    name: 'Kodama Guardian',
+    role: 'Voice of the forest',
+    intro: 'Hi, I am the guardian Kodama.',
+    img: '/assets/backgrounds/spirit-sapling/guardians/kodama-guardian.png',
+    color: '#9fbf76',
+  },
+  {
+    id: 'mononoke',
+    name: 'Mononoke Guardian',
+    role: 'Spirit of wild things',
+    intro: 'Hi, I am the guardian Mononoke.',
+    img: '/assets/backgrounds/spirit-sapling/guardians/mononoke-guardian.png',
+    color: '#8f8fba',
+  },
 ];
 
 const PILLARS = [
@@ -49,12 +79,12 @@ const PILLARS = [
 ];
 
 const COMING_SOON = [
-  { icon: '🌸', title: 'Seasonal Events',    desc: 'Spring Bloom and Autumn Harvest events with limited-time goals and themed rewards.' },
-  { icon: '👥', title: 'Multiplayer Groves',  desc: 'Co-op sapling tending, shared delivery routes, and friendly score challenges.' },
-  { icon: '🦊', title: 'Avatar Studio',       desc: 'Custom grove profiles with chosen guardians, earned titles, and personal style.' },
-  { icon: '📅', title: 'Daily Challenges',    desc: 'Fresh daily quests across all four games with bonus score windows and rare objectives.' },
-  { icon: '📊', title: 'Richer Analytics',    desc: 'More detailed history for fastest runs, best streaks, guardian choices, and card strategy.' },
-  { icon: '🌿', title: 'New Worlds',          desc: 'Forest Temple, Cloud Meadow, and River Crossing are future candidates for the grove.' },
+  { icon: '🛠', title: 'Stability and Recovery', desc: 'Stronger testing, state recovery, backend validation, and smoother game-session synchronization.' },
+  { icon: '🌊', title: 'Elemental Spirit Drift', desc: 'Wind, water, fire, forest, and celestial spirits with distinct movement and particle behavior.' },
+  { icon: '🧹', title: 'Living Delivery Town', desc: 'Village NPCs, side quests, relationship moments, and obstacle-flight delivery routes.' },
+  { icon: '🌱', title: 'Evolving AI Guardians', desc: 'Persistent guardian conversations, custom personalities, and deeper sapling reactions over time.' },
+  { icon: '🌙', title: 'Expanded Half Moon Maps', desc: 'More lunar board layouts, monthly recap environments, and clearer strategic feedback.' },
+  { icon: '🎧', title: 'Adaptive Audio World', desc: 'More ambient layers, reactive music, accessibility controls, and richer guardian voice direction.' },
 ];
 
 const FLOATING_ANIMS: {
@@ -82,6 +112,60 @@ const FLOATING_ANIMS: {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
+  const [activeGuardianId, setActiveGuardianId] = useState(GUARDIANS[1].id);
+  const [playingGuardianId, setPlayingGuardianId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+
+  const stopGuardianIntro = () => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    setPlayingGuardianId(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+      }
+    };
+  }, []);
+
+  const playGuardianIntro = async (guardianId: string) => {
+    setActiveGuardianId(guardianId);
+    stopGuardianIntro();
+    setPlayingGuardianId(guardianId);
+
+    try {
+      const response = await fetch(apiUrl('/spirit-sapling/guardian-intro-voice'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guardianId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Voice request failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      audioUrlRef.current = audioUrl;
+      audio.onended = stopGuardianIntro;
+      audio.onerror = stopGuardianIntro;
+      await audio.play();
+    } catch (error) {
+      console.warn('Unable to play guardian intro voice:', error);
+      stopGuardianIntro();
+    }
+  };
+
   return (
     <div style={s.page}>
 
@@ -237,19 +321,45 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
           <h2 style={s.sectionTitle}>Meet the Grove Guardians</h2>
           <p style={s.sectionBody}>
             Deer, Fox, Kodama, and Mononoke guide Spirit Sapling with distinct
-            personalities and ElevenLabs-powered voices.
+            personalities and ElevenLabs-powered voices. Select a guardian to preview
+            their greeting before entering the grove.
           </p>
 
           <div style={s.guardiansGrid}>
-            {GUARDIANS.map((g) => (
-              <div key={g.name} style={s.guardianCard}>
+            {GUARDIANS.map((g) => {
+              const active = activeGuardianId === g.id;
+              const playing = playingGuardianId === g.id;
+              return (
+              <button
+                key={g.name}
+                type="button"
+                style={{
+                  ...s.guardianCard,
+                  ...(active ? {
+                    borderColor: `${g.color}`,
+                    boxShadow: `0 14px 34px ${g.color}4d`,
+                    transform: 'translateY(-4px)',
+                  } : {}),
+                }}
+                onClick={() => setActiveGuardianId(g.id)}
+              >
                 <div style={{ ...s.guardianImgWrap, background: `radial-gradient(circle at 50% 60%, ${g.color}33, transparent 70%)` }}>
                   <img src={g.img} alt={g.name} style={s.guardianImg} />
                 </div>
                 <h4 style={s.guardianName}>{g.name}</h4>
                 <p style={s.guardianRole}>{g.role}</p>
-              </div>
-            ))}
+                <p style={s.guardianIntro}>{g.intro}</p>
+                <span
+                  style={{ ...s.guardianListenBtn, background: active ? g.color : 'rgba(108,88,76,0.1)' }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void playGuardianIntro(g.id);
+                  }}
+                >
+                  {playing ? 'Playing...' : 'Hear voice'}
+                </span>
+              </button>
+            )})}
           </div>
         </div>
       </section>
@@ -259,17 +369,17 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
         <div style={s.sectionInner}>
           <div style={s.comingHeader}>
             <div>
-              <span style={s.sectionTag}>What's growing</span>
-              <h2 style={s.sectionTitle}>Future enhancements</h2>
-              <p style={s.sectionBody}>
-                The current platform is playable end to end. These are the next features
-                that would deepen replayability and social play.
+              <span style={s.sectionTagDark}>What is growing next</span>
+              <h2 style={s.comingHeading}>Future enhancements</h2>
+              <p style={s.comingLead}>
+                The current platform is playable end to end. The next phase focuses on
+                reliability, richer AI companions, expanded game worlds, and live progression.
               </p>
             </div>
             <img
-              src="/assets/backgrounds/spirit-sapling/sapling-growth/sapling-5.png"
-              alt="A fully grown sapling"
-              style={s.comingSaplingImg}
+              src="/assets/backgrounds/delivery-on-the-wind/kiki.png"
+              alt="Kiki flying through the grove"
+              style={s.comingFeatureImg}
             />
           </div>
 
@@ -347,11 +457,13 @@ const s: Record<string, React.CSSProperties> = {
   navInner: {
     maxWidth: 1280,
     margin: '0 auto',
-    padding: '0 28px',
-    height: 62,
+    padding: '8px 28px',
+    minHeight: 62,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 14,
+    flexWrap: 'wrap',
   },
   navLogo: { display: 'flex', alignItems: 'center', gap: 10 },
   navLogoImg: {
@@ -362,7 +474,7 @@ const s: Record<string, React.CSSProperties> = {
   navTitle: {
     fontFamily: headingFontFamily, fontSize: 20, color: '#6C584C', lineHeight: 1,
   },
-  navActions: { display: 'flex', gap: 10, alignItems: 'center' },
+  navActions: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' },
   navSignIn: {
     padding: '8px 18px', borderRadius: 999,
     border: '1px solid rgba(108,88,76,0.35)',
@@ -486,6 +598,15 @@ const s: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase' as React.CSSProperties['textTransform'],
     color: '#A98467',
     fontWeight: 600,
+    marginBottom: 10,
+  },
+  sectionTagDark: {
+    display: 'inline-block',
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase' as React.CSSProperties['textTransform'],
+    color: '#b9987d',
+    fontWeight: 700,
     marginBottom: 10,
   },
   sectionTagLight: {
@@ -665,6 +786,9 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 8px 24px rgba(58,45,36,0.08)',
     textAlign: 'center' as React.CSSProperties['textAlign'],
     animation: 'fade-in-up 0.6s ease both',
+    fontFamily: bodyFontFamily,
+    cursor: 'pointer',
+    transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
   },
   guardianImgWrap: {
     width: 140,
@@ -694,6 +818,25 @@ const s: Record<string, React.CSSProperties> = {
     fontStyle: 'italic',
     lineHeight: 1.4,
   },
+  guardianIntro: {
+    margin: '2px 0 0',
+    fontSize: 13,
+    color: '#6C584C',
+    lineHeight: 1.35,
+  },
+  guardianListenBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    minHeight: 34,
+    padding: '7px 14px',
+    borderRadius: 999,
+    color: '#3d2e23',
+    fontSize: 13,
+    fontWeight: 800,
+    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.24)',
+  },
 
   // ── Coming Soon ────────────────────────────────────────────────────────
   comingSection: {
@@ -707,14 +850,28 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: 40,
     flexWrap: 'wrap' as React.CSSProperties['flexWrap'],
   },
-  comingSaplingImg: {
-    height: 180,
+  comingHeading: {
+    margin: '0 0 14px',
+    fontFamily: headingFontFamily,
+    fontSize: 'clamp(30px, 5vw, 52px)',
+    color: '#f5efdb',
+    lineHeight: 1.05,
+  },
+  comingLead: {
+    margin: '0 0 18px',
+    fontSize: 17,
+    color: 'rgba(245,239,219,0.68)',
+    lineHeight: 1.65,
+    maxWidth: 680,
+  },
+  comingFeatureImg: {
+    height: 220,
     width: 'auto',
     objectFit: 'contain',
-    filter: 'drop-shadow(0 0 24px rgba(173,193,120,0.4))',
+    filter: 'drop-shadow(0 18px 30px rgba(0,0,0,0.42)) drop-shadow(0 0 22px rgba(240,234,210,0.22))',
     flexShrink: 0,
     marginLeft: 'auto',
-    animation: 'float-spirit 6s ease-in-out infinite',
+    animation: 'float-spirit 5.4s ease-in-out infinite',
   },
   comingGrid: {
     display: 'grid',

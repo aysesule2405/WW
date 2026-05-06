@@ -8,6 +8,7 @@ export type { ScoreState } from '../data/halfMoonConfig'
 export type HalfMoonOptions = {
   difficulty?: Difficulty
   aiMode?:     AIMode
+  level?:      number
   onLevelEnd?:    SceneCallbacks['onLevelEnd']
   onScoreUpdate?: SceneCallbacks['onScoreUpdate']
   onEvent?:       SceneCallbacks['onEvent']
@@ -30,6 +31,7 @@ export function createHalfMoonGame(
 ): HalfMoonAPI {
   const difficulty = options.difficulty ?? 'medium'
   const aiMode     = options.aiMode     ?? 'local'
+  const level      = options.level      ?? 1
 
   const callbacks: SceneCallbacks = {
     onLevelEnd:    options.onLevelEnd    ?? (() => {}),
@@ -39,7 +41,7 @@ export function createHalfMoonGame(
     onTurnChange:  options.onTurnChange  ?? (() => {}),
   }
 
-  const initData = { ...callbacks, difficulty, aiMode, level: 1 }
+  const initData = { ...callbacks, difficulty, aiMode, level }
 
   const game = new Phaser.Game({
     type: Phaser.AUTO,

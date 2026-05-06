@@ -18,6 +18,7 @@ type EndResult = {
 }
 
 const BG = `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url('/assets/backgrounds/delivery-on-the-wind/game-bg.png') center/cover no-repeat`
+const INTRO_VIDEO = '/assets/animation/delivery-animation.mp4'
 
 const STEPS = [
   { heading: 'Objective', items: ['Help Kiki deliver all 4 packages to the correct houses within 2 minutes.'] },
@@ -60,6 +61,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   const apiRef = useRef<DeliveryGameAPI | null>(null)
 
   const [showRules, setShowRules] = useState(true)
+  const [showIntro, setShowIntro] = useState(false)
   const [result, setResult]       = useState<EndResult | null>(null)
   const [sessionId, setSessionId] = useState(0)
   const [hud, setHud]             = useState<HUDState | null>(null)
@@ -67,7 +69,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   const [unlockedAchievements, setUnlockedAchievements] = useState<UnlockedAchievement[]>([])
 
   useEffect(() => {
-    if (showRules || result !== null || !containerRef.current) return
+    if (showRules || showIntro || result !== null || !containerRef.current) return
 
     apiRef.current = createDeliveryGame(containerRef.current, {
       onGameEnd: async (outcome, deliveries, timeRemaining) => {
@@ -94,7 +96,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
       apiRef.current?.destroy()
       apiRef.current = null
     }
-  }, [showRules, result, sessionId])
+  }, [showRules, showIntro, result, sessionId])
 
   const closeInspect = useCallback(() => {
     setInspecting(null)
@@ -106,6 +108,15 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
     setHud(null)
     setInspecting(null)
     setSessionId(v => v + 1)
+  }
+
+  const beginIntro = () => {
+    setShowRules(false)
+    setShowIntro(true)
+  }
+
+  const startGame = () => {
+    setShowIntro(false)
   }
 
   // ── Rules screen ──────────────────────────────────────────────────────────
@@ -151,9 +162,38 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
               </div>
             </div>
 
-            <button style={s.startBtn} onClick={() => setShowRules(false)}>
+            <button style={s.startBtn} onClick={beginIntro}>
               Begin Delivery
             </button>
+          </div>
+        </div>
+      </GameShell>
+    )
+  }
+
+  // ── Intro animation ──────────────────────────────────────────────────────
+  if (showIntro) {
+    return (
+      <GameShell title="Delivery on the Wind" onExit={onExit} background={BG} accentColor="#e9dfc2">
+        <div style={s.introArea}>
+          <div style={s.introCard}>
+            <video
+              src={INTRO_VIDEO}
+              style={s.introVideo}
+              autoPlay
+              muted
+              playsInline
+              onEnded={startGame}
+            />
+            <div style={s.introCopy}>
+              <p style={s.introKicker}>The wind is rising</p>
+              <h3 style={s.introTitle}>Kiki takes flight</h3>
+              <p style={s.introSub}>Watch the delivery path open, then guide every package home.</p>
+            </div>
+            <div style={s.introActions}>
+              <button style={s.primaryBtn} onClick={startGame}>Start Delivery</button>
+              <button style={s.ghostBtn} onClick={startGame}>Skip Intro</button>
+            </div>
           </div>
         </div>
       </GameShell>
@@ -346,6 +386,70 @@ const s: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(135deg, #5A9030, #3E6820)',
     color: '#F0EAD2', fontFamily: uiFontFamily, fontSize: 17, fontWeight: 700,
     cursor: 'pointer', letterSpacing: 0.3, boxShadow: '0 8px 24px rgba(58,88,32,0.45)',
+  },
+
+  /* Intro */
+  introArea: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px 20px',
+    boxSizing: 'border-box',
+  },
+  introCard: {
+    width: 'min(860px, 100%)',
+    borderRadius: 22,
+    overflow: 'hidden',
+    background: 'rgba(10,18,8,0.88)',
+    border: '1px solid rgba(233,223,194,0.2)',
+    boxShadow: '0 24px 64px rgba(0,0,0,0.58)',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  introVideo: {
+    width: '100%',
+    aspectRatio: '16 / 9',
+    objectFit: 'cover',
+    background: '#0a1208',
+    display: 'block',
+  },
+  introCopy: {
+    padding: '22px 28px 6px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    textAlign: 'center',
+  },
+  introKicker: {
+    margin: 0,
+    color: '#9aa253',
+    fontFamily: uiFontFamily,
+    fontSize: 12,
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: 0.9,
+  },
+  introTitle: {
+    margin: 0,
+    color: '#fff7e0',
+    fontFamily: titleFontFamily,
+    fontSize: 34,
+    lineHeight: 1.05,
+  },
+  introSub: {
+    margin: 0,
+    color: '#d4c69e',
+    fontFamily: uiFontFamily,
+    fontSize: 15,
+    lineHeight: 1.45,
+  },
+  introActions: {
+    display: 'flex',
+    gap: 10,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    padding: '18px 28px 28px',
   },
 
   /* Results */

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { bodyFontFamily, headingFontFamily } from '../theme/typography'
+import { bodyFontFamily, headingFontFamily, numberFontFamily } from '../theme/typography'
 import { getProgressSummary, getMyBest, getRecentScores } from '../lib/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -43,6 +43,12 @@ type GameCard = {
   recentScores: ScoreEntry[]
 }
 
+type TrendPoint = {
+  label: string
+  value: number
+  valueText: string
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const GAME_META: Record<string, { title: string; icon: string }> = {
@@ -65,6 +71,24 @@ function formatTime(seconds: number): string {
 function formatDate(iso: string): string {
   const d = new Date(iso)
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function getTrendPoints(slug: string, sessions: (Session | ScoreEntry)[]): TrendPoint[] {
+  return sessions.slice(0, 7).reverse().map((session) => {
+    const label = formatDate(session.createdAt)
+
+    if ('completed' in session && slug === 'delivery-on-the-wind') {
+      if (session.completed && session.completionTimeSeconds !== null) {
+        const paceValue = Math.max(1, 240 - session.completionTimeSeconds)
+        return { label, value: paceValue, valueText: formatTime(session.completionTimeSeconds) }
+      }
+      const deliveries = session.deliveriesCompleted ?? 0
+      return { label, value: deliveries, valueText: `${deliveries}/4` }
+    }
+
+    const score = session.score ?? 0
+    return { label, value: score, valueText: `${score}` }
+  })
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -139,6 +163,35 @@ function SessionRow({ session, isDelivery, isSapling }: {
   )
 }
 
+function ProgressTrendChart({ points, title, hint }: {
+  points: TrendPoint[]
+  title: string
+  hint: string
+}) {
+  if (points.length === 0) return null
+  const maxValue = Math.max(...points.map((point) => point.value), 1)
+
+  return (
+    <div style={s.trendPanel}>
+      <div style={s.trendHeader}>
+        <span style={s.trendTitle}>{title}</span>
+        <span style={s.trendHint}>{hint}</span>
+      </div>
+      <div style={s.trendBars}>
+        {points.map((point, index) => (
+          <div key={`${point.label}-${index}`} style={s.trendColumn}>
+            <div style={s.trendTrack}>
+              <div style={{ ...s.trendFill, height: `${Math.max(12, (point.value / maxValue) * 100)}%` }} />
+            </div>
+            <span style={s.trendValue}>{point.valueText}</span>
+            <span style={s.trendDate}>{point.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function GameProgressCard({ card }: { card: GameCard }) {
   const [expanded, setExpanded] = useState(false)
   const { slug, title, icon, summary, highScore, recentScores } = card
@@ -167,6 +220,9 @@ function GameProgressCard({ card }: { card: GameCard }) {
   const sessions: (Session | ScoreEntry)[] = summary
     ? summary.recentSessions
     : recentScores
+  const trendPoints = getTrendPoints(slug, sessions)
+  const trendTitle = isDelivery ? 'Delivery pace' : 'Score trend'
+  const trendHint = isDelivery ? 'Faster finishes rise higher' : 'Recent runs, oldest to newest'
 
   const favoriteGuardian = summary?.favoriteGuardianId
     ? GUARDIAN_NAMES[summary.favoriteGuardianId] ?? summary.favoriteGuardianId
@@ -222,6 +278,8 @@ function GameProgressCard({ card }: { card: GameCard }) {
               </div>
             )}
           </div>
+
+          <ProgressTrendChart points={trendPoints} title={trendTitle} hint={trendHint} />
 
           {/* Timeline */}
           {sessions.length > 0 ? (
@@ -385,6 +443,53 @@ const s: Record<string, React.CSSProperties> = {
   miniStat:     { display: 'flex', flexDirection: 'column', gap: 1 },
   miniStatVal:  { fontSize: 15, fontWeight: 700, color: 'var(--text-body)', fontFamily: headingFontFamily },
   miniStatLbl:  { fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4 },
+  trendPanel: {
+    background: 'var(--chart-bg)',
+    border: '1px solid var(--chart-border)',
+    borderRadius: 12,
+    padding: '12px',
+  },
+  trendHeader: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    gap: 10, marginBottom: 10,
+  },
+  trendTitle: {
+    fontSize: 12, fontWeight: 700, color: 'var(--text-body)',
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  trendHint: { fontSize: 11, color: 'var(--text-muted)', textAlign: 'right' },
+  trendBars: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(48px, 1fr))',
+    gap: 10,
+    alignItems: 'end',
+  },
+  trendColumn: {
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', gap: 4, minWidth: 0,
+  },
+  trendTrack: {
+    width: '100%', height: 74, borderRadius: 9,
+    background: 'var(--chart-track)',
+    border: '1px solid var(--border-muted)',
+    display: 'flex', alignItems: 'flex-end',
+    overflow: 'hidden',
+  },
+  trendFill: {
+    width: '100%', borderRadius: '8px 8px 0 0',
+    background: 'var(--chart-fill-vertical)',
+  },
+  trendValue: {
+    fontFamily: numberFontFamily,
+    fontSize: 12,
+    fontWeight: 700,
+    color: 'var(--chart-accent)',
+  },
+  trendDate: {
+    fontSize: 10,
+    color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
+  },
 
   timeline:      { display: 'flex', flexDirection: 'column', gap: 6 },
   timelineLabel: { margin: 0, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 },

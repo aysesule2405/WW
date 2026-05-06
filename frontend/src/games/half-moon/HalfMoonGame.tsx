@@ -28,10 +28,50 @@ const MAX_LEVELS      = 3
 const STREAK_FOR_WILD = 3
 const GAME_SLUG       = 'half-moon'
 const SCOREBOARD_ACCENT = '#63e8e7'
+const RESULT_MUTED_ACCENT = '#D6D3A9'
 
 async function fetchHighScore(): Promise<HighScore> {
   const data = await getMyBest(GAME_SLUG)
   return data.best ?? null
+}
+
+function LeaderboardBars({ rows }: { rows: LeaderboardRow[] }) {
+  const chartRows = rows.slice(0, 5)
+  const maxScore = Math.max(...chartRows.map((row) => row.score), 1)
+  if (chartRows.length === 0) return null
+
+  return (
+    <div style={s.scoreChart}>
+      {chartRows.map((row) => (
+        <div key={`${row.rank}-${row.username}`} style={s.scoreChartRow}>
+          <span style={s.scoreChartName}>#{row.rank ?? '?'} {row.username}</span>
+          <div style={s.scoreChartTrack}>
+            <div style={{ ...s.scoreChartFill, width: `${Math.max(10, (row.score / maxScore) * 100)}%` }} />
+          </div>
+          <span style={s.scoreChartValue}>{row.score}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function RecentRunBars({ rows }: { rows: RecentScore[] }) {
+  const chartRows = rows.slice(0, 5).reverse()
+  const maxScore = Math.max(...chartRows.map((row) => row.score), 1)
+  if (chartRows.length === 0) return null
+
+  return (
+    <div style={s.runChart} aria-label="Recent run score trend">
+      {chartRows.map((row, index) => (
+        <div key={`${row.createdAt}-${index}`} style={s.runChartColumn}>
+          <div style={s.runChartTrack}>
+            <div style={{ ...s.runChartFill, height: `${Math.max(14, (row.score / maxScore) * 100)}%` }} />
+          </div>
+          <span style={s.runChartLabel}>{row.score}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -142,6 +182,7 @@ export default function HalfMoonGame({ onExit }: Props) {
     apiRef.current = createHalfMoonGame(containerRef.current, {
       difficulty,
       aiMode,
+      level,
       onLevelEnd: (s, won, lv) => {
         const nextTotalScore = totalScoreRef.current + s.player
         const nextCardPoints = totalCardPointsRef.current + s.playerCards
@@ -186,8 +227,6 @@ export default function HalfMoonGame({ onExit }: Props) {
       onHandUpdate:  () => {},
       onTurnChange:  (pt) => setIsPlayerTurn(pt),
     })
-
-    apiRef.current.startLevel(level)
 
     return () => {
       apiRef.current?.destroy()
@@ -315,13 +354,14 @@ export default function HalfMoonGame({ onExit }: Props) {
   if (screen === 'game-over') {
     const isVictory = gameResult === 'victory'
     const isNewBest = highScore ? totalScore > highScore.score : isVictory
+    const resultAccent = isVictory ? SCOREBOARD_ACCENT : RESULT_MUTED_ACCENT
     return (
       <GameShell title="Rise of the Half Moon" onExit={onExit} background={SHELL_BG} accentColor="#D6D3A9">
         <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
         <div style={s.centre}>
-          <div style={{ ...s.endCard, borderColor: isVictory ? 'rgba(99,232,231,0.6)' : 'rgba(180,80,80,0.4)' }}>
+          <div style={{ ...s.endCard, borderColor: isVictory ? 'rgba(99,232,231,0.6)' : 'rgba(214,211,169,0.42)' }}>
             <div style={s.endMoon}>{isVictory ? '◯' : '☾'}</div>
-            <h2 style={{ ...s.endTitle, color: isVictory ? SCOREBOARD_ACCENT : '#FF9988' }}>
+            <h2 style={{ ...s.endTitle, color: resultAccent }}>
               {isVictory ? 'The Ritual is Complete' : 'The Half Moon Prevails'}
             </h2>
             <p style={s.endSub}>
@@ -345,6 +385,7 @@ export default function HalfMoonGame({ onExit }: Props) {
             {!scoreLoading && leaderboard.length > 0 && (
               <div style={s.recentPanel}>
                 <div style={s.recentTitle}>Top Scores</div>
+                <LeaderboardBars rows={leaderboard} />
                 {leaderboard.map((row) => (
                   <div key={row.rank} style={s.recentRow}>
                     <span style={{ ...s.recentScore, minWidth: 24, fontSize: 11, color: SCOREBOARD_ACCENT }}>#{row.rank}</span>
@@ -359,6 +400,7 @@ export default function HalfMoonGame({ onExit }: Props) {
             {!scoreLoading && recentScores.length > 0 && (
               <div style={s.recentPanel}>
                 <div style={s.recentTitle}>Your Recent Runs</div>
+                <RecentRunBars rows={recentScores} />
                 {recentScores.map((r, i) => (
                   <div key={i} style={s.recentRow}>
                     <span style={s.recentScore}>{r.score} pts</span>
@@ -687,6 +729,52 @@ const s: Record<string, React.CSSProperties> = {
   recentScore: { fontSize: 13, color: SCOREBOARD_ACCENT, fontFamily: numberFontFamily, minWidth: 60 },
   recentMeta:  { fontSize: 12, color: '#AABBCC', flex: 1, textAlign: 'center' },
   recentDate:  { fontSize: 11, color: '#445566' },
+  scoreChart: {
+    display: 'flex', flexDirection: 'column', gap: 5,
+    padding: '2px 0 8px',
+  },
+  scoreChartRow: {
+    display: 'grid', gridTemplateColumns: '92px 1fr 34px',
+    alignItems: 'center', gap: 8,
+  },
+  scoreChartName: {
+    fontSize: 10, color: '#AABBCC', textAlign: 'left',
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+  scoreChartTrack: {
+    height: 8, borderRadius: 999,
+    background: 'var(--chart-track, rgba(99,232,231,0.08))', overflow: 'hidden',
+    border: '1px solid var(--chart-border, rgba(99,232,231,0.12))',
+  },
+  scoreChartFill: {
+    height: '100%', borderRadius: 999,
+    background: 'var(--chart-fill, linear-gradient(90deg, rgba(99,232,231,0.36), #63e8e7))',
+  },
+  scoreChartValue: {
+    fontFamily: numberFontFamily, fontSize: 11, color: 'var(--chart-accent, #63e8e7)',
+    textAlign: 'right',
+  },
+  runChart: {
+    height: 64, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
+    gap: 8, alignItems: 'end', padding: '2px 0 8px',
+  },
+  runChartColumn: {
+    height: '100%', display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'flex-end', gap: 4,
+  },
+  runChartTrack: {
+    width: '100%', height: 44, borderRadius: 8,
+    background: 'var(--chart-track, rgba(99,232,231,0.08))',
+    border: '1px solid var(--chart-border, rgba(99,232,231,0.12))',
+    display: 'flex', alignItems: 'flex-end', overflow: 'hidden',
+  },
+  runChartFill: {
+    width: '100%', borderRadius: '8px 8px 0 0',
+    background: 'var(--chart-fill-vertical, linear-gradient(180deg, #63e8e7, rgba(99,232,231,0.22)))',
+  },
+  runChartLabel: {
+    fontFamily: numberFontFamily, fontSize: 10, color: '#AABBCC',
+  },
 
   primaryBtn: {
     padding: '12px 28px', borderRadius: 11, border: 'none',

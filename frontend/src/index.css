@@ -105,6 +105,15 @@
   --bark:        #6C584C;
   --paper:       #F0EAD2;
 
+  /* Data visualization */
+  --chart-accent:        var(--accent);
+  --chart-accent-strong: var(--accent-dark);
+  --chart-bg:            var(--bg-accent-soft);
+  --chart-border:        var(--border-focus);
+  --chart-track:         var(--bg-badge);
+  --chart-fill:          linear-gradient(90deg, var(--chart-accent-strong), var(--chart-accent));
+  --chart-fill-vertical: linear-gradient(180deg, var(--chart-accent), var(--chart-accent-strong));
+
   /* Shadows */
   --shadow-sm:    0 4px 12px rgba(74, 57, 44, 0.08);
   --shadow-md:    0 8px 22px rgba(74, 57, 44, 0.12);
@@ -195,6 +204,12 @@
 
   --scrollbar-track: rgba(173, 193, 120, 0.05);
   --scrollbar-thumb: rgba(173, 193, 120, 0.18);
+
+  --chart-accent:        #ADC178;
+  --chart-accent-strong: #5A9030;
+  --chart-bg:            rgba(173, 193, 120, 0.10);
+  --chart-border:        rgba(173, 193, 120, 0.28);
+  --chart-track:         rgba(173, 193, 120, 0.08);
 }
 
 /* ── Spirit Sapling theme ─────────────────────────────────────── */
@@ -245,6 +260,12 @@
 
   --scrollbar-track: rgba(171, 158, 118, 0.06);
   --scrollbar-thumb: rgba(171, 158, 118, 0.22);
+
+  --chart-accent:        #bcd191;
+  --chart-accent-strong: #779248;
+  --chart-bg:            rgba(188, 209, 145, 0.10);
+  --chart-border:        rgba(188, 209, 145, 0.25);
+  --chart-track:         rgba(188, 209, 145, 0.08);
 }
 
 /* ── Delivery on the Wind theme ───────────────────────────────── */
@@ -295,6 +316,12 @@
 
   --scrollbar-track: rgba(212, 198, 158, 0.06);
   --scrollbar-thumb: rgba(212, 198, 158, 0.22);
+
+  --chart-accent:        #9eecf8;
+  --chart-accent-strong: #6db6c1;
+  --chart-bg:            rgba(158, 236, 248, 0.10);
+  --chart-border:        rgba(158, 236, 248, 0.25);
+  --chart-track:         rgba(158, 236, 248, 0.08);
 }
 
 /* ── Spirit Drift theme ───────────────────────────────────────── */
@@ -345,6 +372,12 @@
 
   --scrollbar-track: rgba(196, 189, 142, 0.06);
   --scrollbar-thumb: rgba(196, 189, 142, 0.24);
+
+  --chart-accent:        #4cb7f1;
+  --chart-accent-strong: #2c8dc2;
+  --chart-bg:            rgba(76, 183, 241, 0.10);
+  --chart-border:        rgba(76, 183, 241, 0.25);
+  --chart-track:         rgba(76, 183, 241, 0.08);
 }
 
 /* ── Rise of the Half Moon theme ─────────────────────────────── */
@@ -395,6 +428,12 @@
 
   --scrollbar-track: rgba(191, 185, 140, 0.08);
   --scrollbar-thumb: rgba(191, 185, 140, 0.28);
+
+  --chart-accent:        #63e8e7;
+  --chart-accent-strong: #3aaaa9;
+  --chart-bg:            rgba(99, 232, 231, 0.10);
+  --chart-border:        rgba(99, 232, 231, 0.28);
+  --chart-track:         rgba(99, 232, 231, 0.08);
 }
 
 /* ── Dashboard theme ──────────────────────────────────────────── */
@@ -445,6 +484,12 @@
 
   --scrollbar-track: rgba(196, 189, 158, 0.06);
   --scrollbar-thumb: rgba(196, 189, 158, 0.24);
+
+  --chart-accent:        #80925b;
+  --chart-accent-strong: #556638;
+  --chart-bg:            rgba(128, 146, 91, 0.10);
+  --chart-border:        rgba(128, 146, 91, 0.25);
+  --chart-track:         rgba(128, 146, 91, 0.08);
 }
 
 /* ── Dark/Light mode overrides for game themes ────────────────── */
