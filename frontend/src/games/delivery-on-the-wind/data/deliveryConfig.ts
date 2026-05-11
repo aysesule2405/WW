@@ -1,5 +1,24 @@
 export type DeliveryType = 'mushroom' | 'wildflower' | 'dew' | 'rose'
-export type TileType = 'grass' | 'path' | 'tree' | 'water' | 'swamp'
+export type TileType =
+  | 'grass'
+  | 'path'
+  | 'tilled_soil'
+  | 'crop_seedling'
+  | 'crop_bloom'
+  | 'wildflowers'
+  | 'lavender'
+  | 'mushroom_patch'
+  | 'moss'
+  | 'fallen_leaves'
+  | 'tree'
+  | 'tree_dense'
+  | 'stone'
+  | 'water'
+  | 'water_alt'
+  | 'ocean_shore'
+  | 'bridge'
+  | 'swamp'
+  | 'wind_gust'
 
 export interface DeliveryConfig {
   type: DeliveryType
@@ -19,6 +38,9 @@ export interface HUDState {
   nearHouseType: DeliveryType | null
   nearHouseImageIndex: number | null
   nearHouseLabel: string | null
+  nearNpcId: NpcId | null
+  nearNpcName: string | null
+  nearNpcAssetKey: string | null
 }
 
 export interface InspectData {
@@ -30,12 +52,38 @@ export interface InspectData {
   hint: string
 }
 
+export type NpcId = 'jiji' | 'tombo' | 'ursula' | 'madame-barsa'
+
+export interface NpcConfig {
+  id: NpcId
+  name: string
+  assetKey: string
+  role: string
+  emptyLine: string
+}
+
+export interface NpcPosition {
+  id: NpcId
+  col: number
+  row: number
+}
+
+export interface NpcTalkData {
+  id: NpcId
+  name: string
+  assetKey: string
+  role: string
+  line: string
+  heldLabel: string | null
+  heldColorHex: string | null
+}
+
 // ── World dimensions ──────────────────────────────────────────────────────────
 
 export const TILE       = 48
 export const HOUSE_SIZE = 3        // each house occupies a HOUSE_SIZE × HOUSE_SIZE tile block
-export const MAP_COLS   = 40
-export const MAP_ROWS   = 30
+export const MAP_COLS   = 52
+export const MAP_ROWS   = 32
 export const VIEWPORT_W = 960
 export const VIEWPORT_H = 540
 export const GAME_DURATION_MS = 120_000
@@ -43,120 +91,106 @@ export const GAME_DURATION_MS = 120_000
 // ── House positions (top-left tile of each HOUSE_SIZE×HOUSE_SIZE block) ───────
 
 export const HOUSE_POSITIONS = [
-  { col: 3,  row: 3  },   // apple — NW
-  { col: 35, row: 3  },   // star  — NE
-  { col: 3,  row: 25 },   // leaf  — SW
-  { col: 35, row: 25 },   // moon  — SE
+  { col: 4 , row: 3  },   // north-west cottage
+  { col: 45, row: 4  },   // north-east cottage
+  { col: 5 , row: 25 },   // south-west cottage
+  { col: 44, row: 25 },   // south-east cottage
 ]
 
 // ── Tile rules ────────────────────────────────────────────────────────────────
 
 export const TILE_RULES: Record<TileType, { walkable: boolean; speedMultiplier: number }> = {
-  grass: { walkable: true,  speedMultiplier: 1.0  },
-  path:  { walkable: true,  speedMultiplier: 1.35 },
-  tree:  { walkable: false, speedMultiplier: 0    },
-  water: { walkable: false, speedMultiplier: 0    },
-  swamp: { walkable: true,  speedMultiplier: 0.5  },
+  grass:          { walkable: true,  speedMultiplier: 1.0  },
+  path:           { walkable: true,  speedMultiplier: 1.35 },
+  tilled_soil:    { walkable: true,  speedMultiplier: 0.9  },
+  crop_seedling:  { walkable: true,  speedMultiplier: 0.88 },
+  crop_bloom:     { walkable: true,  speedMultiplier: 0.88 },
+  wildflowers:    { walkable: true,  speedMultiplier: 0.96 },
+  lavender:       { walkable: true,  speedMultiplier: 0.94 },
+  mushroom_patch: { walkable: true,  speedMultiplier: 0.82 },
+  moss:           { walkable: true,  speedMultiplier: 0.82 },
+  fallen_leaves:  { walkable: true,  speedMultiplier: 1.05 },
+  tree:           { walkable: false, speedMultiplier: 0    },
+  tree_dense:     { walkable: false, speedMultiplier: 0    },
+  stone:          { walkable: false, speedMultiplier: 0    },
+  water:          { walkable: false, speedMultiplier: 0    },
+  water_alt:      { walkable: false, speedMultiplier: 0    },
+  ocean_shore:    { walkable: true,  speedMultiplier: 0.75 },
+  bridge:         { walkable: true,  speedMultiplier: 1.25 },
+  swamp:          { walkable: true,  speedMultiplier: 0.55 },
+  wind_gust:      { walkable: true,  speedMultiplier: 1.65 },
 }
 
-// ── Map builder (40 cols × 30 rows) ──────────────────────────────────────────
+export const NPC_CONFIGS: NpcConfig[] = [
+  {
+    id: 'jiji',
+    name: 'Jiji',
+    assetKey: 'jiji',
+    role: 'Companion and careful route-checker',
+    emptyLine: 'No package yet. Pick one up first, and I will help you keep the houses straight.',
+  },
+  {
+    id: 'tombo',
+    name: 'Tombo',
+    assetKey: 'tombo',
+    role: 'Aviation enthusiast with a sharp eye for routes',
+    emptyLine: 'I can chart a route once you are carrying something. Packages are easier to track than empty air.',
+  },
+  {
+    id: 'ursula',
+    name: 'Ursula',
+    assetKey: 'ursula',
+    role: 'Forest artist who reads the grove by color and shape',
+    emptyLine: 'Hold a package up to the light, and I can help you match its mood to the right house.',
+  },
+  {
+    id: 'madame-barsa',
+    name: 'Madame & Barsa',
+    assetKey: 'madame_and_barsa',
+    role: 'Kind patrons who remember every doorstep',
+    emptyLine: 'Such a busy delivery day. Bring us a package to look at, dear, and we will point you to the proper home.',
+  },
+]
+
+// ── Map builder (52 cols × 32 rows) ──────────────────────────────────────────
+
+const MAP_TILES: TileType[][] = [
+  ['water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'ocean_shore', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense'],
+  ['water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'ocean_shore', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree_dense'],
+  ['ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'grass', 'grass', 'grass', 'stone', 'fallen_leaves', 'tree', 'grass', 'grass', 'tree', 'grass', 'tree', 'tree', 'grass', 'fallen_leaves', 'tree', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'fallen_leaves', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'tree', 'fallen_leaves', 'fallen_leaves', 'fallen_leaves', 'stone', 'grass', 'tree', 'wildflowers', 'wildflowers', 'wildflowers', 'tree_dense'],
+  ['tree_dense', 'fallen_leaves', 'fallen_leaves', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'stone', 'grass', 'grass', 'grass', 'fallen_leaves', 'grass', 'grass', 'grass', 'grass', 'grass', 'stone', 'tree', 'grass', 'grass', 'grass', 'wildflowers', 'grass', 'grass', 'grass', 'fallen_leaves', 'tree', 'swamp', 'swamp', 'swamp', 'swamp', 'grass', 'grass', 'stone', 'lavender', 'lavender', 'lavender', 'lavender', 'lavender', 'lavender', 'grass', 'grass', 'grass', 'grass', 'fallen_leaves', 'grass', 'grass', 'wildflowers', 'wildflowers', 'tree_dense'],
+  ['tree', 'fallen_leaves', 'grass', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'grass', 'grass', 'tree', 'path', 'path', 'path', 'path', 'path', 'wildflowers', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'stone', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'fallen_leaves', 'lavender', 'lavender', 'lavender', 'lavender', 'lavender', 'lavender', 'lavender', 'lavender', 'grass', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'tree', 'fallen_leaves', 'tree'],
+  ['tree_dense', 'tree', 'grass', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'grass', 'wildflowers', 'path', 'path', 'wildflowers', 'grass', 'wildflowers', 'path', 'path', 'path', 'path', 'path', 'fallen_leaves', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'stone', 'wildflowers', 'wildflowers', 'wildflowers', 'lavender', 'lavender', 'lavender', 'path', 'path', 'path', 'path', 'path', 'grass', 'grass', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'fallen_leaves', 'grass', 'tree_dense'],
+  ['tree_dense', 'grass', 'grass', 'bridge', 'bridge', 'bridge', 'bridge', 'bridge', 'path', 'path', 'path', 'path', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'fallen_leaves', 'grass', 'grass', 'grass', 'fallen_leaves', 'grass', 'fallen_leaves', 'path', 'path', 'path', 'path', 'lavender', 'lavender', 'path', 'path', 'path', 'path', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'fallen_leaves', 'tree', 'tree_dense'],
+  ['tree', 'grass', 'grass', 'grass', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'tree', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'tree', 'tree', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'wildflowers', 'path', 'bridge', 'bridge', 'bridge', 'bridge', 'bridge', 'stone', 'grass', 'tree'],
+  ['tree_dense', 'grass', 'grass', 'path', 'wildflowers', 'grass', 'wildflowers', 'stone', 'wildflowers', 'grass', 'grass', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'fallen_leaves', 'stone', 'tree', 'grass', 'grass', 'grass', 'grass', 'fallen_leaves', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'fallen_leaves', 'stone', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree', 'tree', 'tree', 'path', 'path', 'path', 'path', 'path', 'path', 'grass', 'grass', 'tree_dense'],
+  ['tree_dense', 'grass', 'path', 'path', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'grass', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'swamp', 'swamp', 'tree', 'grass', 'fallen_leaves', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'fallen_leaves', 'path', 'path', 'fallen_leaves', 'grass', 'stone', 'grass', 'grass', 'grass', 'fallen_leaves', 'tree', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'tree', 'grass', 'grass', 'grass', 'path', 'wildflowers', 'fallen_leaves', 'grass', 'grass', 'tree_dense'],
+  ['tree', 'grass', 'path', 'tilled_soil', 'crop_seedling', 'crop_seedling', 'crop_seedling', 'crop_seedling', 'tilled_soil', 'grass', 'grass', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'swamp', 'swamp', 'tree', 'grass', 'tilled_soil', 'crop_seedling', 'crop_seedling', 'crop_seedling', 'tilled_soil', 'path', 'path', 'path', 'fallen_leaves', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'tree', 'grass', 'grass', 'grass', 'path', 'path', 'grass', 'fallen_leaves', 'tree'],
+  ['tree_dense', 'tree', 'path', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tree', 'grass', 'grass', 'tree', 'tree', 'tree', 'tree', 'tree_dense', 'tree', 'swamp', 'swamp', 'tree', 'grass', 'grass', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tree', 'path', 'path', 'path', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'fallen_leaves', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'stone', 'tree', 'grass', 'grass', 'grass', 'path', 'fallen_leaves', 'tree', 'tree_dense'],
+  ['tree_dense', 'fallen_leaves', 'stone', 'path', 'path', 'grass', 'grass', 'grass', 'grass', 'grass', 'fallen_leaves', 'grass', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'grass', 'wildflowers', 'tree', 'wildflowers', 'grass', 'grass', 'path', 'path', 'path', 'stone', 'fallen_leaves', 'grass', 'grass', 'grass', 'fallen_leaves', 'tree', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'tree', 'grass', 'wildflowers', 'grass', 'grass', 'fallen_leaves', 'path', 'grass', 'grass', 'tree_dense'],
+  ['ocean_shore', 'ocean_shore', 'bridge', 'path', 'bridge', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'tree', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'bridge', 'bridge', 'path', 'path', 'path', 'bridge', 'bridge', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'bridge', 'path', 'bridge', 'ocean_shore', 'ocean_shore'],
+  ['water_alt', 'water', 'bridge', 'path', 'bridge', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'bridge', 'bridge', 'path', 'path', 'path', 'bridge', 'bridge', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'bridge', 'path', 'bridge', 'water', 'water_alt'],
+  ['water', 'water_alt', 'bridge', 'path', 'bridge', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'bridge', 'bridge', 'path', 'path', 'path', 'bridge', 'bridge', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt', 'bridge', 'path', 'bridge', 'water_alt', 'water'],
+  ['ocean_shore', 'ocean_shore', 'bridge', 'path', 'bridge', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'bridge', 'bridge', 'path', 'path', 'path', 'bridge', 'bridge', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'bridge', 'path', 'bridge', 'ocean_shore', 'ocean_shore'],
+  ['tree_dense', 'tree', 'fallen_leaves', 'path', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'grass', 'grass', 'grass', 'grass', 'grass', 'tree', 'grass', 'grass', 'grass', 'grass', 'grass', 'tree', 'fallen_leaves', 'path', 'path', 'fallen_leaves', 'grass', 'wildflowers', 'tree', 'grass', 'grass', 'grass', 'grass', 'grass', 'fallen_leaves', 'tree', 'tree', 'tree', 'fallen_leaves', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'path', 'grass', 'tree', 'tree_dense'],
+  ['tree_dense', 'fallen_leaves', 'tree', 'path', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'grass', 'grass', 'grass', 'wildflowers', 'tree', 'fallen_leaves', 'grass', 'fallen_leaves', 'grass', 'wildflowers', 'grass', 'wildflowers', 'grass', 'grass', 'wildflowers', 'path', 'grass', 'grass', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'grass', 'fallen_leaves', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'stone', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'path', 'grass', 'stone', 'tree_dense'],
+  ['tree', 'grass', 'grass', 'path', 'path', 'stone', 'wildflowers', 'grass', 'swamp', 'swamp', 'grass', 'grass', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'grass', 'path', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'path', 'path', 'tilled_soil', 'lavender', 'lavender', 'lavender', 'tilled_soil', 'tree', 'tree', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree', 'tree', 'tree', 'grass', 'swamp', 'swamp', 'swamp', 'swamp', 'swamp', 'path', 'fallen_leaves', 'grass', 'tree'],
+  ['tree_dense', 'grass', 'grass', 'grass', 'path', 'path', 'grass', 'grass', 'grass', 'grass', 'grass', 'stone', 'tree', 'tree', 'tree', 'tree_dense', 'tree', 'wildflowers', 'grass', 'grass', 'tilled_soil', 'crop_bloom', 'crop_bloom', 'crop_bloom', 'crop_bloom', 'crop_bloom', 'path', 'path', 'lavender', 'lavender', 'lavender', 'lavender', 'lavender', 'grass', 'grass', 'fallen_leaves', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'tree', 'grass', 'grass', 'fallen_leaves', 'swamp', 'swamp', 'swamp', 'path', 'grass', 'grass', 'tree_dense'],
+  ['tree_dense', 'stone', 'grass', 'fallen_leaves', 'path', 'fallen_leaves', 'grass', 'grass', 'grass', 'grass', 'grass', 'tree', 'stone', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'wildflowers', 'wildflowers', 'grass', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'stone', 'path', 'fallen_leaves', 'tilled_soil', 'tilled_soil', 'lavender', 'tilled_soil', 'tilled_soil', 'grass', 'grass', 'grass', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'wildflowers', 'grass', 'grass', 'grass', 'stone', 'path', 'grass', 'grass', 'tree_dense'],
+  ['tree', 'fallen_leaves', 'grass', 'grass', 'path', 'path', 'path', 'grass', 'wildflowers', 'grass', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'stone', 'wildflowers', 'tree', 'tree', 'grass', 'grass', 'grass', 'grass', 'path', 'path', 'path', 'grass', 'fallen_leaves', 'tilled_soil', 'grass', 'wildflowers', 'tree', 'wildflowers', 'stone', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'grass', 'grass', 'grass', 'fallen_leaves', 'grass', 'path', 'path', 'grass', 'grass', 'tree'],
+  ['tree_dense', 'grass', 'grass', 'wildflowers', 'grass', 'path', 'path', 'path', 'path', 'wildflowers', 'fallen_leaves', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'tree', 'tree', 'path', 'path', 'path', 'path', 'path', 'fallen_leaves', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'tree', 'tree', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'tree', 'path', 'path', 'path', 'path', 'path', 'wildflowers', 'grass', 'grass', 'grass', 'tree_dense'],
+  ['tree_dense', 'grass', 'wildflowers', 'wildflowers', 'wildflowers', 'tree', 'path', 'path', 'path', 'path', 'path', 'tree', 'tree', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree_dense', 'tree', 'tree', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'grass', 'fallen_leaves', 'grass', 'tree_dense'],
+  ['tree', 'grass', 'grass', 'wildflowers', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'path', 'path', 'wildflowers', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'tree', 'stone', 'path', 'tree', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'fallen_leaves', 'path', 'path', 'tilled_soil', 'tilled_soil', 'tree', 'tilled_soil', 'tilled_soil', 'path', 'path', 'grass', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'grass', 'grass', 'fallen_leaves', 'tree'],
+  ['tree_dense', 'tree', 'grass', 'grass', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'fallen_leaves', 'path', 'path', 'mushroom_patch', 'mushroom_patch', 'mushroom_patch', 'tree', 'mushroom_patch', 'mushroom_patch', 'mushroom_patch', 'path', 'path', 'fallen_leaves', 'wildflowers', 'grass', 'fallen_leaves', 'grass', 'wildflowers', 'grass', 'stone', 'grass', 'fallen_leaves', 'grass', 'tree', 'tilled_soil', 'path', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'path', 'path', 'tilled_soil', 'tilled_soil', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'grass', 'grass', 'tree', 'tree_dense'],
+  ['tree_dense', 'swamp', 'stone', 'fallen_leaves', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'grass', 'grass', 'path', 'path', 'mushroom_patch', 'mushroom_patch', 'mushroom_patch', 'mushroom_patch', 'mushroom_patch', 'path', 'path', 'fallen_leaves', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'tilled_soil', 'path', 'path', 'path', 'path', 'path', 'path', 'crop_bloom', 'crop_bloom', 'tilled_soil', 'bridge', 'tree_dense', 'tree_dense', 'tree_dense', 'bridge', 'grass', 'fallen_leaves', 'wildflowers', 'tree_dense'],
+  ['tree', 'swamp', 'swamp', 'grass', 'bridge', 'bridge', 'bridge', 'bridge', 'bridge', 'grass', 'grass', 'grass', 'path', 'path', 'path', 'path', 'path', 'path', 'path', 'tree', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'tree', 'grass', 'grass', 'grass', 'grass', 'wildflowers', 'stone', 'tilled_soil', 'crop_bloom', 'crop_bloom', 'crop_bloom', 'crop_bloom', 'crop_bloom', 'crop_bloom', 'tilled_soil', 'stone', 'bridge', 'bridge', 'bridge', 'bridge', 'bridge', 'ocean_shore', 'ocean_shore', 'ocean_shore', 'ocean_shore'],
+  ['tree_dense', 'swamp', 'swamp', 'swamp', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'tree', 'stone', 'fallen_leaves', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'tree', 'wildflowers', 'wildflowers', 'wildflowers', 'wildflowers', 'tree', 'grass', 'grass', 'grass', 'tilled_soil', 'tilled_soil', 'crop_bloom', 'crop_bloom', 'crop_bloom', 'crop_bloom', 'tilled_soil', 'tilled_soil', 'grass', 'grass', 'grass', 'grass', 'swamp', 'water_alt', 'water', 'water_alt', 'water', 'water_alt'],
+  ['tree_dense', 'swamp', 'swamp', 'swamp', 'swamp', 'tree', 'stone', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass', 'tree', 'fallen_leaves', 'wildflowers', 'wildflowers', 'wildflowers', 'wildflowers', 'wildflowers', 'wildflowers', 'tree', 'grass', 'grass', 'grass', 'fallen_leaves', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'tilled_soil', 'fallen_leaves', 'grass', 'grass', 'grass', 'grass', 'swamp', 'swamp', 'swamp', 'water_alt', 'water', 'water_alt', 'water'],
+  ['tree_dense', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'tree_dense', 'tree', 'tree_dense', 'swamp', 'swamp', 'water', 'water_alt', 'water', 'water_alt', 'water', 'water_alt'],
+]
 
 function buildMap(): TileType[][] {
-  const map: TileType[][] = Array.from({ length: MAP_ROWS }, () =>
-    Array.from({ length: MAP_COLS }, (): TileType => 'grass'),
-  )
-
-  const set = (r: number, c: number, t: TileType) => {
-    if (r >= 0 && r < MAP_ROWS && c >= 0 && c < MAP_COLS) map[r][c] = t
-  }
-
-  // Border trees
-  for (let c = 0; c < MAP_COLS; c++) { set(0, c, 'tree'); set(MAP_ROWS - 1, c, 'tree') }
-  for (let r = 0; r < MAP_ROWS; r++) { set(r, 0, 'tree'); set(r, MAP_COLS - 1, 'tree') }
-
-  // River: rows 13-14, cols 8-31 (leaves west + east passages at cols 1-7 and 32-38)
-  for (let r = 13; r <= 14; r++) {
-    for (let c = 8; c <= 31; c++) set(r, c, 'water')
-  }
-  // Central bridge: cols 18-21
-  for (let r = 13; r <= 14; r++) {
-    for (let c = 18; c <= 21; c++) set(r, c, 'path')
-  }
-
-  // Central vertical path (cols 19-20) — north and south of bridge
-  for (let r = 6; r <= 12; r++)  { set(r, 19, 'path'); set(r, 20, 'path') }
-  for (let r = 15; r <= 23; r++) { set(r, 19, 'path'); set(r, 20, 'path') }
-
-  // Horizontal path row 6 (upper connector, cols 4-35)
-  for (let c = 4; c <= 35; c++) { if (map[6][c] !== 'tree') set(6, c, 'path') }
-
-  // Horizontal path row 23 (lower connector, cols 4-35)
-  for (let c = 4; c <= 35; c++) { if (map[23][c] !== 'tree') set(23, c, 'path') }
-
-  // Upper-left forest (rows 7-11, cols 6-10)
-  for (let r = 7; r <= 11; r++) {
-    for (let c = 6; c <= 10; c++) set(r, c, 'tree')
-  }
-  // Thin gap at east edge to allow some passage
-  set(9,  10, 'grass')
-  set(10, 10, 'grass')
-
-  // Upper-right forest (rows 7-11, cols 29-33)
-  for (let r = 7; r <= 11; r++) {
-    for (let c = 29; c <= 33; c++) set(r, c, 'tree')
-  }
-  set(9,  29, 'grass')
-  set(10, 29, 'grass')
-
-  // Lower-left forest (rows 18-22, cols 6-10)
-  for (let r = 18; r <= 22; r++) {
-    for (let c = 6; c <= 10; c++) set(r, c, 'tree')
-  }
-  set(19, 10, 'grass')
-  set(20, 10, 'grass')
-
-  // Lower-right forest (rows 18-22, cols 29-33)
-  for (let r = 18; r <= 22; r++) {
-    for (let c = 29; c <= 33; c++) set(r, c, 'tree')
-  }
-  set(19, 29, 'grass')
-  set(20, 29, 'grass')
-
-  // Swamp south-west (rows 15-17, cols 3-7) — deters west-side river bypass
-  for (let r = 15; r <= 17; r++) {
-    for (let c = 3; c <= 7; c++) set(r, c, 'swamp')
-  }
-
-  // Swamp south-east (rows 15-17, cols 32-36)
-  for (let r = 15; r <= 17; r++) {
-    for (let c = 32; c <= 36; c++) set(r, c, 'swamp')
-  }
-
-  // Stamp each house as a HOUSE_SIZE×HOUSE_SIZE non-walkable block, then clear
-  // a 1-tile approach ring around it (paths are preserved)
-  for (const { col, row } of HOUSE_POSITIONS) {
-    for (let r = row; r < row + HOUSE_SIZE; r++)
-      for (let c = col; c < col + HOUSE_SIZE; c++)
-        set(r, c, 'tree')
-    for (let r = row - 1; r <= row + HOUSE_SIZE; r++) {
-      for (let c = col - 1; c <= col + HOUSE_SIZE; c++) {
-        const inside = r >= row && r < row + HOUSE_SIZE && c >= col && c < col + HOUSE_SIZE
-        if (!inside && map[r]?.[c] && map[r][c] !== 'path') set(r, c, 'grass')
-      }
-    }
-  }
-
-  // Clear walkable zones around packages and player start
-  const clearZones: [number, number][] = [
-    [9,14],[9,15],[10,14],[10,15],     // pkg 1
-    [9,24],[9,25],[10,24],[10,25],     // pkg 2
-    [19,14],[19,15],[20,14],[20,15],   // pkg 3
-    [19,24],[19,25],[20,24],[20,25],   // pkg 4
-    [14,19],[14,20],[15,19],[15,20],   // player start area
-  ]
-  for (const [r, c] of clearZones) set(r, c, 'grass')
-
-  return map
+  return MAP_TILES.map((row) => [...row])
 }
 
 export const MAP_DATA: TileType[][] = buildMap()
@@ -219,10 +253,17 @@ export const WRONG_MESSAGES = [
 // ── Object positions ──────────────────────────────────────────────────────────
 
 export const PACKAGE_POSITIONS = [
-  { col: 14, row: 9  },   // matches DELIVERY_TYPES order
-  { col: 25, row: 9  },
-  { col: 14, row: 19 },
-  { col: 25, row: 19 },
+  { col: 20, row: 9  },   // package 1
+  { col: 33, row: 10 },   // package 2
+  { col: 19, row: 20 },   // package 3
+  { col: 33, row: 20 },   // package 4
 ]
 
-export const PLAYER_START = { col: 19, row: 14 }
+export const NPC_POSITIONS = [
+  { id: NPC_CONFIGS[0].id, col: 21, row: 11 },
+  { id: NPC_CONFIGS[1].id, col: 35, row: 10 },
+  { id: NPC_CONFIGS[2].id, col: 18, row: 17 },
+  { id: NPC_CONFIGS[3].id, col: 31, row: 22 },
+]
+
+export const PLAYER_START = { col: 26, row: 14 }

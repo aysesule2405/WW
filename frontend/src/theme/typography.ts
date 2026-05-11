@@ -1,6 +1,9 @@
 /** Primary readable font — all body text, buttons, rules, labels */
 export const uiFontFamily = '"Kingthings Clarity"'
 
+/** Long-form readable font — settings, profile fields, tables, and descriptions */
+export const readableFontFamily = '"Flamante Round"'
+
 /** Playful title font — game names, section headers, score displays */
 export const titleFontFamily = '"Si Kancil"'
 

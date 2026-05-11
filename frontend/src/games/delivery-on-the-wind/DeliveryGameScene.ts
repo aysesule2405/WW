@@ -2,14 +2,16 @@ import Phaser from 'phaser'
 import {
   TILE, HOUSE_SIZE, MAP_COLS, MAP_ROWS, MAP_DATA, TILE_RULES,
   VIEWPORT_W, VIEWPORT_H,
+  NPC_CONFIGS, NPC_POSITIONS,
   DELIVERY_TYPES, CORRECT_MESSAGES, WRONG_MESSAGES,
   HOUSE_POSITIONS, PACKAGE_POSITIONS, PLAYER_START,
   GAME_DURATION_MS,
 } from './data/deliveryConfig'
-import type { TileType, HUDState, InspectData } from './data/deliveryConfig'
+import type { TileType, HUDState, InspectData, NpcTalkData } from './data/deliveryConfig'
 import { Player } from './entities/Player'
 import { Package } from './entities/Package'
 import { House } from './entities/House'
+import { Npc } from './entities/Npc'
 import { audioManager } from '../../lib/AudioManager'
 import { uiFontFamily } from '../../theme/typography'
 
@@ -28,10 +30,11 @@ export type SceneCallbacks = {
   onHUDUpdate: (state: HUDState) => void
   onInspectPackage: (data: InspectData) => void
   onInspectHouse: (data: InspectData) => void
+  onTalkNpc: (data: NpcTalkData) => void
 }
 
-const WORLD_W    = MAP_COLS * TILE   // 1920
-const WORLD_H    = MAP_ROWS * TILE   // 1440
+const WORLD_W    = MAP_COLS * TILE
+const WORLD_H    = MAP_ROWS * TILE
 const HUD_H      = 40
 const BASE_MOVE  = 115               // ms per tile on grass
 
@@ -41,6 +44,7 @@ export class DeliveryGameScene extends Phaser.Scene {
   private player!: Player
   private packages: Package[] = []
   private houses:   House[]   = []
+  private npcs:     Npc[]     = []
 
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private moveRepeatTimer = 0
@@ -51,6 +55,7 @@ export class DeliveryGameScene extends Phaser.Scene {
   private running        = false
   private timerPaused    = false
   private nearHouseIdx   = -1
+  private nearNpcIdx     = -1
 
   private timerText!:    Phaser.GameObjects.Text
   private deliveryText!: Phaser.GameObjects.Text
@@ -70,8 +75,10 @@ export class DeliveryGameScene extends Phaser.Scene {
     this.running        = false
     this.timerPaused    = false
     this.nearHouseIdx   = -1
+    this.nearNpcIdx     = -1
     this.packages       = []
     this.houses         = []
+    this.npcs           = []
     this.correctMsgIdx  = 0
     this.wrongMsgIdx    = 0
   }
@@ -82,9 +89,15 @@ export class DeliveryGameScene extends Phaser.Scene {
       this.load.image(`house-${i}`,   `/assets/backgrounds/delivery-on-the-wind/house-${i}.png`)
       this.load.image(`package-${i}`, `/assets/backgrounds/delivery-on-the-wind/package-${i}.png`)
     }
+    for (const cfg of NPC_CONFIGS) {
+      this.load.image(`npc-${cfg.assetKey}`, `/assets/npcs/${cfg.assetKey}.png`)
+    }
     const TILE_KEYS = [
-      'grass', 'grass_alt', 'path', 'tree', 'tree_alt', 'tree_alt2',
-      'water', 'swamp', 'bridge', 'beach', 'ocean', 'ocean_shore',
+      'grass', 'grass_alt', 'path', 'path_alt',
+      'tilled_soil', 'crop_seedling', 'crop_bloom',
+      'wildflowers', 'lavender', 'mushroom_patch', 'moss', 'fallen_leaves',
+      'tree', 'tree_alt', 'tree_dense', 'stone',
+      'water', 'water_alt', 'ocean_shore', 'bridge', 'swamp', 'wind_gust',
     ]
     for (const key of TILE_KEYS) {
       this.load.image(`tile-${key}`, `/assets/tiles/${key}.png`)
@@ -141,6 +154,80 @@ export class DeliveryGameScene extends Phaser.Scene {
     })
   }
 
+  talkNearNpc() {
+    if (this.nearNpcIdx < 0) return
+    const npc = this.npcs[this.nearNpcIdx]
+    const heldCfg = this.player.heldType
+      ? DELIVERY_TYPES.find(d => d.type === this.player.heldType) ?? null
+      : null
+    const destination = heldCfg
+      ? this.houses.find(house => !house.isDelivered && house.type === heldCfg.type) ?? null
+      : null
+    const line = heldCfg && destination
+      ? this.buildNpcDeliveryHint(npc, heldCfg.label, destination.gridX, destination.gridY)
+      : npc.config.emptyLine
+    this.timerPaused = true
+    this.cb.onTalkNpc({
+      id: npc.id,
+      name: npc.name,
+      assetKey: npc.config.assetKey,
+      role: npc.config.role,
+      line,
+      heldLabel: heldCfg?.label ?? null,
+      heldColorHex: heldCfg?.colorHex ?? null,
+    })
+  }
+
+  private buildNpcDeliveryHint(npc: Npc, label: string, houseCol: number, houseRow: number): string {
+    const route = this.describeRouteToHouse(houseCol, houseRow)
+    const housePosition = this.describeHousePosition(houseCol, houseRow)
+
+    switch (npc.id) {
+      case 'jiji':
+        return `${label} belongs to the ${housePosition}. ${route} Keep your eyes on the house ring, not just the scenery.`
+      case 'tombo':
+        return `${label}? Flight plan says ${housePosition}. ${route} Nice clean route if you hold the line.`
+      case 'ursula':
+        return `That package is pulling toward the ${housePosition}. ${route} Follow the colors and do not rush the turn.`
+      case 'madame-barsa':
+        return `${label} should be delivered to the ${housePosition}, dear. ${route} Barsa says the ring will confirm it.`
+      default:
+        return `${label} belongs to the ${housePosition}. ${route}`
+    }
+  }
+
+  private describeHousePosition(houseCol: number, houseRow: number): string {
+    const centerCol = houseCol + Math.floor(HOUSE_SIZE / 2)
+    const centerRow = houseRow + Math.floor(HOUSE_SIZE / 2)
+    const vertical = centerRow < MAP_ROWS / 2 ? 'north' : 'south'
+    const horizontal = centerCol < MAP_COLS / 2 ? 'west' : 'east'
+    return `${vertical}-${horizontal} cottage`
+  }
+
+  private describeRouteToHouse(houseCol: number, houseRow: number): string {
+    const targetCol = houseCol + Math.floor(HOUSE_SIZE / 2)
+    const targetRow = houseRow + Math.floor(HOUSE_SIZE / 2)
+    const playerSide = this.player.gridY < 14 ? 'north' : this.player.gridY > 16 ? 'south' : 'river'
+    const targetSide = targetRow < 14 ? 'north' : targetRow > 16 ? 'south' : 'river'
+    const horizontal = targetCol < this.player.gridX ? 'west' : targetCol > this.player.gridX ? 'east' : 'straight'
+
+    if (playerSide !== targetSide && playerSide !== 'river' && targetSide !== 'river') {
+      const turn = horizontal === 'straight' ? 'continue along the main road' : `turn ${horizontal}`
+      return `Cross the bridge first, then ${turn} toward the cottage clearing.`
+    }
+
+    if (horizontal === 'straight') {
+      return targetRow < this.player.gridY
+        ? 'Stay on the path and head north.'
+        : 'Stay on the path and head south.'
+    }
+
+    const vertical = targetRow < this.player.gridY ? 'north' : targetRow > this.player.gridY ? 'south' : ''
+    return vertical
+      ? `Head ${vertical}, then keep ${horizontal} on the nearest clear path.`
+      : `Keep ${horizontal} on the nearest clear path.`
+  }
+
   resumeFromInspection() { this.timerPaused = false }
 
   // ── Tile map ──────────────────────────────────────────────────────────────────
@@ -148,30 +235,85 @@ export class DeliveryGameScene extends Phaser.Scene {
   private drawTiles() {
     // Bake all tiles into a single RenderTexture for best performance
     const rt = this.add.renderTexture(0, 0, WORLD_W, WORLD_H).setDepth(0).setOrigin(0, 0)
+    const flippedShore = this.make.image({ key: 'tile-ocean_shore', add: false }).setOrigin(0, 0).setFlipY(true)
+
     for (let row = 0; row < MAP_ROWS; row++) {
       for (let col = 0; col < MAP_COLS; col++) {
-        const key = this.tileKey(MAP_DATA[row][col], row, col)
-        rt.draw(key, col * TILE, row * TILE)
+        this.drawTile(rt, row, col, flippedShore)
       }
     }
+
+    flippedShore.destroy()
+  }
+
+  private drawTile(
+    rt: Phaser.GameObjects.RenderTexture,
+    row: number,
+    col: number,
+    flippedShore: Phaser.GameObjects.Image,
+  ) {
+    const tile = MAP_DATA[row][col]
+    const x = col * TILE
+    const y = row * TILE
+
+    if (this.isGrassBackedObstacle(tile)) {
+      rt.draw(this.grassTileKey(row, col), x, y)
+      rt.draw(this.tileKey(tile, row, col), x, y)
+      return
+    }
+
+    if (tile === 'ocean_shore' && this.isLowerShore(row, col)) {
+      rt.draw(flippedShore, x, y)
+      return
+    }
+
+    rt.draw(this.tileKey(tile, row, col), x, y)
+  }
+
+  private isGrassBackedObstacle(tile: TileType): boolean {
+    return tile === 'tree' || tile === 'tree_dense' || tile === 'stone'
+  }
+
+  private isLowerShore(row: number, col: number): boolean {
+    const tileAbove = MAP_DATA[row - 1]?.[col]
+    return tileAbove === 'water' || tileAbove === 'water_alt' || tileAbove === 'bridge'
+  }
+
+  private grassTileKey(row: number, col: number): string {
+    return (row + col) % 2 === 0 ? 'tile-grass' : 'tile-grass_alt'
   }
 
   private tileKey(tile: TileType, row: number, col: number): string {
-    const alt = (row + col) % 2 === 0
     switch (tile) {
       case 'grass':
-        return alt ? 'tile-grass' : 'tile-grass_alt'
+        return this.grassTileKey(row, col)
       case 'path':
-        // Path tiles that cross the river rows use the bridge graphic
-        return (row === 13 || row === 14) ? 'tile-bridge' : 'tile-path'
+        const alt = (row + col) % 2 === 0
+        return alt ? 'tile-path' : 'tile-path_alt'
       case 'tree': {
-        const v = (row * MAP_COLS + col) % 3
-        return v === 0 ? 'tile-tree' : v === 1 ? 'tile-tree_alt' : 'tile-tree_alt2'
+        return (row * MAP_COLS + col) % 2 === 0 ? 'tile-tree' : 'tile-tree_alt'
       }
+      case 'tree_dense':
+        return 'tile-tree_dense'
       case 'water':
         return 'tile-water'
+      case 'water_alt':
+        return 'tile-water_alt'
+      case 'bridge':
+        return 'tile-bridge'
+      case 'tilled_soil':
+      case 'crop_seedling':
+      case 'crop_bloom':
+      case 'wildflowers':
+      case 'lavender':
+      case 'mushroom_patch':
+      case 'moss':
+      case 'fallen_leaves':
+      case 'stone':
+      case 'ocean_shore':
       case 'swamp':
-        return 'tile-swamp'
+      case 'wind_gust':
+        return `tile-${tile}`
       default:
         return 'tile-grass'
     }
@@ -214,6 +356,11 @@ export class DeliveryGameScene extends Phaser.Scene {
       this.packages.push(new Package(
         this, cfg.type, cfg.colorNum, cfg.imageIndex, pos.col, pos.row,
       ))
+    }
+
+    for (const pos of NPC_POSITIONS) {
+      const cfg = NPC_CONFIGS.find(npc => npc.id === pos.id)
+      if (cfg) this.npcs.push(new Npc(this, cfg, pos.col, pos.row))
     }
 
     this.player = new Player(this, PLAYER_START.col, PLAYER_START.row)
@@ -314,6 +461,7 @@ export class DeliveryGameScene extends Phaser.Scene {
       this.checkPickup()
       this.checkDelivery()
       this.updateNearHouse()
+      this.updateNearNpc()
       this.emitHUDUpdate()
     })
   }
@@ -375,6 +523,13 @@ export class DeliveryGameScene extends Phaser.Scene {
     )
   }
 
+  private updateNearNpc() {
+    this.nearNpcIdx = this.npcs.findIndex(npc =>
+      Math.abs(this.player.gridX - npc.gridX) <= 1 &&
+      Math.abs(this.player.gridY - npc.gridY) <= 1,
+    )
+  }
+
   // ── HUD state emission ────────────────────────────────────────────────────────
 
   private emitHUDUpdate() {
@@ -383,6 +538,7 @@ export class DeliveryGameScene extends Phaser.Scene {
     const nearHouse = this.nearHouseIdx >= 0 ? this.houses[this.nearHouseIdx] : null
     const nearCfg   = nearHouse
       ? DELIVERY_TYPES.find(d => d.type === nearHouse.type) ?? null : null
+    const nearNpc = this.nearNpcIdx >= 0 ? this.npcs[this.nearNpcIdx] : null
 
     this.cb.onHUDUpdate({
       heldType:            heldCfg?.type ?? null,
@@ -392,6 +548,9 @@ export class DeliveryGameScene extends Phaser.Scene {
       nearHouseType:       nearCfg?.type ?? null,
       nearHouseImageIndex: nearCfg?.imageIndex ?? null,
       nearHouseLabel:      nearCfg?.label ?? null,
+      nearNpcId:           nearNpc?.id ?? null,
+      nearNpcName:         nearNpc?.name ?? null,
+      nearNpcAssetKey:     nearNpc?.config.assetKey ?? null,
     })
   }
 

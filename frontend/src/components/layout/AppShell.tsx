@@ -7,6 +7,7 @@ import SettingsPage from '../../pages/SettingsPage'
 import ProgressPage from '../../pages/ProgressPage'
 import LeaderboardPage from '../../pages/LeaderboardPage'
 import AchievementsPage from '../../pages/AchievementsPage'
+import CommunityPage from '../../pages/CommunityPage'
 import GameSelectionScreen from '../GameSelectionScreen'
 import {
   SETTINGS_EVENT,
@@ -62,6 +63,7 @@ export default function AppShell({ onSelect, onLogout }: Props) {
       />
       <main style={{ flex: 1, overflowY: 'auto', minWidth: 0, position: 'relative', zIndex: 1 }}>
         {section === 'games'       && <GameSelectionScreen onSelect={onSelect} onLogout={onLogout} />}
+        {section === 'community'   && <CommunityPage />}
         {section === 'progress'    && <ProgressPage />}
         {section === 'achievements' && <AchievementsPage />}
         {section === 'leaderboard' && <LeaderboardPage />}

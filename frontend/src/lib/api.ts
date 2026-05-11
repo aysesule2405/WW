@@ -259,10 +259,57 @@ export async function getAchievementCatalog() {
   }
 }
 
+export type CommunityTopic = 'general' | 'delivery' | 'sapling' | 'half-moon' | 'spirit-drift'
+
+export type CommunityPost = {
+  id: string
+  topic: CommunityTopic
+  title: string
+  body: string
+  author: { id: string; username: string }
+  replies: Array<{
+    id: string
+    body: string
+    createdAt: string
+    author: { id: string; username: string }
+  }>
+  createdAt: string
+  updatedAt: string
+}
+
+export async function getCommunityPosts(topic = 'all') {
+  const res = await fetch(apiUrl(`/community/posts?topic=${encodeURIComponent(topic)}`), {
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+  })
+  if (!res.ok) throw new Error((await res.json()).error || 'Could not load community posts')
+  return res.json() as Promise<{ posts: CommunityPost[] }>
+}
+
+export async function createCommunityPost(data: { topic: CommunityTopic; title: string; body: string }) {
+  const res = await fetch(apiUrl('/community/posts'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error((await res.json()).error || 'Could not create post')
+  return res.json() as Promise<{ post: CommunityPost }>
+}
+
+export async function createCommunityReply(postId: string, body: string) {
+  const res = await fetch(apiUrl(`/community/posts/${postId}/replies`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ body }),
+  })
+  if (!res.ok) throw new Error((await res.json()).error || 'Could not add reply')
+  return res.json() as Promise<{ post: CommunityPost }>
+}
+
 export default {
   getToken, getUsername, register, login,
   apiUrl, mediaUrl, saveProgress, getMyProgress, getProfile, updateProfile, uploadAvatar,
   submitScore, submitSession, getGameSessions, getProgressSummary,
   getScoreLeaderboard, getDeliveryLeaderboard, getMyBest, getRecentScores,
   getAchievements, getAchievementCatalog,
+  getCommunityPosts, createCommunityPost, createCommunityReply,
 }

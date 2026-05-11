@@ -3,18 +3,20 @@ import { DeliveryGameScene } from '../DeliveryGameScene'
 import type { SceneCallbacks } from '../DeliveryGameScene'
 import { VIEWPORT_W, VIEWPORT_H } from '../data/deliveryConfig'
 
-export type { HUDState, InspectData } from '../data/deliveryConfig'
+export type { HUDState, InspectData, NpcTalkData } from '../data/deliveryConfig'
 
 export type DeliveryGameOptions = {
   onGameEnd?: (result: 'win' | 'lose', deliveries: number, timeRemaining: number) => void
   onHUDUpdate?: SceneCallbacks['onHUDUpdate']
   onInspectPackage?: SceneCallbacks['onInspectPackage']
   onInspectHouse?: SceneCallbacks['onInspectHouse']
+  onTalkNpc?: SceneCallbacks['onTalkNpc']
 }
 
 export type DeliveryGameAPI = {
   inspectHeldPackage: () => void
   inspectNearHouse: () => void
+  talkNearNpc: () => void
   resumeFromInspection: () => void
   destroy: () => void
 }
@@ -28,6 +30,7 @@ export function createDeliveryGame(
     onHUDUpdate:      options.onHUDUpdate      ?? (() => {}),
     onInspectPackage: options.onInspectPackage ?? (() => {}),
     onInspectHouse:   options.onInspectHouse   ?? (() => {}),
+    onTalkNpc:        options.onTalkNpc        ?? (() => {}),
   }
 
   const game = new Phaser.Game({
@@ -53,6 +56,7 @@ export function createDeliveryGame(
   return {
     inspectHeldPackage:   () => getScene()?.inspectHeldPackage(),
     inspectNearHouse:     () => getScene()?.inspectNearHouse(),
+    talkNearNpc:          () => getScene()?.talkNearNpc(),
     resumeFromInspection: () => getScene()?.resumeFromInspection(),
     destroy:              () => game.destroy(true, false),
   }

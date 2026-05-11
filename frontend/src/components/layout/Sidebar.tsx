@@ -3,12 +3,13 @@ import { headingFontFamily, bodyFontFamily } from '../../theme/typography'
 import { useTheme } from '../../context/ThemeContext'
 import { GAME_THEMES } from '../../context/themeTypes'
 
-export type SidebarSection = 'games' | 'progress' | 'achievements' | 'leaderboard' | 'profile' | 'settings'
+export type SidebarSection = 'games' | 'community' | 'progress' | 'achievements' | 'leaderboard' | 'profile' | 'settings'
 
 type NavItem = { id: SidebarSection; icon: string; label: string }
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'games',       icon: '🏕️', label: 'Grove'       },
+  { id: 'community',   icon: '💬', label: 'Community'   },
   { id: 'progress',    icon: '🌿', label: 'Progress'    },
   { id: 'achievements', icon: '🏅', label: 'Achievements' },
   { id: 'leaderboard', icon: '🏆', label: 'Leaderboard' },

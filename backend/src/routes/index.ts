@@ -7,6 +7,7 @@ import ttsRoutes          from '../modules/tts/tts.routes'
 import halfMoonRoutes     from '../modules/halfMoon/halfMoon.routes'
 import spiritSaplingRoutes from '../modules/spiritSapling/spiritSapling.routes'
 import achievementsRoutes from '../modules/achievements/achievements.routes'
+import communityRoutes    from '../modules/community/community.routes'
 
 const router = Router()
 
@@ -18,5 +19,6 @@ router.use('/games/half-moon', halfMoonRoutes)
 router.use('/tts',            ttsRoutes)
 router.use('/spirit-sapling', spiritSaplingRoutes)
 router.use('/achievements',   achievementsRoutes)
+router.use('/community',      communityRoutes)
 
 export default router

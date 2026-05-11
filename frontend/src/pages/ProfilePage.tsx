@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import api from '../lib/api'
-import { bodyFontFamily, headingFontFamily } from '../theme/typography'
+import { bodyFontFamily, headingFontFamily, readableFontFamily } from '../theme/typography'
+import { inputSurface, pageShell, primaryButton, surfaceCard, uiRadius, uiSpace, uiType, uiWidth } from '../theme/uiTokens'
 
 type AvatarConfig = { face: string; color: string; accessory: string }
 type Profile = {
@@ -105,30 +106,37 @@ export default function ProfilePage() {
 
   return (
     <div style={s.page}>
-      <div>
+      <header style={s.header}>
         <h2 style={s.pageTitle}>Your Profile</h2>
         <p style={s.pageSub}>Personalize how the grove remembers you.</p>
-      </div>
+      </header>
 
       <div style={s.layout}>
-      <div style={s.previewCard}>
-        <div style={s.profileHero}>
-          <AvatarPreview config={avatarConfig} image={profile.avatarUrl ?? null} fallback={profile.username?.[0] ?? '?'} large />
-          <div>
-            <h3 style={s.previewName}>{username || profile.username || 'Grove Visitor'}</h3>
-            <p style={s.previewStatus}>{status || 'Wandering softly through the grove.'}</p>
+        <aside style={s.previewCard}>
+          <div style={s.profileHero}>
+            <AvatarPreview config={avatarConfig} image={profile.avatarUrl ?? null} fallback={profile.username?.[0] ?? '?'} large />
+            <div style={s.previewCopy}>
+              <p style={s.previewEyebrow}>Profile preview</p>
+              <h3 style={s.previewName}>{username || profile.username || 'Grove Visitor'}</h3>
+              <p style={s.previewStatus}>{status || 'Wandering softly through the grove.'}</p>
+            </div>
           </div>
-        </div>
-        <div style={s.previewList}>
-          <p style={s.previewLine}><strong>Favorite song:</strong> {favoriteSong || 'Not set yet'}</p>
-          <p style={s.previewLine}><strong>Favorite Steam games:</strong> {favoriteSteamGames || 'Not set yet'}</p>
-        </div>
-      </div>
+          <div style={s.previewList}>
+            <p style={s.previewLine}><strong>Favorite song</strong><span>{favoriteSong || 'Not set yet'}</span></p>
+            <p style={s.previewLine}><strong>Favorite Steam games</strong><span>{favoriteSteamGames || 'Not set yet'}</span></p>
+          </div>
+        </aside>
 
-      <div style={s.card}>
+        <section style={s.card}>
         {/* Avatar */}
         <div style={s.avatarSection}>
-          <AvatarPreview config={avatarConfig} image={profile.avatarUrl ?? null} fallback={profile.username?.[0] ?? '?'} />
+          <div style={s.avatarSectionCopy}>
+            <AvatarPreview config={avatarConfig} image={profile.avatarUrl ?? null} fallback={profile.username?.[0] ?? '?'} />
+            <div>
+              <p style={s.formSectionTitle}>Avatar</p>
+              <p style={s.formSectionDesc}>Upload a photo or build a grove avatar below.</p>
+            </div>
+          </div>
           <label style={s.avatarUploadLabel}>
             Change photo
             <input
@@ -195,16 +203,19 @@ export default function ProfilePage() {
             <h3 style={s.builderTitle}>Create Your Own Avatar</h3>
             <p style={s.builderDesc}>Pick a face, aura color, and tiny grove charm.</p>
           </div>
+          <p style={s.optionLabel}>Face</p>
           <div style={s.optionGroup}>
             {FACES.map((face) => (
               <button key={face} style={{ ...s.optionBtn, ...(avatarConfig.face === face ? s.optionActive : {}) }} onClick={() => setAvatarConfig((current) => ({ ...current, face }))}>{face}</button>
             ))}
           </div>
+          <p style={s.optionLabel}>Aura</p>
           <div style={s.optionGroup}>
             {COLORS.map((color) => (
               <button key={color} aria-label={`Avatar color ${color}`} style={{ ...s.colorBtn, background: color, ...(avatarConfig.color === color ? s.colorActive : {}) }} onClick={() => setAvatarConfig((current) => ({ ...current, color }))} />
             ))}
           </div>
+          <p style={s.optionLabel}>Charm</p>
           <div style={s.optionGroup}>
             {ACCESSORIES.map((accessory) => (
               <button key={accessory} style={{ ...s.charmBtn, ...(avatarConfig.accessory === accessory ? s.optionActive : {}) }} onClick={() => setAvatarConfig((current) => ({ ...current, accessory }))}>
@@ -223,7 +234,7 @@ export default function ProfilePage() {
         <button style={s.saveBtn} onClick={save} disabled={saving}>
           {saving ? 'Saving…' : 'Save Changes'}
         </button>
-      </div>
+        </section>
       </div>
     </div>
   )
@@ -258,47 +269,54 @@ function accessoryLabel(accessory: string) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  loading: { padding: 32, color: 'var(--text-secondary)', fontFamily: bodyFontFamily },
-  page: { padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20, fontFamily: bodyFontFamily },
-  pageTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 32, color: 'var(--text-h)' },
-  pageSub: { margin: '2px 0 0', color: 'var(--text-muted)', fontSize: 14 },
+  loading: { ...pageShell(uiWidth.content), color: 'var(--text-secondary)', fontFamily: bodyFontFamily },
+  page: { ...pageShell(uiWidth.content), display: 'flex', flexDirection: 'column', gap: uiSpace.lg, fontFamily: bodyFontFamily },
+  header: { display: 'flex', flexDirection: 'column', gap: 4 },
+  pageTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: uiType.pageTitle, color: 'var(--text-h)', lineHeight: 1 },
+  pageSub: { margin: 0, color: 'var(--text-muted)', fontSize: uiType.small, fontFamily: readableFontFamily },
   layout: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(280px, 360px) minmax(360px, 560px)',
-    gap: 20,
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+    gap: uiSpace.lg,
     alignItems: 'start',
   },
   previewCard: {
-    background: 'var(--bg-surface)',
-    borderRadius: 18,
-    border: '1px solid var(--border)',
-    boxShadow: 'var(--shadow-md)',
-    padding: 22,
+    ...surfaceCard,
+    padding: uiSpace.lg,
     display: 'flex',
     flexDirection: 'column',
-    gap: 18,
+    gap: uiSpace.lg,
+    position: 'sticky',
+    top: uiSpace.lg,
   },
-  profileHero: { display: 'flex', alignItems: 'center', gap: 16 },
-  previewName: { margin: 0, fontFamily: headingFontFamily, fontSize: 25, color: 'var(--text-h)' },
-  previewStatus: { margin: '4px 0 0', color: 'var(--text-secondary)', lineHeight: 1.4 },
-  previewList: { display: 'flex', flexDirection: 'column', gap: 8 },
-  previewLine: { margin: 0, color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.45 },
+  profileHero: { display: 'flex', alignItems: 'center', gap: uiSpace.md, flexWrap: 'wrap' },
+  previewCopy: { minWidth: 0, flex: 1 },
+  previewEyebrow: { margin: 0, color: 'var(--text-muted)', fontSize: uiType.micro, textTransform: 'uppercase', letterSpacing: 0.6, fontFamily: readableFontFamily },
+  previewName: { margin: 0, fontFamily: headingFontFamily, fontSize: 26, color: 'var(--text-h)', lineHeight: 1.05 },
+  previewStatus: { margin: '5px 0 0', color: 'var(--text-secondary)', lineHeight: 1.45, fontFamily: readableFontFamily },
+  previewList: { display: 'flex', flexDirection: 'column', gap: uiSpace.sm },
+  previewLine: {
+    margin: 0, color: 'var(--text-secondary)', fontSize: uiType.small, lineHeight: 1.45,
+    display: 'flex', flexDirection: 'column', gap: 2, padding: '10px 12px',
+    borderRadius: uiRadius.md, background: 'var(--bg-badge)', border: '1px solid var(--border-muted)',
+    fontFamily: readableFontFamily,
+  },
   card: {
-    background: 'var(--bg-surface)',
-    borderRadius: 18,
-    border: '1px solid var(--border)',
-    boxShadow: 'var(--shadow-md)',
-    padding: '28px 30px',
-    maxWidth: 560,
+    ...surfaceCard,
+    padding: 'clamp(18px, 3vw, 28px)',
     display: 'flex',
     flexDirection: 'column',
-    gap: 20,
+    gap: uiSpace.lg,
+    minWidth: 0,
   },
-  avatarSection: { display: 'flex', alignItems: 'center', gap: 16 },
-  avatarImg: { width: 80, height: 80, borderRadius: 14, objectFit: 'cover', border: '2px solid var(--border)' },
+  avatarSection: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: uiSpace.md, flexWrap: 'wrap' },
+  avatarSectionCopy: { display: 'flex', alignItems: 'center', gap: uiSpace.md, minWidth: 0 },
+  formSectionTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: uiType.cardTitle, color: 'var(--text-h)', lineHeight: 1 },
+  formSectionDesc: { margin: '4px 0 0', color: 'var(--text-muted)', fontSize: uiType.small, fontFamily: readableFontFamily },
+  avatarImg: { width: 80, height: 80, borderRadius: uiRadius.lg, objectFit: 'cover', border: '2px solid var(--border)' },
   customAvatar: {
     position: 'relative',
-    borderRadius: 18,
+    borderRadius: uiRadius.xl,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -322,43 +340,38 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 15,
     boxShadow: '0 2px 6px rgba(0,0,0,0.16)',
   },
-  avatarPlaceholder: {
-    width: 80, height: 80, borderRadius: 14,
-    background: 'linear-gradient(135deg, #ADC178, #6C584C)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontSize: 32, fontWeight: 700,
-  },
   avatarUploadLabel: {
-    fontSize: 14, color: 'var(--accent)', fontWeight: 600, cursor: 'pointer',
-    padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border-focus)',
+    fontSize: uiType.small, color: 'var(--accent-dark)', fontWeight: 700, cursor: 'pointer',
+    padding: '9px 14px', borderRadius: uiRadius.md, border: '1px solid var(--border-focus)',
     background: 'var(--bg-accent-soft)', fontFamily: bodyFontFamily,
   },
   field: { display: 'flex', flexDirection: 'column', gap: 6 },
-  fieldLabel: { fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.6 },
-  fieldReadonly: { fontSize: 15, color: 'var(--text-secondary)', padding: '10px 14px', background: 'var(--bg-badge)', borderRadius: 9, border: '1px solid var(--border-muted)' },
+  fieldLabel: { fontSize: uiType.micro, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.6, fontFamily: readableFontFamily },
+  fieldReadonly: { fontSize: uiType.body, color: 'var(--text-secondary)', padding: '11px 14px', background: 'var(--bg-badge)', borderRadius: uiRadius.md, border: '1px solid var(--border-muted)', fontFamily: readableFontFamily },
   input: {
-    fontSize: 15, color: 'var(--text-body)', padding: '10px 14px',
-    background: 'var(--bg-input)', borderRadius: 9, border: '1px solid var(--border-strong)',
-    outline: 'none', fontFamily: bodyFontFamily,
+    ...inputSurface,
+    fontSize: uiType.body, padding: '11px 14px',
+    fontFamily: readableFontFamily,
   },
   textarea: { minHeight: 78, resize: 'vertical' },
   avatarBuilder: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
+    gap: uiSpace.sm,
+    padding: uiSpace.md,
+    borderRadius: uiRadius.lg,
     background: 'var(--bg-badge)',
     border: '1px solid var(--border-muted)',
   },
-  builderTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 20, color: 'var(--text-h)' },
-  builderDesc: { margin: '2px 0 0', color: 'var(--text-muted)', fontSize: 13 },
+  builderTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: uiType.sectionTitle, color: 'var(--text-h)' },
+  builderDesc: { margin: '2px 0 0', color: 'var(--text-muted)', fontSize: uiType.small, fontFamily: readableFontFamily },
+  optionLabel: { margin: '2px 0 -4px', color: 'var(--text-muted)', fontSize: uiType.micro, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700, fontFamily: readableFontFamily },
   optionGroup: { display: 'flex', flexWrap: 'wrap', gap: 8 },
   optionBtn: {
     border: '1px solid var(--border)',
     background: 'var(--bg-surface)',
     color: 'var(--text-body)',
-    borderRadius: 10,
+    borderRadius: uiRadius.md,
     padding: '8px 10px',
     cursor: 'pointer',
     fontFamily: bodyFontFamily,
@@ -381,11 +394,10 @@ const s: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     fontFamily: bodyFontFamily,
   },
-  message: { padding: '10px 14px', borderRadius: 9, fontSize: 14, fontWeight: 600, fontFamily: bodyFontFamily },
+  message: { padding: '10px 14px', borderRadius: uiRadius.md, fontSize: uiType.small, fontWeight: 700, fontFamily: readableFontFamily },
   saveBtn: {
-    padding: '12px 0', borderRadius: 11, border: 'none',
-    background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))',
-    color: 'var(--text-on-dark)', fontFamily: bodyFontFamily, fontSize: 16, fontWeight: 700,
-    cursor: 'pointer', boxShadow: '0 6px 18px rgba(58,88,32,0.35)',
+    ...primaryButton,
+    padding: '12px 0',
+    fontFamily: bodyFontFamily, fontSize: 16, fontWeight: 700,
   },
 }

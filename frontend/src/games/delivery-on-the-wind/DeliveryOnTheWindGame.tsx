@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createDeliveryGame } from './systems/createDeliveryGame'
-import type { DeliveryGameAPI, HUDState, InspectData } from './systems/createDeliveryGame'
+import type { DeliveryGameAPI, HUDState, InspectData, NpcTalkData } from './systems/createDeliveryGame'
 import { DELIVERY_TYPES } from './data/deliveryConfig'
 import { uiFontFamily, titleFontFamily, numberFontFamily } from '../../theme/typography'
 import { submitSession } from '../../lib/api'
@@ -54,6 +54,26 @@ function formatTime(sec: number) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+function getKikiOpinion(result: EndResult) {
+  if (result.outcome === 'win') {
+    if (result.timeRemaining >= 45) {
+      return "The wind was perfectly on our side today. Every package found its doorstep, and I still had time to wave at the flowers."
+    }
+    if (result.timeRemaining >= 20) {
+      return "A good delivery day. A few turns were tighter than I like, but every parcel made it home warm."
+    }
+    return "That was close enough to make my broom creak. Still, all four deliveries arrived, and that's what matters."
+  }
+
+  if (result.deliveries === 0) {
+    return "Today got away from me before the first package found its door. Next time I'll read the house signs sooner and trust the main paths."
+  }
+  if (result.deliveries < 3) {
+    return "I found part of the route, but the grove still had a few tricks left. I should plan the bridge crossing before I pick up the next parcel."
+  }
+  return "So close. Three deliveries is a strong run, but the last doorstep needs a cleaner route and a little less hesitation."
+}
+
 export default function DeliveryOnTheWindGame({ onExit }: Props) {
   useGameMusic('delivery')
 
@@ -66,6 +86,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   const [sessionId, setSessionId] = useState(0)
   const [hud, setHud]             = useState<HUDState | null>(null)
   const [inspecting, setInspecting] = useState<InspectData | null>(null)
+  const [talkingNpc, setTalkingNpc] = useState<NpcTalkData | null>(null)
   const [unlockedAchievements, setUnlockedAchievements] = useState<UnlockedAchievement[]>([])
 
   useEffect(() => {
@@ -90,6 +111,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
       onHUDUpdate:      (state) => setHud(state),
       onInspectPackage: (data) => setInspecting(data),
       onInspectHouse:   (data) => setInspecting(data),
+      onTalkNpc:        (data) => setTalkingNpc(data),
     })
 
     return () => {
@@ -100,6 +122,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
 
   const closeInspect = useCallback(() => {
     setInspecting(null)
+    setTalkingNpc(null)
     apiRef.current?.resumeFromInspection()
   }, [])
 
@@ -107,6 +130,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
     setResult(null)
     setHud(null)
     setInspecting(null)
+    setTalkingNpc(null)
     setSessionId(v => v + 1)
   }
 
@@ -204,6 +228,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   if (result !== null) {
     const won = result.outcome === 'win'
     const completionTime = won ? 120 - result.timeRemaining : null
+    const kikiOpinion = getKikiOpinion(result)
 
     return (
       <GameShell title="Delivery on the Wind" onExit={onExit} background={BG} accentColor="#e9dfc2">
@@ -216,14 +241,17 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
               {won ? 'All Delivered!' : "Time's Up!"}
             </h3>
 
+            <div style={s.deliverySummary}>
+              <span style={s.summaryLabel}>Packages Delivered</span>
+              <span style={{ ...s.summaryValue, color: won ? '#c6cf79' : '#ffb39f' }}>
+                {result.deliveries} / 4
+              </span>
+            </div>
+
             {won ? (
               <>
                 <p style={s.resultSub}>Kiki delivered every package — the grove is grateful!</p>
                 <div style={s.statGrid}>
-                  <div style={s.statBox}>
-                    <span style={s.statLabel}>Packages</span>
-                    <span style={s.statVal}>4 / 4</span>
-                  </div>
                   {completionTime !== null && (
                     <div style={s.statBox}>
                       <span style={s.statLabel}>Completion Time</span>
@@ -241,12 +269,6 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
             ) : (
               <>
                 <p style={s.resultSub}>{result.deliveries} of 4 packages delivered.</p>
-                <div style={s.statGrid}>
-                  <div style={s.statBox}>
-                    <span style={s.statLabel}>Packages</span>
-                    <span style={s.statVal}>{result.deliveries} / 4</span>
-                  </div>
-                </div>
                 <p style={{ ...s.resultSub, fontSize: 14, opacity: 0.7 }}>
                   {result.deliveries === 0
                     ? 'The packages are waiting — give it another go!'
@@ -254,6 +276,18 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
                 </p>
               </>
             )}
+
+            <div style={s.kikiReport}>
+              <img
+                src="/assets/backgrounds/delivery-on-the-wind/kiki.png"
+                alt="Kiki"
+                style={s.kikiPortrait}
+              />
+              <div style={s.kikiCopy}>
+                <span style={s.kikiLabel}>Kiki's Delivery Note</span>
+                <p style={s.kikiQuote}>{kikiOpinion}</p>
+              </div>
+            </div>
 
             <div style={s.resultActions}>
               <button style={s.primaryBtn} onClick={restart}>Play Again</button>
@@ -296,12 +330,26 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
                   Inspect House
                 </button>
               )}
+              {hud.nearNpcId && hud.nearNpcAssetKey && (
+                <button
+                  style={{ ...s.inspectBtn, ...s.talkNpcBtn }}
+                  onClick={() => apiRef.current?.talkNearNpc()}
+                >
+                  <img
+                    src={`/assets/npcs/${hud.nearNpcAssetKey}.png`}
+                    alt=""
+                    style={s.inspectBtnImg}
+                  />
+                  Talk to {hud.nearNpcName}
+                </button>
+              )}
             </div>
           )}
         </div>
       </div>
 
       {inspecting && <InspectModal data={inspecting} onClose={closeInspect} />}
+      {talkingNpc && <NpcTalkModal data={talkingNpc} onClose={closeInspect} />}
     </GameShell>
   )
 }
@@ -333,6 +381,31 @@ function InspectModal({ data, onClose }: { data: InspectData; onClose: () => voi
         </div>
         {isPackage && <p style={m.hint}>{data.hint}</p>}
         <button style={m.continueBtn} onClick={onClose}>Continue</button>
+      </div>
+    </div>
+  )
+}
+
+function NpcTalkModal({ data, onClose }: { data: NpcTalkData; onClose: () => void }) {
+  return (
+    <div style={m.backdrop} onClick={onClose}>
+      <div style={m.card} onClick={e => e.stopPropagation()}>
+        <div style={m.header}>
+          <h3 style={m.title}>{data.name}</h3>
+          <button style={m.closeBtn} onClick={onClose}>Close</button>
+        </div>
+        <div style={m.npcPortraitWrap}>
+          <img src={`/assets/npcs/${data.assetKey}.png`} alt={data.name} style={m.npcPortrait} />
+        </div>
+        <p style={m.npcRole}>{data.role}</p>
+        {data.heldLabel && (
+          <div style={m.npcPackageRow}>
+            <span style={{ ...m.typeDot, background: data.heldColorHex ?? '#e9dfc2' }} />
+            <span>{data.heldLabel}</span>
+          </div>
+        )}
+        <p style={m.npcLine}>{data.line}</p>
+        <button style={m.continueBtn} onClick={onClose}>Back to Delivery</button>
       </div>
     </div>
   )
@@ -466,6 +539,31 @@ const s: Record<string, React.CSSProperties> = {
   resultIcon:    { fontSize: 52, fontFamily: titleFontFamily, lineHeight: 1 },
   resultTitle:   { margin: 0, fontFamily: titleFontFamily, fontSize: 34, lineHeight: 1.1 },
   resultSub:     { margin: 0, fontSize: 15, color: '#d4c69e', lineHeight: 1.55, fontFamily: uiFontFamily },
+  deliverySummary: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    padding: '12px 16px',
+    borderRadius: 12,
+    background: 'rgba(233,223,194,0.08)',
+    border: '1px solid rgba(233,223,194,0.18)',
+    boxSizing: 'border-box',
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#d4c69e',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    fontFamily: uiFontFamily,
+  },
+  summaryValue: {
+    fontSize: 30,
+    lineHeight: 1,
+    fontFamily: numberFontFamily,
+  },
   statGrid:      { display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', width: '100%' },
   statBox: {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
@@ -474,6 +572,47 @@ const s: Record<string, React.CSSProperties> = {
   },
   statLabel: { fontSize: 11, color: '#9aa253', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.7, fontFamily: uiFontFamily },
   statVal:   { fontSize: 26, fontFamily: numberFontFamily, color: '#fff7e0', lineHeight: 1 },
+  kikiReport: {
+    width: '100%',
+    display: 'grid',
+    gridTemplateColumns: '54px 1fr',
+    gap: 12,
+    alignItems: 'center',
+    padding: '14px',
+    borderRadius: 14,
+    background: 'rgba(10,18,8,0.42)',
+    border: '1px solid rgba(154,162,83,0.22)',
+    boxSizing: 'border-box',
+    textAlign: 'left',
+  },
+  kikiPortrait: {
+    width: 54,
+    height: 54,
+    objectFit: 'contain',
+    borderRadius: 10,
+    background: 'rgba(233,223,194,0.08)',
+  },
+  kikiCopy: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    minWidth: 0,
+  },
+  kikiLabel: {
+    fontSize: 11,
+    color: '#9aa253',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    fontFamily: uiFontFamily,
+  },
+  kikiQuote: {
+    margin: 0,
+    color: '#fff7e0',
+    fontSize: 14,
+    lineHeight: 1.45,
+    fontFamily: uiFontFamily,
+  },
 
   resultActions: { display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', width: '100%', marginTop: 4 },
   primaryBtn: {
@@ -517,6 +656,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 4px 16px rgba(0,0,0,0.4)', whiteSpace: 'nowrap',
   },
   inspectHouseBtn: { borderColor: 'rgba(200,160,80,0.5)', color: '#F0D890' },
+  talkNpcBtn:      { borderColor: 'rgba(154,162,83,0.58)', color: '#DDE5B6' },
   inspectBtnImg:   { width: 28, height: 28, objectFit: 'contain', borderRadius: 4 },
 }
 
@@ -558,6 +698,51 @@ const m: Record<string, React.CSSProperties> = {
   labelRow:  { display: 'flex', alignItems: 'center', gap: 10 },
   typeDot:   { width: 14, height: 14, borderRadius: '50%', flexShrink: 0 },
   labelText: { fontSize: 18, fontWeight: 700, letterSpacing: 0.2, fontFamily: uiFontFamily },
+  npcPortraitWrap: {
+    width: 154,
+    height: 154,
+    borderRadius: 18,
+    background: 'rgba(90,144,48,0.08)',
+    border: '1px solid rgba(90,144,48,0.22)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  npcPortrait: { width: 138, height: 138, objectFit: 'contain' },
+  npcRole: {
+    margin: '-4px 0 0',
+    color: '#8A6A48',
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    fontFamily: uiFontFamily,
+  },
+  npcPackageRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    color: '#5A4030',
+    fontSize: 14,
+    fontWeight: 800,
+    fontFamily: uiFontFamily,
+  },
+  npcLine: {
+    margin: 0,
+    fontSize: 15,
+    color: '#3A2810',
+    textAlign: 'center',
+    lineHeight: 1.55,
+    padding: '12px 14px',
+    background: 'rgba(90,144,48,0.08)',
+    border: '1px solid rgba(90,144,48,0.22)',
+    borderRadius: 12,
+    width: '100%',
+    boxSizing: 'border-box',
+    fontFamily: uiFontFamily,
+  },
   hint: {
     margin: 0, fontSize: 14, color: '#5A4030', textAlign: 'center',
     lineHeight: 1.55, padding: '10px 14px',
