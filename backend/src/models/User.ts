@@ -25,7 +25,7 @@ const UserSchema = new Schema<IUser>(
     username:     { type: String, required: true, unique: true, trim: true, minlength: 2, maxlength: 100 },
     passwordHash: { type: String, required: true },
     lastLoginAt:  { type: Date },
-    avatarUrl:    { type: String, maxlength: 512 },
+    avatarUrl:    { type: String },
     status:       { type: String, trim: true, maxlength: 180 },
     favoriteSong: { type: String, trim: true, maxlength: 140 },
     favoriteSteamGames: { type: String, trim: true, maxlength: 300 },
