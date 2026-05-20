@@ -61,7 +61,7 @@ export default function AppShell({ onSelect, onLogout }: Props) {
         username={user?.username ?? ''}
         onLogout={onLogout}
       />
-      <main style={{ flex: 1, overflowY: 'auto', minWidth: 0, position: 'relative', zIndex: 1 }}>
+      <main style={{ flex: 1, overflowY: 'auto', minWidth: 0, position: 'relative', zIndex: 1, zoom: ({ sm: 0.9, md: 1.0, lg: 1.12 } as const)[settings.textSize ?? 'md'] }}>
         {section === 'games'       && <GameSelectionScreen onSelect={onSelect} onLogout={onLogout} />}
         {section === 'community'   && <CommunityPage />}
         {section === 'progress'    && <ProgressPage />}
@@ -74,30 +74,49 @@ export default function AppShell({ onSelect, onLogout }: Props) {
   )
 }
 
-const PARTICLES = [
-  { src: '/assets/animation/willow-leaves.gif', top: '0%', left: '18%', width: 150, opacity: 0.22, duration: '9s', delay: '0s' },
-  { src: '/assets/animation/wind.gif', top: '58%', left: '76%', width: 150, opacity: 0.18, duration: '11s', delay: '1s' },
-  { src: '/assets/animation/shine-1.gif', top: '18%', left: '62%', width: 58, opacity: 0.28, duration: '7s', delay: '0.5s' },
-  { src: '/assets/animation/shine-2.gif', top: '76%', left: '42%', width: 54, opacity: 0.20, duration: '8s', delay: '1.5s' },
-  { src: '/assets/animation/lady-2.gif', bottom: '0%', left: '84%', width: 96, opacity: 0.16, duration: '10s', delay: '0.8s' },
+type Particle = {
+  src: string
+  top?: string; bottom?: string; left?: string; right?: string
+  width: number; opacity: number; anim: string
+}
+
+const PARTICLES: Particle[] = [
+  // ─ Willow leaves — top canopy
+  { src: '/assets/animation/willow-leaves.gif', top: '0%',   left: '15%',  width: 148, opacity: 0.24, anim: 'float-spirit 9s ease-in-out 0s infinite' },
+  { src: '/assets/animation/willow-leaves.gif', top: '1%',   left: '71%',  width: 116, opacity: 0.18, anim: 'float-spirit 11.5s ease-in-out 3.2s infinite' },
+  // ─ Lily leaves — mid sides
+  { src: '/assets/animation/lily-leaf-1.gif',   top: '32%',  left: '1%',   width: 126, opacity: 0.21, anim: 'float-spirit 12s ease-in-out 1.8s infinite' },
+  { src: '/assets/animation/lily-leaf-2.gif',   top: '50%',  left: '91%',  width: 118, opacity: 0.19, anim: 'float-spirit 10.5s ease-in-out 4.2s infinite' },
+  { src: '/assets/animation/lily-leaf-1.gif',   top: '76%',  left: '5%',   width: 98,  opacity: 0.16, anim: 'float-spirit 13s ease-in-out 6s infinite' },
+  // ─ Wind — atmospheric drift
+  { src: '/assets/animation/wind.gif',          top: '55%',  left: '74%',  width: 155, opacity: 0.17, anim: 'ww-drift 11s ease-in-out 1s infinite' },
+  { src: '/assets/animation/wind.gif',          top: '22%',  left: '44%',  width: 108, opacity: 0.10, anim: 'ww-drift 14s ease-in-out 5.5s infinite' },
+  // ─ Shines / sparkles
+  { src: '/assets/animation/shine-1.gif',       top: '17%',  left: '61%',  width: 58,  opacity: 0.34, anim: 'ww-twinkle 7s ease-in-out 0.5s infinite' },
+  { src: '/assets/animation/shine-2.gif',       top: '74%',  left: '40%',  width: 52,  opacity: 0.25, anim: 'ww-twinkle 8.5s ease-in-out 2s infinite' },
+  { src: '/assets/animation/shine-3.gif',       top: '43%',  left: '87%',  width: 46,  opacity: 0.30, anim: 'ww-twinkle 6.5s ease-in-out 3s infinite' },
+  { src: '/assets/animation/shine-1.gif',       top: '88%',  left: '21%',  width: 42,  opacity: 0.20, anim: 'ww-twinkle 9s ease-in-out 1.2s infinite' },
+  // ─ Ladies — bottom, gentle sway
+  { src: '/assets/animation/lady-1.gif',        bottom: '0%', left: '6%',  width: 88,  opacity: 0.22, anim: 'ww-sway 10s ease-in-out 0.8s infinite' },
+  { src: '/assets/animation/lady-2.gif',        bottom: '0%', left: '83%', width: 94,  opacity: 0.19, anim: 'ww-sway 11s ease-in-out 2.5s infinite' },
+  { src: '/assets/animation/lady-3.gif',        bottom: '0%', left: '47%', width: 84,  opacity: 0.16, anim: 'ww-sway 12.5s ease-in-out 4s infinite' },
 ]
 
 function ShellParticles() {
   return (
     <div style={particleStyles.wrap} aria-hidden="true">
-      {PARTICLES.map((particle, index) => (
+      {PARTICLES.map((p, i) => (
         <img
-          key={`${particle.src}-${index}`}
-          src={particle.src}
+          key={i}
+          src={p.src}
           alt=""
           style={{
             ...particleStyles.image,
-            top: particle.top,
-            bottom: particle.bottom,
-            left: particle.left,
-            width: particle.width,
-            opacity: particle.opacity,
-            animation: `float-spirit ${particle.duration} ease-in-out ${particle.delay} infinite`,
+            top: p.top, bottom: p.bottom,
+            left: p.left, right: p.right,
+            width: p.width,
+            opacity: p.opacity,
+            animation: p.anim,
           }}
         />
       ))}

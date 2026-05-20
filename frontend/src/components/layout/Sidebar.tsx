@@ -4,6 +4,7 @@ import { headingFontFamily, bodyFontFamily } from '../../theme/typography'
 import { useTheme } from '../../context/ThemeContext'
 import { GAME_THEMES } from '../../context/themeTypes'
 import { getProfile, mediaUrl, type AvatarConfig } from '../../lib/api'
+import { AvatarSvg, DEFAULT_RICH_AVATAR, type RichAvatarConfig } from '../AvatarCreator'
 
 export type SidebarSection = 'games' | 'community' | 'progress' | 'achievements' | 'leaderboard' | 'profile' | 'settings'
 
@@ -34,6 +35,8 @@ export default function Sidebar({ active, onChange, username, onLogout }: Props)
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | null>(null)
+  const [richAvatar, setRichAvatar] = useState<RichAvatarConfig | null>(null)
+  const [avatarPref, setAvatarPref] = useState<'photo' | 'rich' | null>(null)
   const [userStatus, setUserStatus] = useState<string | null>(null)
 
   useEffect(() => {
@@ -43,7 +46,14 @@ export default function Sidebar({ active, onChange, username, onLogout }: Props)
         if (data?.error) return
         setAvatarUrl(data.avatarUrl ?? null)
         setAvatarConfig(data.avatarConfig ?? null)
+        setAvatarPref(data.avatarPreference ?? null)
         setUserStatus(data.status ?? null)
+        if (data.richAvatarConfig) {
+          try {
+            const parsed = { ...DEFAULT_RICH_AVATAR, ...JSON.parse(data.richAvatarConfig) }
+            if (JSON.stringify(parsed) !== JSON.stringify(DEFAULT_RICH_AVATAR)) setRichAvatar(parsed)
+          } catch { /* ignore */ }
+        }
       })
       .catch(() => {})
   }, [username])
@@ -111,7 +121,21 @@ export default function Sidebar({ active, onChange, username, onLogout }: Props)
       {/* User footer */}
       <div style={s.footer}>
         <button style={s.userRow} onClick={() => onChange('profile')} title="Edit profile">
-          {avatarUrl ? (
+          {avatarPref === 'rich' && richAvatar ? (
+            <div style={{ ...s.avatar, overflow: 'hidden', padding: 0, lineHeight: 0 } as CSSProperties}>
+              <AvatarSvg config={richAvatar} size={32} />
+            </div>
+          ) : avatarPref === 'photo' && avatarUrl ? (
+            <img
+              src={mediaUrl(avatarUrl)}
+              alt=""
+              style={{ ...s.avatar, objectFit: 'cover', padding: 0 } as CSSProperties}
+            />
+          ) : richAvatar ? (
+            <div style={{ ...s.avatar, overflow: 'hidden', padding: 0, lineHeight: 0 } as CSSProperties}>
+              <AvatarSvg config={richAvatar} size={32} />
+            </div>
+          ) : avatarUrl ? (
             <img
               src={mediaUrl(avatarUrl)}
               alt=""

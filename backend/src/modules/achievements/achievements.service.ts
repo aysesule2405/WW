@@ -11,7 +11,9 @@ export type AchievementDTO = AchievementDefinition & {
   awardedAt: Date | null
 }
 
-const byCode = new Map(ACHIEVEMENTS.map((achievement) => [achievement.code, achievement]))
+const byCode = new Map(ACHIEVEMENTS.map((a) => [a.code, a]))
+
+const ALL_GAME_SLUGS = ['spirit-drift', 'delivery-on-the-wind', 'spirit-sapling', 'half-moon']
 
 async function ensureBadge(definition: AchievementDefinition) {
   return Badge.findOneAndUpdate(
@@ -53,8 +55,8 @@ async function award(userId: string, code: string) {
 async function awardMany(userId: string, codes: string[]) {
   const unlocked = []
   for (const code of codes) {
-    const achievement = await award(userId, code)
-    if (achievement) unlocked.push(achievement)
+    const a = await award(userId, code)
+    if (a) unlocked.push(a)
   }
   return unlocked
 }
@@ -63,12 +65,10 @@ async function getUnlockedSacredTreeCount(userId: string) {
   const treeCodes = ['sapling_tree_deer', 'sapling_tree_fox', 'sapling_tree_kodama', 'sapling_tree_mononoke']
   const badges = await Badge.find({ code: { $in: treeCodes } }).select('_id code').lean()
   if (badges.length === 0) return 0
-
   const earned = await UserBadge.find({
     userId: new Types.ObjectId(userId),
-    badgeId: { $in: badges.map((badge) => badge._id) },
+    badgeId: { $in: badges.map((b) => b._id) },
   }).lean()
-
   return earned.length
 }
 
@@ -77,11 +77,7 @@ export default {
     const badges = await Promise.all(ACHIEVEMENTS.map(ensureBadge))
     return badges.map((badge) => {
       const definition = byCode.get(badge.code)!
-      return {
-        ...definition,
-        earned: false,
-        awardedAt: null,
-      }
+      return { ...definition, earned: false, awardedAt: null }
     })
   },
 
@@ -89,68 +85,169 @@ export default {
     const badges = await Promise.all(ACHIEVEMENTS.map(ensureBadge))
     let earned = await UserBadge.find({
       userId: new Types.ObjectId(userId),
-      badgeId: { $in: badges.map((badge) => badge._id) },
+      badgeId: { $in: badges.map((b) => b._id) },
     }).lean()
 
     const userOid = new Types.ObjectId(userId)
     const earnedByBadgeId = new Map(earned.map((row) => [row.badgeId.toString(), row]))
     const earnedCodes = new Set(
       badges
-        .filter((badge) => earnedByBadgeId.has(badge._id.toString()))
-        .map((badge) => badge.code)
+        .filter((b) => earnedByBadgeId.has(b._id.toString()))
+        .map((b) => b.code)
     )
 
     const [sessions, highScores] = await Promise.all([
       GameSession.find({ userId: userOid }).lean(),
       UserHighScore.find({ userId: userOid }).lean(),
     ])
-    const games = await Game.find({ _id: { $in: highScores.map((row) => row.gameId) } }).select('_id slug').lean()
-    const gameIdToSlug = new Map(games.map((game) => [game._id.toString(), game.slug]))
+    const games = await Game.find({ _id: { $in: highScores.map((r) => r.gameId) } }).select('_id slug').lean()
+    const gameIdToSlug = new Map(games.map((g) => [g._id.toString(), g.slug]))
     const highScoreBySlug = new Map<string, number>()
     for (const row of highScores) {
       const slug = gameIdToSlug.get(row.gameId.toString())
       if (slug) highScoreBySlug.set(slug, row.score)
     }
 
+    // ── Per-game session sets ─────────────────────────────────────────────────
+    const driftSessions     = sessions.filter((s) => s.gameSlug === 'spirit-drift')
+    const saplingSessions   = sessions.filter((s) => s.gameSlug === 'spirit-sapling')
+    const deliverySessions  = sessions.filter((s) => s.gameSlug === 'delivery-on-the-wind' && s.completed)
+    const halfMoonSessions  = sessions.filter((s) => s.gameSlug === 'half-moon')
+
     const saplingTreeGuardians = new Set(
-      sessions
-        .filter((session) => session.gameSlug === 'spirit-sapling' && session.completed && session.guardianId)
-        .map((session) => session.guardianId)
+      saplingSessions
+        .filter((s) => s.completed && s.guardianId)
+        .map((s) => s.guardianId as string)
     )
 
+    const harmonyBonusSessions = saplingSessions.filter((s) => s.harmonyBonus === true)
+
+    const guardianCounts: Record<string, number> = {}
+    for (const s of saplingSessions.filter((s) => s.completed && s.guardianId)) {
+      const g = s.guardianId as string
+      guardianCounts[g] = (guardianCounts[g] ?? 0) + 1
+    }
+    const maxSameGuardian = Math.max(0, ...Object.values(guardianCounts))
+
+    const halfMoonWins = halfMoonSessions.filter((s) => s.won === true).length
+
+    // ── Grove-wide stats ──────────────────────────────────────────────────────
+    const totalSessions = sessions.length
+    const distinctGameSlugs = new Set(sessions.map((s) => s.gameSlug))
+
+    // Different games per calendar day
+    const gamesByDay = new Map<string, Set<string>>()
+    const sessionCountByDay = new Map<string, number>()
+    for (const s of sessions) {
+      const day = new Date(s.createdAt).toISOString().split('T')[0]
+      if (!gamesByDay.has(day)) gamesByDay.set(day, new Set())
+      gamesByDay.get(day)!.add(s.gameSlug)
+      sessionCountByDay.set(day, (sessionCountByDay.get(day) ?? 0) + 1)
+    }
+    const maxDiffGamesInDay = Math.max(0, ...[...gamesByDay.values()].map((s) => s.size))
+    const maxSessionsInDay  = Math.max(0, ...[...sessionCountByDay.values()])
+
+    // Time-of-day helpers
+    const hasSessionInHours = (h1: number, h2: number) =>
+      sessions.some((s) => { const h = new Date(s.createdAt).getHours(); return h >= h1 && h < h2 })
+
+    // ── Evaluate which unearned achievements should now be awarded ─────────────
     const recoveredCodes = ACHIEVEMENTS
-      .filter((definition) => !earnedCodes.has(definition.code))
-      .filter((definition) => {
-        if (definition.code === 'sapling_all_trees') return saplingTreeGuardians.size >= 4
-        if (definition.code.startsWith('sapling_tree_')) {
-          const guardianId = String(definition.criteria.guardianId ?? '')
-          return saplingTreeGuardians.has(guardianId)
+      .filter((def) => !earnedCodes.has(def.code) && !def.future)
+      .filter((def) => {
+        switch (def.code) {
+          // Sapling trees
+          case 'sapling_tree_deer':
+          case 'sapling_tree_fox':
+          case 'sapling_tree_kodama':
+          case 'sapling_tree_mononoke':
+            return saplingTreeGuardians.has(String(def.criteria.guardianId ?? ''))
+          case 'sapling_all_trees':
+            return saplingTreeGuardians.size >= 4
+          case 'sapling_10_sessions':
+            return saplingSessions.length >= 10
+          case 'sapling_harmony':
+            return harmonyBonusSessions.length >= 1
+          case 'sapling_harmony_5':
+            return harmonyBonusSessions.length >= 5
+          case 'sapling_guardian_devoted':
+            return maxSameGuardian >= 10
+
+          // Delivery
+          case 'delivery_under_60':
+            return deliverySessions.some((s) => typeof s.completionTimeSeconds === 'number' && s.completionTimeSeconds < 60)
+          case 'delivery_under_45':
+            return deliverySessions.some((s) => typeof s.completionTimeSeconds === 'number' && s.completionTimeSeconds < 45)
+          case 'delivery_under_30':
+            return deliverySessions.some((s) => typeof s.completionTimeSeconds === 'number' && s.completionTimeSeconds < 30)
+          case 'delivery_10_sessions':
+            return deliverySessions.length >= 10
+          case 'delivery_50_sessions':
+            return deliverySessions.length >= 50
+
+          // Drift
+          case 'drift_score_200':
+            return (highScoreBySlug.get('spirit-drift') ?? 0) > 200 ||
+              driftSessions.some((s) => (s.score ?? 0) > 200)
+          case 'drift_score_500':
+            return (highScoreBySlug.get('spirit-drift') ?? 0) > 500 ||
+              driftSessions.some((s) => (s.score ?? 0) > 500)
+          case 'drift_score_1000':
+            return (highScoreBySlug.get('spirit-drift') ?? 0) > 1000 ||
+              driftSessions.some((s) => (s.score ?? 0) > 1000)
+          case 'drift_10_sessions':
+            return driftSessions.length >= 10
+          case 'drift_50_sessions':
+            return driftSessions.length >= 50
+
+          // Half Moon
+          case 'half_moon_score_50':
+            return (highScoreBySlug.get('half-moon') ?? 0) >= 50 ||
+              halfMoonSessions.some((s) => (s.score ?? 0) >= 50)
+          case 'half_moon_score_100':
+            return (highScoreBySlug.get('half-moon') ?? 0) >= 100 ||
+              halfMoonSessions.some((s) => (s.score ?? 0) >= 100)
+          case 'half_moon_score_200':
+            return (highScoreBySlug.get('half-moon') ?? 0) >= 200 ||
+              halfMoonSessions.some((s) => (s.score ?? 0) >= 200)
+          case 'half_moon_10_sessions':
+            return halfMoonSessions.length >= 10
+          case 'half_moon_wins_5':
+            return halfMoonWins >= 5
+
+          // Grove-wide
+          case 'grove_first_session':
+            return totalSessions >= 1
+          case 'grove_10_sessions':
+            return totalSessions >= 10
+          case 'grove_50_sessions':
+            return totalSessions >= 50
+          case 'grove_100_sessions':
+            return totalSessions >= 100
+          case 'grove_all_games':
+            return ALL_GAME_SLUGS.every((slug) => distinctGameSlugs.has(slug))
+          case 'grove_3_in_day':
+            return maxDiffGamesInDay >= 3
+
+          // Easter eggs
+          case 'easter_midnight':
+            return hasSessionInHours(0, 4)
+          case 'easter_early_bird':
+            return hasSessionInHours(4, 6)
+          case 'easter_5_in_day':
+            return maxSessionsInDay >= 5
+
+          default:
+            return false
         }
-        if (definition.code === 'delivery_under_60') {
-          return sessions.some((session) =>
-            session.gameSlug === 'delivery-on-the-wind' &&
-            session.completed &&
-            typeof session.completionTimeSeconds === 'number' &&
-            session.completionTimeSeconds < 60
-          )
-        }
-        if (definition.code === 'drift_score_200') {
-          return (highScoreBySlug.get('spirit-drift') ?? 0) > 200 ||
-            sessions.some((session) => session.gameSlug === 'spirit-drift' && (session.score ?? 0) > 200)
-        }
-        if (definition.code === 'half_moon_score_50') {
-          return (highScoreBySlug.get('half-moon') ?? 0) >= 50 ||
-            sessions.some((session) => session.gameSlug === 'half-moon' && (session.score ?? 0) >= 50)
-        }
-        return false
       })
-      .map((definition) => definition.code)
+      .map((def) => def.code)
 
     if (recoveredCodes.length > 0) {
       await awardMany(userId, recoveredCodes)
       earned = await UserBadge.find({
         userId: userOid,
-        badgeId: { $in: badges.map((badge) => badge._id) },
+        badgeId: { $in: badges.map((b) => b._id) },
       }).lean()
       earnedByBadgeId.clear()
       for (const row of earned) earnedByBadgeId.set(row.badgeId.toString(), row)
@@ -159,11 +256,7 @@ export default {
     return badges.map((badge) => {
       const row = earnedByBadgeId.get(badge._id.toString())
       const definition = byCode.get(badge.code)!
-      return {
-        ...definition,
-        earned: Boolean(row),
-        awardedAt: row?.awardedAt ?? null,
-      }
+      return { ...definition, earned: Boolean(row), awardedAt: row?.awardedAt ?? null }
     })
   },
 
@@ -175,33 +268,42 @@ export default {
     completionTimeSeconds?: number | null
     guardianId?: string | null
     won?: boolean | null
+    harmonyBonus?: boolean | null
   }) => {
     const codes: string[] = []
 
+    // Spirit Sapling guardian trees
     if (input.gameSlug === 'spirit-sapling' && input.completed && input.guardianId) {
       const treeCode = `sapling_tree_${input.guardianId}`
       if (byCode.has(treeCode)) codes.push(treeCode)
     }
 
+    // Spirit Sapling harmony
+    if (input.gameSlug === 'spirit-sapling' && input.harmonyBonus) {
+      codes.push('sapling_harmony')
+    }
+
+    // Delivery time tiers
     if (
       input.gameSlug === 'delivery-on-the-wind' &&
       input.completed &&
-      typeof input.completionTimeSeconds === 'number' &&
-      input.completionTimeSeconds < 60
+      typeof input.completionTimeSeconds === 'number'
     ) {
-      codes.push('delivery_under_60')
+      if (input.completionTimeSeconds < 60) codes.push('delivery_under_60')
+      if (input.completionTimeSeconds < 45) codes.push('delivery_under_45')
+      if (input.completionTimeSeconds < 30) codes.push('delivery_under_30')
     }
 
-    if (
-      input.gameSlug === 'half-moon' &&
-      typeof input.score === 'number' &&
-      input.score >= 50
-    ) {
-      codes.push('half_moon_score_50')
+    // Half Moon score thresholds
+    if (input.gameSlug === 'half-moon' && typeof input.score === 'number') {
+      if (input.score >= 50)  codes.push('half_moon_score_50')
+      if (input.score >= 100) codes.push('half_moon_score_100')
+      if (input.score >= 200) codes.push('half_moon_score_200')
     }
 
     const unlocked = await awardMany(input.userId, codes)
 
+    // Sapling all-trees check (needs DB)
     if (input.gameSlug === 'spirit-sapling') {
       const unlockedTreeCount = await getUnlockedSacredTreeCount(input.userId)
       if (unlockedTreeCount >= 4) {
@@ -219,11 +321,15 @@ export default {
     score: number
   }) => {
     const codes: string[] = []
-    if (input.gameSlug === 'spirit-drift' && input.score > 200) {
-      codes.push('drift_score_200')
+    if (input.gameSlug === 'spirit-drift') {
+      if (input.score > 200)  codes.push('drift_score_200')
+      if (input.score > 500)  codes.push('drift_score_500')
+      if (input.score > 1000) codes.push('drift_score_1000')
     }
-    if (input.gameSlug === 'half-moon' && input.score >= 50) {
-      codes.push('half_moon_score_50')
+    if (input.gameSlug === 'half-moon') {
+      if (input.score >= 50)  codes.push('half_moon_score_50')
+      if (input.score >= 100) codes.push('half_moon_score_100')
+      if (input.score >= 200) codes.push('half_moon_score_200')
     }
     return awardMany(input.userId, codes)
   },

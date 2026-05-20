@@ -1136,3 +1136,65 @@ button:focus-visible {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Grove ambient animations ─────────────────────────────────── */
+
+@keyframes ww-sway {
+  0%,  100% { transform: rotate(-4deg) translateY(0)    scale(1);    }
+  50%        { transform: rotate(4deg)  translateY(-8px) scale(1.04); }
+}
+
+@keyframes ww-twinkle {
+  0%,  100% { transform: scale(1)    rotate(0deg);  opacity: 0.7; }
+  25%        { transform: scale(1.22) rotate(6deg);  opacity: 1;   }
+  75%        { transform: scale(1.08) rotate(-4deg); opacity: 0.85; }
+}
+
+@keyframes ww-drift {
+  0%,  100% { transform: translateX(0)   translateY(0);   }
+  40%        { transform: translateX(10px) translateY(-18px); }
+  70%        { transform: translateX(-6px) translateY(-10px); }
+}
+
+@keyframes ww-float-gentle {
+  0%,  100% { transform: translateY(0)    rotate(-2deg); }
+  50%        { transform: translateY(-16px) rotate(2deg);  }
+}
+
+@keyframes ww-medal-bounce {
+  0%,  80%, 100% { transform: translateY(0)    scale(1);    }
+  30%             { transform: translateY(-7px) scale(1.22); }
+  55%             { transform: translateY(-2px) scale(0.94); }
+}
+
+@keyframes ww-bar-in {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+@keyframes ww-avatar-ring {
+  0%,  100% { box-shadow: 0 0 0 0   rgba(173,193,120,0);    }
+  50%        { box-shadow: 0 0 0 5px rgba(173,193,120,0.38); }
+}
+
+/* Medal bounce classes */
+.ww-medal-1 { display: inline-block; animation: ww-medal-bounce 3.2s ease-in-out 0s   infinite; }
+.ww-medal-2 { display: inline-block; animation: ww-medal-bounce 3.6s ease-in-out 0.5s infinite; }
+.ww-medal-3 { display: inline-block; animation: ww-medal-bounce 4.0s ease-in-out 1.0s infinite; }
+
+/* Score bar entrance */
+.ww-bar-in {
+  transform-origin: left center;
+  animation: ww-bar-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Welcome avatar ring pulse */
+.ww-avatar-ring {
+  border-radius: 50%;
+  animation: ww-avatar-ring 3s ease-in-out infinite;
+}
+
+/* Hide decorative images on narrow screens to keep layout clean */
+@media (max-width: 680px) {
+  .ww-deco-img { display: none !important; }
+}

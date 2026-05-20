@@ -1,8 +1,14 @@
+export type TextSize = 'sm' | 'md' | 'lg'
+
 export type UserSettings = {
   sound: boolean
   music: boolean
   reduceMotion: boolean
   particles: boolean
+  sfxVolume: number       // 0–1
+  musicVolume: number     // 0–1
+  textSize: TextSize
+  leaderboardVisible: boolean
 }
 
 export const SETTINGS_EVENT = 'ww-settings-change'
@@ -14,6 +20,10 @@ export const DEFAULT_SETTINGS: UserSettings = {
   music: true,
   reduceMotion: false,
   particles: true,
+  sfxVolume: 0.8,
+  musicVolume: 0.35,
+  textSize: 'md',
+  leaderboardVisible: true,
 }
 
 export function loadUserSettings(): UserSettings {
@@ -41,4 +51,10 @@ export function loadDashboardBackground(): string {
 export function saveDashboardBackground(path: string) {
   localStorage.setItem(DASHBOARD_BG_KEY, path)
   window.dispatchEvent(new CustomEvent(SETTINGS_EVENT, { detail: loadUserSettings() }))
+}
+
+export function resetAllSettings() {
+  localStorage.removeItem(SETTINGS_KEY)
+  localStorage.removeItem(DASHBOARD_BG_KEY)
+  window.dispatchEvent(new CustomEvent(SETTINGS_EVENT, { detail: DEFAULT_SETTINGS }))
 }

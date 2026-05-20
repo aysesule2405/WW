@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { bodyFontFamily, headingFontFamily } from '../theme/typography'
+import { AvatarSvg, DEFAULT_RICH_AVATAR, type RichAvatarConfig } from '../components/AvatarCreator'
 import {
   createCommunityPost,
   createCommunityReply,
@@ -9,6 +10,98 @@ import {
   type CommunityPost,
   type CommunityTopic,
 } from '../lib/api'
+
+// ── Regulations post (always pinned at top) ────────────────────────────────────
+
+const REGULATIONS_SECTIONS = [
+  {
+    icon: '🌿',
+    heading: 'Be Kind & Respectful',
+    body: 'Treat every grove wanderer with warmth. Harassment, personal attacks, hate speech, or discriminatory language of any kind will not be tolerated. Disagreements happen — address the idea, not the person.',
+  },
+  {
+    icon: '🍃',
+    heading: 'Stay On Topic',
+    body: 'Use the correct topic tag for your post. Game-specific tips, route advice, and session stories belong in their game\'s topic. General chat, introductions, and off-topic discussions go in General.',
+  },
+  {
+    icon: '🌰',
+    heading: 'Mark Spoilers',
+    body: 'If your post reveals hidden seeds, secret routes, special cards, unlockable atmospheres, or any other discovery — include a spoiler warning in the title so others can choose to look.',
+  },
+  {
+    icon: '📦',
+    heading: 'No Spam or Self-Promotion',
+    body: 'Avoid posting the same content repeatedly. Do not advertise external services, referral links, or other platforms. One post per topic per day is plenty.',
+  },
+  {
+    icon: '🌊',
+    heading: 'Share Scores with Grace',
+    body: 'High scores, leaderboard positions, and achievement unlocks are welcome — frame them to celebrate the journey, not to diminish other players\' efforts.',
+  },
+  {
+    icon: '🌙',
+    heading: 'Moderation',
+    body: 'Posts that violate these guidelines will be removed without notice. Repeated or severe violations may result in a suspension of posting privileges. If you see something harmful, use the report feature or reach out to the grove team.',
+  },
+]
+
+function RegulationsCard() {
+  const [open, setOpen] = React.useState(false)
+
+  return (
+    <article style={s.pinCard}>
+      {/* Pin badge */}
+      <div style={s.pinBadge}>📌 Pinned</div>
+
+      <div style={s.pinRow}>
+        {/* Staff avatar */}
+        <div style={s.staffAvatar}>🏕️</div>
+
+        {/* Content */}
+        <div style={s.pinContent}>
+          <div style={s.pinMeta}>
+            <span style={s.staffBadge}>Grove Staff</span>
+            <span style={s.pinMetaDot}>·</span>
+            <span style={s.pinTopic}>💬 General</span>
+            <span style={s.pinMetaDot}>·</span>
+            <span style={s.pinDate}>May 20, 2026</span>
+          </div>
+
+          <h3 style={s.pinTitle}>🌿 Whisperwind Grove — Community Guidelines</h3>
+
+          <p style={s.pinIntro}>
+            Welcome to the grove. To keep this space peaceful and welcoming for all wandering spirits,
+            please read and follow these community guidelines.
+          </p>
+
+          {open && (
+            <div style={s.rulesSections}>
+              {REGULATIONS_SECTIONS.map((sec) => (
+                <div key={sec.heading} style={s.rulesSection}>
+                  <p style={s.rulesSectionHeading}>
+                    <span style={{ fontSize: 16, lineHeight: 1 }}>{sec.icon}</span>
+                    {sec.heading}
+                  </p>
+                  <p style={s.rulesSectionBody}>{sec.body}</p>
+                </div>
+              ))}
+
+              <p style={s.rulesSignoff}>
+                Thank you for being part of Whisperwind Grove. 🍃<br />
+                <em>— The Whisperwind Grove Team</em>
+              </p>
+            </div>
+          )}
+
+          <button style={s.pinToggle} onClick={() => setOpen((v) => !v)}>
+            {open ? '▲ Collapse guidelines' : '▼ Read full guidelines'}
+          </button>
+        </div>
+      </div>
+    </article>
+  )
+}
 
 const TOPICS: Array<{ id: CommunityTopic | 'all'; label: string; icon: string }> = [
   { id: 'all',          label: 'All',            icon: '🌐' },
@@ -37,14 +130,34 @@ function initials(name: string) { return name.slice(0, 2).toUpperCase() }
 const AVATAR_PALETTE = ['#4a7c59', '#6b5c3e', '#5c6b9e', '#7a3c5c', '#3c6b7a', '#7a6b3c', '#3c5c7a']
 function avatarColor(name: string) { return AVATAR_PALETTE[name.charCodeAt(0) % AVATAR_PALETTE.length] }
 
+function parseRichAvatar(raw: string | null | undefined): RichAvatarConfig | null {
+  if (!raw) return null
+  try {
+    const parsed = { ...DEFAULT_RICH_AVATAR, ...JSON.parse(raw) }
+    return JSON.stringify(parsed) !== JSON.stringify(DEFAULT_RICH_AVATAR) ? parsed : null
+  } catch { return null }
+}
+
 function AvatarCircle({
-  username, avatarUrl, avatarConfig, size = 32,
+  username, avatarUrl, avatarConfig, richAvatarConfig, avatarPreference, size = 32,
 }: {
   username: string
   avatarUrl?: string | null
   avatarConfig?: { face: string; color: string; accessory: string } | null
+  richAvatarConfig?: string | null
+  avatarPreference?: 'photo' | 'rich' | null
   size?: number
 }) {
+  const richAvatar = parseRichAvatar(richAvatarConfig)
+  const showRich = avatarPreference === 'rich' ? !!richAvatar : richAvatar && !avatarUrl
+
+  if (showRich && richAvatar) {
+    return (
+      <div style={{ width: size, height: size, minWidth: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, lineHeight: 0 }}>
+        <AvatarSvg config={richAvatar} size={size} />
+      </div>
+    )
+  }
   if (avatarUrl) {
     return (
       <img
@@ -283,6 +396,9 @@ export default function CommunityPage() {
             </button>
           </div>
 
+          {/* Pinned regulations post — always first */}
+          <RegulationsCard />
+
           {loading ? (
             <p style={s.empty}>Loading community posts...</p>
           ) : sortedPosts.length === 0 ? (
@@ -323,6 +439,8 @@ export default function CommunityPage() {
                           username={post.author.username}
                           avatarUrl={post.author.avatarUrl}
                           avatarConfig={post.author.avatarConfig}
+                          richAvatarConfig={post.author.richAvatarConfig}
+                          avatarPreference={post.author.avatarPreference}
                           size={20}
                         />
                         <span style={s.metaText}>{post.author.username}</span>
@@ -373,6 +491,8 @@ export default function CommunityPage() {
                                     username={reply.author.username}
                                     avatarUrl={reply.author.avatarUrl}
                                     avatarConfig={reply.author.avatarConfig}
+                                    richAvatarConfig={reply.author.richAvatarConfig}
+                                    avatarPreference={reply.author.avatarPreference}
                                     size={32}
                                   />
                                   <div style={s.replyContent}>
@@ -655,6 +775,152 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 14,
     background: 'var(--bg-surface)',
     border: '1px solid var(--border)',
+  },
+
+  // ── Pinned regulations card ───────────────────────────────────────────────
+  pinCard: {
+    position: 'relative',
+    borderRadius: 16,
+    border: '2px solid var(--accent)',
+    background: 'var(--bg-accent-soft)',
+    boxShadow: '0 0 0 3px rgba(0,0,0,0.04), var(--shadow-sm)',
+    overflow: 'hidden',
+    padding: '16px 18px 14px',
+  },
+  pinBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 14,
+    fontSize: 11,
+    fontWeight: 800,
+    letterSpacing: '0.06em',
+    color: 'var(--accent-dark)',
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border-focus)',
+    borderRadius: 999,
+    padding: '3px 10px',
+  },
+  pinRow: {
+    display: 'flex',
+    gap: 14,
+    alignItems: 'flex-start',
+  },
+  staffAvatar: {
+    width: 40,
+    height: 40,
+    minWidth: 40,
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 20,
+    flexShrink: 0,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+  },
+  pinContent: {
+    flex: 1,
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  pinMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  staffBadge: {
+    fontSize: 11,
+    fontWeight: 800,
+    letterSpacing: '0.05em',
+    color: 'var(--accent-dark)',
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border-focus)',
+    borderRadius: 4,
+    padding: '2px 8px',
+  },
+  pinMetaDot: { color: 'var(--text-muted)', fontSize: 12 },
+  pinTopic: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: 'var(--accent-dark)',
+    background: 'var(--bg-accent-soft)',
+    border: '1px solid var(--border-focus)',
+    borderRadius: 999,
+    padding: '2px 9px',
+  },
+  pinDate: { fontSize: 12, color: 'var(--text-muted)' },
+  pinTitle: {
+    margin: 0,
+    fontFamily: headingFontFamily,
+    fontSize: 19,
+    color: 'var(--text-h)',
+    lineHeight: 1.3,
+    paddingRight: 90,
+  },
+  pinIntro: {
+    margin: 0,
+    fontSize: 13,
+    color: 'var(--text-body)',
+    lineHeight: 1.55,
+  },
+  rulesSections: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    marginTop: 4,
+    padding: '14px 0 4px',
+    borderTop: '1px solid var(--border-focus)',
+  },
+  rulesSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 3,
+    paddingLeft: 4,
+    borderLeft: '3px solid var(--accent)',
+    paddingRight: 0,
+    marginLeft: 2,
+  },
+  rulesSectionHeading: {
+    margin: 0,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 7,
+    fontSize: 14,
+    fontWeight: 800,
+    fontFamily: headingFontFamily,
+    color: 'var(--text-h)',
+  },
+  rulesSectionBody: {
+    margin: 0,
+    fontSize: 13,
+    color: 'var(--text-body)',
+    lineHeight: 1.55,
+    paddingLeft: 23,
+  },
+  rulesSignoff: {
+    margin: '8px 0 0',
+    fontSize: 13,
+    color: 'var(--text-muted)',
+    lineHeight: 1.6,
+    paddingTop: 10,
+    borderTop: '1px solid var(--border-muted)',
+  },
+  pinToggle: {
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    padding: '5px 12px',
+    borderRadius: 8,
+    border: '1px solid var(--border-focus)',
+    background: 'var(--bg-surface)',
+    color: 'var(--accent-dark)',
+    fontFamily: bodyFontFamily,
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+    transition: 'background 150ms',
   },
 
   // Post card

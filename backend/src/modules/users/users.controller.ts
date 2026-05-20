@@ -16,13 +16,15 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
     favoriteSong: user.favoriteSong ?? '',
     favoriteSteamGames: user.favoriteSteamGames ?? '',
     avatarConfig: user.avatarConfig ?? null,
+    richAvatarConfig: user.richAvatarConfig ?? null,
+    avatarPreference: (user as any).avatarPreference ?? null,
   })
 }
 
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   const userId = req.userId
   if (!userId) return res.status(401).json({ error: 'Unauthorized' })
-  const { username, status, favoriteSong, favoriteSteamGames, avatarConfig } = req.body || {}
+  const { username, status, favoriteSong, favoriteSteamGames, avatarConfig, richAvatarConfig } = req.body || {}
   if (!username) return res.status(400).json({ error: 'username is required' })
   try {
     await userRepo.updateProfile(userId, {
@@ -37,6 +39,10 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
             accessory: String(avatarConfig.accessory ?? 'leaf').slice(0, 40),
           }
         : undefined,
+      richAvatarConfig: typeof richAvatarConfig === 'string'
+        ? richAvatarConfig.slice(0, 4000)
+        : undefined,
+      avatarPreference: typeof richAvatarConfig === 'string' ? 'rich' : undefined,
     })
     return res.status(200).json({ updated: true })
   } catch (err: any) {
@@ -55,7 +61,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
     if (!matches) return res.status(400).json({ error: 'Invalid base64 image' })
     if (matches[2].length > 2_800_000) return res.status(400).json({ error: 'Image too large (max ~2MB)' })
 
-    await userRepo.updateProfile(userId, { avatarUrl: avatarBase64 })
+    await userRepo.updateProfile(userId, { avatarUrl: avatarBase64, avatarPreference: 'photo' })
     return res.status(200).json({ avatarUrl: avatarBase64 })
   } catch (err: any) {
     return res.status(500).json({ error: err.message })

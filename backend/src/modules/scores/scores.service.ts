@@ -54,17 +54,19 @@ export default {
       .lean()
 
     const userIds = rows.map((r) => r.userId)
-    const users   = await User.find({ _id: { $in: userIds } }).select('_id username avatarUrl avatarConfig').lean()
+    const users   = await User.find({ _id: { $in: userIds } }).select('_id username avatarUrl avatarConfig richAvatarConfig avatarPreference').lean()
     const userMap = new Map(users.map((u) => [u._id.toString(), u]))
 
     return rows.map((r, i) => {
       const u = userMap.get(r.userId.toString())
       return {
-        rank:         i + 1,
-        userId:       r.userId.toString(),
-        username:     u?.username ?? 'Unknown',
-        avatarUrl:    (u as any)?.avatarUrl ?? null,
-        avatarConfig: (u as any)?.avatarConfig ?? null,
+        rank:             i + 1,
+        userId:           r.userId.toString(),
+        username:         u?.username ?? 'Unknown',
+        avatarUrl:        (u as any)?.avatarUrl ?? null,
+        avatarConfig:     (u as any)?.avatarConfig ?? null,
+        richAvatarConfig:  (u as any)?.richAvatarConfig ?? null,
+        avatarPreference:  (u as any)?.avatarPreference ?? null,
         score:        r.score,
         achievedAt:   r.achievedAt,
       }

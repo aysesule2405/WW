@@ -93,6 +93,7 @@ export async function updateProfile(profile: {
   favoriteSong?: string
   favoriteSteamGames?: string
   avatarConfig?: { face: string; color: string; accessory: string }
+  richAvatarConfig?: string
 }) {
   const res = await fetch(apiUrl('/users/profile'), {
     method: 'PUT',
@@ -270,12 +271,12 @@ export type CommunityPost = {
   body: string
   votes: number
   voted?: boolean
-  author: { id: string; username: string; avatarUrl?: string | null; avatarConfig?: AvatarConfig | null; status?: string | null }
+  author: { id: string; username: string; avatarUrl?: string | null; avatarConfig?: AvatarConfig | null; richAvatarConfig?: string | null; avatarPreference?: 'photo' | 'rich' | null; status?: string | null }
   replies: Array<{
     id: string
     body: string
     createdAt: string
-    author: { id: string; username: string; avatarUrl?: string | null; avatarConfig?: AvatarConfig | null }
+    author: { id: string; username: string; avatarUrl?: string | null; avatarConfig?: AvatarConfig | null; richAvatarConfig?: string | null; avatarPreference?: 'photo' | 'rich' | null }
   }>
   createdAt: string
   updatedAt: string
@@ -309,6 +310,16 @@ export async function createCommunityReply(postId: string, body: string) {
   return res.json() as Promise<{ post: CommunityPost }>
 }
 
+export async function changePassword(currentPassword: string, newPassword: string) {
+  const res = await fetch(apiUrl('/auth/change-password'), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+  if (!res.ok) throw new Error((await res.json()).error || 'Could not change password')
+  return res.json() as Promise<{ updated: boolean }>
+}
+
 export async function voteOnPost(postId: string): Promise<{ votes: number; voted: boolean }> {
   const res = await fetch(apiUrl(`/community/posts/${postId}/vote`), {
     method: 'POST',
@@ -325,4 +336,5 @@ export default {
   getScoreLeaderboard, getDeliveryLeaderboard, getMyBest, getRecentScores,
   getAchievements, getAchievementCatalog,
   getCommunityPosts, createCommunityPost, createCommunityReply, voteOnPost,
+  changePassword,
 }

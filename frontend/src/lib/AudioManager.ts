@@ -1,9 +1,10 @@
-function sfxEnabled(): boolean {
-  try { return JSON.parse(localStorage.getItem('ww_settings') ?? '{}').sound !== false } catch { return true }
+function getSettings() {
+  try { return JSON.parse(localStorage.getItem('ww_settings') ?? '{}') } catch { return {} }
 }
-function musicEnabled(): boolean {
-  try { return JSON.parse(localStorage.getItem('ww_settings') ?? '{}').music !== false } catch { return true }
-}
+function sfxEnabled(): boolean   { return getSettings().sound  !== false }
+function musicEnabled(): boolean { return getSettings().music  !== false }
+function sfxVolume(): number     { return Math.min(1, Math.max(0, getSettings().sfxVolume   ?? 0.8)) }
+function musicVolume(): number   { return Math.min(1, Math.max(0, getSettings().musicVolume ?? 0.35)) }
 
 declare global {
   interface Window {
@@ -37,7 +38,7 @@ class AudioManager {
     } else {
       el = new Audio(path)
     }
-    el.volume = Math.min(1, Math.max(0, volume))
+    el.volume = Math.min(1, Math.max(0, volume * sfxVolume()))
     el.currentTime = 0
     el.play().catch(() => {})
   }
@@ -68,13 +69,14 @@ class AudioManager {
   }) {
     const ctx = this.context()
     if (!ctx) return
+    const scaledVol = volume * sfxVolume()
     const start = ctx.currentTime + delay
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.type = type
     osc.frequency.setValueAtTime(frequency, start)
     gain.gain.setValueAtTime(0.0001, start)
-    gain.gain.exponentialRampToValueAtTime(volume, start + 0.025)
+    gain.gain.exponentialRampToValueAtTime(scaledVol, start + 0.025)
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
     osc.connect(gain)
     gain.connect(ctx.destination)
@@ -99,16 +101,22 @@ class AudioManager {
     this.tone({ frequency: 1046, duration: 0.22, type: 'sine', volume: volume * 0.75, delay: 0.09 })
   }
 
-  playMusic(name: string, volume = 0.35) {
+  playMusic(name: string) {
     if (!musicEnabled()) return
     if (this.currentTrack === name && this.musicEl && !this.musicEl.paused) return
     this.stopMusic()
     this.currentTrack = name
     const el = new Audio(`/assets/audio/music/${name}.mp3`)
     el.loop = true
-    el.volume = volume
+    el.volume = musicVolume()
     el.play().catch(() => {})
     this.musicEl = el
+  }
+
+  setMusicVolume(v: number) {
+    if (this.musicEl) {
+      this.musicEl.volume = Math.min(1, Math.max(0, v))
+    }
   }
 
   stopMusic(fadeDurationMs = 0) {
@@ -132,8 +140,11 @@ class AudioManager {
   }
 
   syncSettings() {
-    if (!musicEnabled()) this.stopMusic()
-    // SFX check is inline per-play, so nothing extra needed
+    if (!musicEnabled()) {
+      this.stopMusic()
+    } else if (this.musicEl) {
+      this.musicEl.volume = musicVolume()
+    }
   }
 }
 

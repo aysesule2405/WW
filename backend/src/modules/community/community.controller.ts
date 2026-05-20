@@ -21,11 +21,13 @@ function normalizePost(post: any, currentUserId?: string) {
       ? (post.voters ?? []).some((v: any) => v.toString() === currentUserId)
       : false,
     author: {
-      id:           author._id?.toString?.() ?? String(post.author),
-      username:     author.username ?? 'Unknown player',
-      avatarUrl:    author.avatarUrl ?? null,
-      avatarConfig: author.avatarConfig ?? null,
-      status:       author.status ?? null,
+      id:               author._id?.toString?.() ?? String(post.author),
+      username:         author.username ?? 'Unknown player',
+      avatarUrl:        author.avatarUrl ?? null,
+      avatarConfig:     author.avatarConfig ?? null,
+      richAvatarConfig: author.richAvatarConfig ?? null,
+      avatarPreference: author.avatarPreference ?? null,
+      status:           author.status ?? null,
     },
     replies: (post.replies ?? []).map((reply: any) => {
       const replyAuthor = reply.author ?? {}
@@ -34,10 +36,12 @@ function normalizePost(post: any, currentUserId?: string) {
         body: reply.body,
         createdAt: reply.createdAt,
         author: {
-          id:           replyAuthor._id?.toString?.() ?? String(reply.author),
-          username:     replyAuthor.username ?? 'Unknown player',
-          avatarUrl:    replyAuthor.avatarUrl ?? null,
-          avatarConfig: replyAuthor.avatarConfig ?? null,
+          id:               replyAuthor._id?.toString?.() ?? String(reply.author),
+          username:         replyAuthor.username ?? 'Unknown player',
+          avatarUrl:        replyAuthor.avatarUrl ?? null,
+          avatarConfig:     replyAuthor.avatarConfig ?? null,
+          richAvatarConfig: replyAuthor.richAvatarConfig ?? null,
+          avatarPreference: replyAuthor.avatarPreference ?? null,
         },
       }
     }),
@@ -53,8 +57,8 @@ export const listPosts = async (req: AuthRequest, res: Response) => {
     const posts = await CommunityPost.find(filter)
       .sort({ createdAt: -1 })
       .limit(50)
-      .populate('author', 'username avatarUrl avatarConfig status')
-      .populate('replies.author', 'username avatarUrl avatarConfig')
+      .populate('author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference status')
+      .populate('replies.author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference')
       .lean()
 
     return res.status(200).json({ posts: posts.map((p) => normalizePost(p, req.userId)) })
@@ -80,8 +84,8 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       body: String(body).trim(),
     })
     const populated = await CommunityPost.findById(post._id)
-      .populate('author', 'username avatarUrl avatarConfig status')
-      .populate('replies.author', 'username avatarUrl avatarConfig')
+      .populate('author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference status')
+      .populate('replies.author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference')
       .lean()
     return res.status(201).json({ post: normalizePost(populated, req.userId) })
   } catch (err: any) {
@@ -109,8 +113,8 @@ export const createReply = async (req: AuthRequest, res: Response) => {
     await post.save()
 
     const populated = await CommunityPost.findById(post._id)
-      .populate('author', 'username avatarUrl avatarConfig status')
-      .populate('replies.author', 'username avatarUrl avatarConfig')
+      .populate('author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference status')
+      .populate('replies.author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference')
       .lean()
     return res.status(201).json({ post: normalizePost(populated) })
   } catch (err: any) {

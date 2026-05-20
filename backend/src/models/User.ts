@@ -15,6 +15,8 @@ export interface IUser extends Document {
     color?: string
     accessory?: string
   }
+  richAvatarConfig?: string | null
+  avatarPreference?: 'photo' | 'rich'
   createdAt: Date
   updatedAt: Date
 }
@@ -34,6 +36,8 @@ const UserSchema = new Schema<IUser>(
       color:     { type: String, trim: true, maxlength: 32 },
       accessory: { type: String, trim: true, maxlength: 40 },
     },
+    richAvatarConfig:  { type: String, maxlength: 4000, default: null },
+    avatarPreference:  { type: String, enum: ['photo', 'rich'], default: null },
   },
   { timestamps: true }
 )

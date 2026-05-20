@@ -226,17 +226,19 @@ const sessionsService = {
     ])
 
     const userIds = rows.map((r) => r._id)
-    const users   = await User.find({ _id: { $in: userIds } }).select('_id username avatarUrl avatarConfig').lean()
+    const users   = await User.find({ _id: { $in: userIds } }).select('_id username avatarUrl avatarConfig richAvatarConfig avatarPreference').lean()
     const userMap = new Map(users.map((u) => [u._id.toString(), u]))
 
     return rows.map((r, i) => {
       const u = userMap.get(r._id.toString()) as any
       return {
-        rank:            i + 1,
-        userId:          r._id.toString(),
-        username:        u?.username ?? 'Unknown',
-        avatarUrl:       u?.avatarUrl ?? null,
-        avatarConfig:    u?.avatarConfig ?? null,
+        rank:             i + 1,
+        userId:           r._id.toString(),
+        username:         u?.username ?? 'Unknown',
+        avatarUrl:        u?.avatarUrl ?? null,
+        avatarConfig:     u?.avatarConfig ?? null,
+        richAvatarConfig:  u?.richAvatarConfig ?? null,
+        avatarPreference:  u?.avatarPreference ?? null,
         bestTimeSeconds: r.bestTime as number,
         achievedAt:      r.achievedAt as Date,
       }

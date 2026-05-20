@@ -29,6 +29,8 @@ export class UserRepository {
     favoriteSong?: string
     favoriteSteamGames?: string
     avatarConfig?: { face?: string; color?: string; accessory?: string }
+    richAvatarConfig?: string | null
+    avatarPreference?: 'photo' | 'rich'
   }) {
     const update: Record<string, unknown> = {}
     if (data.username) update.username = data.username
@@ -37,8 +39,15 @@ export class UserRepository {
     if (data.favoriteSong !== undefined) update.favoriteSong = data.favoriteSong
     if (data.favoriteSteamGames !== undefined) update.favoriteSteamGames = data.favoriteSteamGames
     if (data.avatarConfig !== undefined) update.avatarConfig = data.avatarConfig
+    if (data.richAvatarConfig !== undefined) update.richAvatarConfig = data.richAvatarConfig
+    if (data.avatarPreference !== undefined) update.avatarPreference = data.avatarPreference
     if (Object.keys(update).length === 0) return { updated: false }
     await User.findByIdAndUpdate(id, { $set: update })
+    return { updated: true }
+  }
+
+  async updatePassword(id: string, passwordHash: string) {
+    await User.findByIdAndUpdate(id, { $set: { passwordHash } })
     return { updated: true }
   }
 }

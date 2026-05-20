@@ -2,7 +2,7 @@
 export const uiFontFamily = '"Kingthings Clarity"'
 
 /** Long-form readable font — settings, profile fields, tables, and descriptions */
-export const readableFontFamily = '"Flamante Round"'
+export const readableFontFamily = '"Si Kancil", serif'
 
 /** Playful title font — game names, section headers, and Whisperwind Grove branding */
 export const titleFontFamily = '"Waterlily", "Si Kancil", cursive'

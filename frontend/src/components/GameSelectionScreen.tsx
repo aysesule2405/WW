@@ -13,6 +13,7 @@ import {
   mediaUrl,
   type AvatarConfig,
 } from '../lib/api'
+import { AvatarSvg, DEFAULT_RICH_AVATAR, type RichAvatarConfig } from './AvatarCreator'
 
 type Props = {
   onSelect?: (id: string) => void
@@ -27,6 +28,8 @@ type DashEntry = {
   username: string
   avatarUrl?: string | null
   avatarConfig?: AvatarConfig | null
+  richAvatarConfig?: string | null
+  avatarPreference?: 'photo' | 'rich' | null
   value: number
   isTime: boolean
 }
@@ -82,15 +85,34 @@ function fmtTime(sec: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function MiniAvatar({ username, avatarUrl, avatarConfig, size = 28 }: {
+function parseRichAvatar(raw: string | null | undefined): RichAvatarConfig | null {
+  if (!raw) return null
+  try {
+    const parsed = { ...DEFAULT_RICH_AVATAR, ...JSON.parse(raw) }
+    return JSON.stringify(parsed) !== JSON.stringify(DEFAULT_RICH_AVATAR) ? parsed : null
+  } catch { return null }
+}
+
+function MiniAvatar({ username, avatarUrl, avatarConfig, richAvatarConfig, avatarPreference, size = 28 }: {
   username: string
   avatarUrl?: string | null
   avatarConfig?: AvatarConfig | null
+  richAvatarConfig?: string | null
+  avatarPreference?: 'photo' | 'rich' | null
   size?: number
 }) {
   const PALETTE = ['#4a7c59', '#6b5c3e', '#5c6b9e', '#7a3c5c', '#3c6b7a', '#7a6b3c', '#3c5c7a']
   const fallbackColor = PALETTE[username.charCodeAt(0) % PALETTE.length]
+  const richAvatar = parseRichAvatar(richAvatarConfig)
+  const showRich = avatarPreference === 'rich' ? !!richAvatar : richAvatar && !avatarUrl
 
+  if (showRich && richAvatar) {
+    return (
+      <div style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, lineHeight: 0, border: '1px solid rgba(0,0,0,0.1)' }}>
+        <AvatarSvg config={richAvatar} size={size} />
+      </div>
+    )
+  }
   if (avatarUrl) {
     return (
       <img
@@ -147,6 +169,8 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
   const [welcomeAvatar, setWelcomeAvatar] = useState<{
     avatarUrl?: string | null
     avatarConfig?: AvatarConfig | null
+    richAvatarConfig?: string | null
+    avatarPreference?: 'photo' | 'rich' | null
   }>({})
 
   const playableCount   = useMemo(() => games.filter((g) => g.available).length, [])
@@ -177,6 +201,8 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
           username: e.username ?? 'Unknown',
           avatarUrl: e.avatarUrl ?? null,
           avatarConfig: e.avatarConfig ?? null,
+          richAvatarConfig: e.richAvatarConfig ?? null,
+          avatarPreference: e.avatarPreference ?? null,
           value: isTime ? (e.bestTimeSeconds ?? 0) : (e.score ?? 0),
           isTime,
         }))
@@ -200,7 +226,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
     getProfile()
       .then((data) => {
         if (!data?.error) {
-          setWelcomeAvatar({ avatarUrl: data.avatarUrl, avatarConfig: data.avatarConfig })
+          setWelcomeAvatar({ avatarUrl: data.avatarUrl, avatarConfig: data.avatarConfig, richAvatarConfig: data.richAvatarConfig ?? null, avatarPreference: data.avatarPreference ?? null })
         }
       })
       .catch(() => {})
@@ -264,6 +290,8 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
       style={{
         minHeight: '100vh',
         padding: 24,
+        position: 'relative',
+        overflow: 'hidden',
         backgroundImage: `linear-gradient(${dashOverlay}, ${dashOverlay}), url('${dashBgSrc}')`,
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
@@ -276,17 +304,31 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
       onMouseMove={handleParallaxMove}
       onMouseLeave={() => setParallax({ x: 0, y: 0 })}
     >
-      <div style={s.shell}>
+      {/* ── Ambient decorations ── */}
+      <img src="/assets/animation/lily-leaf-1.gif" aria-hidden="true" className="ww-deco-img"
+        style={{ position: 'absolute', bottom: 0, left: 0, width: 210, height: 'auto', opacity: 0.30, pointerEvents: 'none', animation: 'ww-float-gentle 12s ease-in-out 0s infinite', filter: 'drop-shadow(0 6px 20px rgba(80,140,60,0.35))', zIndex: 0 }} />
+      <img src="/assets/animation/lily-leaf-2.gif" aria-hidden="true" className="ww-deco-img"
+        style={{ position: 'absolute', bottom: 0, right: 0, width: 185, height: 'auto', opacity: 0.26, pointerEvents: 'none', animation: 'ww-float-gentle 14s ease-in-out 2.5s infinite', filter: 'drop-shadow(0 6px 20px rgba(80,140,60,0.30))', zIndex: 0 }} />
+      <img src="/assets/animation/ray-of-light-animation.gif" aria-hidden="true" className="ww-deco-img"
+        style={{ position: 'absolute', top: 40, right: '7%', width: 260, height: 'auto', opacity: 0.12, pointerEvents: 'none', animation: 'float-spirit 18s ease-in-out 5s infinite', zIndex: 0 }} />
+      <img src="/assets/animation/willow-leaves.gif" aria-hidden="true" className="ww-deco-img"
+        style={{ position: 'absolute', top: 0, left: '38%', width: 130, height: 'auto', opacity: 0.18, pointerEvents: 'none', animation: 'float-spirit 10s ease-in-out 1s infinite', filter: 'drop-shadow(0 4px 12px rgba(120,160,80,0.25))', zIndex: 0 }} />
+
+      <div style={{ ...s.shell, position: 'relative', zIndex: 1 }}>
 
         {/* ── Welcome bar ── */}
         <div style={{ ...s.welcomeBar, background: 'var(--bg-surface)' }}>
           <div style={s.welcomeLeft}>
-            <MiniAvatar
-              username={user?.username ?? '?'}
-              avatarUrl={welcomeAvatar.avatarUrl}
-              avatarConfig={welcomeAvatar.avatarConfig}
-              size={44}
-            />
+            <div className="ww-avatar-ring">
+              <MiniAvatar
+                username={user?.username ?? '?'}
+                avatarUrl={welcomeAvatar.avatarUrl}
+                avatarConfig={welcomeAvatar.avatarConfig}
+                richAvatarConfig={welcomeAvatar.richAvatarConfig}
+                avatarPreference={welcomeAvatar.avatarPreference}
+                size={44}
+              />
+            </div>
             <div>
               <p style={{ ...s.welcomeTitle, color: 'var(--text-h)' }}>
                 {timeOfDay()}, {user?.username ?? 'traveller'} 🌿
@@ -360,7 +402,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
                     </div>
                     {!isDelivery && (
                       <div style={s.scoreBarTrack}>
-                        <div style={{
+                        <div className="ww-bar-in" style={{
                           ...s.scoreBarFill,
                           width: `${barPct}%`,
                           background: barPct >= 100
@@ -417,13 +459,15 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
                         border: isSelf ? '1px solid var(--border-focus)' : '1px solid var(--border-muted)',
                       }}
                     >
-                      <span style={s.leaderRank}>
+                      <span className={i === 0 ? 'ww-medal-1' : i === 1 ? 'ww-medal-2' : i === 2 ? 'ww-medal-3' : ''} style={s.leaderRank}>
                         {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`}
                       </span>
                       <MiniAvatar
                         username={entry.username}
                         avatarUrl={entry.avatarUrl}
                         avatarConfig={entry.avatarConfig}
+                        richAvatarConfig={entry.richAvatarConfig}
+                        avatarPreference={entry.avatarPreference}
                         size={24}
                       />
                       <span style={{ ...s.leaderName, fontWeight: isSelf ? 700 : 500, color: isSelf ? 'var(--accent-dark)' : 'var(--text-body)' }}>
