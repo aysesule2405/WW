@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import GameCard from './GameCard'
 import games from './gameData'
-import { bodyFontFamily, headingFontFamily } from '../theme/typography'
+import { bodyFontFamily, headingFontFamily, numberFontFamily } from '../theme/typography'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { GAME_THEMES } from '../context/themeTypes'
-import { apiUrl } from '../lib/api'
+import {
+  getScoreLeaderboard,
+  getDeliveryLeaderboard,
+  getProgressSummary,
+  getProfile,
+  mediaUrl,
+  type AvatarConfig,
+} from '../lib/api'
 
 type Props = {
   onSelect?: (id: string) => void
@@ -14,64 +21,189 @@ type Props = {
 
 type FilterKey = 'all' | 'playable' | 'coming-soon'
 
-type LeaderboardEntry = {
-  userId: number
+type DashEntry = {
+  rank: number
+  userId: string
   username: string
-  avatarUrl?: string
-  score: number
+  avatarUrl?: string | null
+  avatarConfig?: AvatarConfig | null
+  value: number
+  isTime: boolean
+}
+
+type ProgressGame = {
+  gameSlug: string
+  highScore: number | null
+  totalSessions: number
+  completedSessions: number
+  lastPlayedAt: string | null
+  bestCompletionTimeSeconds?: number | null
+}
+
+const LEADER_GAMES = [
+  { slug: 'spirit-drift',         icon: '🌊', label: 'Drift'    },
+  { slug: 'delivery-on-the-wind', icon: '📦', label: 'Delivery' },
+  { slug: 'spirit-sapling',       icon: '🌱', label: 'Sapling'  },
+  { slug: 'half-moon',            icon: '🌙', label: 'Moon'     },
+]
+
+const GAME_ICONS: Record<string, string> = {
+  'spirit-drift': '🌊',
+  'delivery-on-the-wind': '📦',
+  'spirit-sapling': '🌱',
+  'half-moon': '🌙',
 }
 
 function getDashboardBg(): string {
   try { return localStorage.getItem('ww_dashboard_bg') ?? '' } catch { return '' }
 }
 
+function timeOfDay(): string {
+  const h = new Date().getHours()
+  if (h < 5)  return 'Good night'
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  if (h < 21) return 'Good evening'
+  return 'Good night'
+}
+
+function timeAgo(iso: string | null): string {
+  if (!iso) return ''
+  const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (sec < 60) return 'just now'
+  const m = Math.floor(sec / 60); if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24); return `${d}d ago`
+}
+
+function fmtTime(sec: number): string {
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+function MiniAvatar({ username, avatarUrl, avatarConfig, size = 28 }: {
+  username: string
+  avatarUrl?: string | null
+  avatarConfig?: AvatarConfig | null
+  size?: number
+}) {
+  const PALETTE = ['#4a7c59', '#6b5c3e', '#5c6b9e', '#7a3c5c', '#3c6b7a', '#7a6b3c', '#3c5c7a']
+  const fallbackColor = PALETTE[username.charCodeAt(0) % PALETTE.length]
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={mediaUrl(avatarUrl)}
+        alt=""
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,0,0,0.1)' }}
+      />
+    )
+  }
+  if (avatarConfig) {
+    return (
+      <div style={{ width: size, height: size, borderRadius: '50%', background: `radial-gradient(circle at 35% 25%, #fff5, transparent 34%), ${avatarConfig.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.46), flexShrink: 0, border: '1px solid rgba(0,0,0,0.08)' }}>
+        {avatarConfig.face}
+      </div>
+    )
+  }
+  return (
+    <div style={{ width: size, height: size, borderRadius: '50%', background: fallbackColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.38), fontWeight: 800, color: '#fff', flexShrink: 0, letterSpacing: '0.03em' }}>
+      {username.slice(0, 2).toUpperCase()}
+    </div>
+  )
+}
+
+const DASH_DARK_OVERLAYS: Record<string, string> = {
+  light:    'rgba(14,20,8,0.65)',
+  sapling:  'rgba(36,28,9,0.65)',
+  delivery: 'rgba(118,39,21,0.62)',
+  drift:    'rgba(12,30,52,0.65)',
+  halfmoon: 'rgba(4,3,7,0.68)',
+  ember:    'rgba(42,21,8,0.65)',
+  petal:    'rgba(26,8,24,0.65)',
+  frost:    'rgba(6,12,24,0.68)',
+}
+
 export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
   const { user } = useAuth()
   const { theme, mode } = useTheme()
-  const isDark = theme === 'dark' || (GAME_THEMES.includes(theme) && mode === 'dark')
+  const isDark = mode === 'dark'
+  const dashOverlay = isDark
+    ? (DASH_DARK_OVERLAYS[theme] ?? 'rgba(0,0,0,0.60)')
+    : 'var(--bg-photo-blend)'
 
   const [dashBg, setDashBg] = useState<string>(getDashboardBg)
-
   const [filter, setFilter] = useState<FilterKey>('all')
   const [parallax, setParallax] = useState({ x: 0, y: 0 })
   const parallaxFrameRef = useRef<number | null>(null)
 
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
-  const [leaderboardLoading, setLeaderboardLoading] = useState(true)
-  const [myBests, setMyBests] = useState<Record<string, number | null>>({})
+  const [leaderboards, setLeaderboards] = useState<Record<string, DashEntry[]>>({})
+  const [leaderLoading, setLeaderLoading] = useState(true)
+  const [selectedLeader, setSelectedLeader] = useState('spirit-drift')
 
-  const playableCount = useMemo(() => games.filter((g) => g.available).length, [])
+  const [progressSummary, setProgressSummary] = useState<ProgressGame[]>([])
+
+  const [welcomeAvatar, setWelcomeAvatar] = useState<{
+    avatarUrl?: string | null
+    avatarConfig?: AvatarConfig | null
+  }>({})
+
+  const playableCount   = useMemo(() => games.filter((g) => g.available).length, [])
   const comingSoonCount = games.length - playableCount
-  const featuredGame = useMemo(() => games.find((g) => g.available) ?? games[0], [])
-  const visibleGames = useMemo(() => {
+  const featuredGame    = useMemo(() => games.find((g) => g.available) ?? games[0], [])
+  const visibleGames    = useMemo(() => {
     if (filter === 'playable')    return games.filter((g) => g.available)
     if (filter === 'coming-soon') return games.filter((g) => !g.available)
     return games
   }, [filter])
 
+  // Fetch all 4 leaderboards on mount
   useEffect(() => {
-    fetch(apiUrl('/games/spirit-drift/leaderboard?limit=5'))
-      .then((r) => r.json())
-      .then((d) => setLeaderboard(d.leaderboard ?? []))
-      .catch(() => setLeaderboard([]))
-      .finally(() => setLeaderboardLoading(false))
+    setLeaderLoading(true)
+    Promise.allSettled([
+      getScoreLeaderboard('spirit-drift', 5).then((r) => ({ slug: 'spirit-drift', isTime: false, raw: r.leaderboard ?? [] })),
+      getDeliveryLeaderboard().then((r) => ({ slug: 'delivery-on-the-wind', isTime: true, raw: r.leaderboard ?? [] })),
+      getScoreLeaderboard('spirit-sapling', 5).then((r) => ({ slug: 'spirit-sapling', isTime: false, raw: r.leaderboard ?? [] })),
+      getScoreLeaderboard('half-moon', 5).then((r) => ({ slug: 'half-moon', isTime: false, raw: r.leaderboard ?? [] })),
+    ]).then((results) => {
+      const map: Record<string, DashEntry[]> = {}
+      results.forEach((result) => {
+        if (result.status !== 'fulfilled') return
+        const { slug, isTime, raw } = result.value
+        map[slug] = raw.map((e: any) => ({
+          rank: e.rank,
+          userId: String(e.userId),
+          username: e.username ?? 'Unknown',
+          avatarUrl: e.avatarUrl ?? null,
+          avatarConfig: e.avatarConfig ?? null,
+          value: isTime ? (e.bestTimeSeconds ?? 0) : (e.score ?? 0),
+          isTime,
+        }))
+      })
+      setLeaderboards(map)
+      setLeaderLoading(false)
+    })
   }, [])
 
+  // Fetch progress summary for personal bests
   useEffect(() => {
     if (!user) return
-    const slugs = games.filter((g) => g.available).map((g) => g.id)
-    Promise.all(
-      slugs.map((slug) =>
-        fetch(apiUrl(`/games/${slug}/me`), { headers: { Authorization: `Bearer ${user.token}` } })
-          .then((r) => r.json())
-          .then((d) => ({ slug, score: d.best?.score ?? null }))
-          .catch(() => ({ slug, score: null }))
-      )
-    ).then((results) => {
-      const map: Record<string, number | null> = {}
-      results.forEach(({ slug, score }) => { map[slug] = score })
-      setMyBests(map)
-    })
+    getProgressSummary()
+      .then((res) => setProgressSummary((res as any).games ?? []))
+      .catch(() => {})
+  }, [user])
+
+  // Fetch profile for welcome bar avatar
+  useEffect(() => {
+    if (!user) return
+    getProfile()
+      .then((data) => {
+        if (!data?.error) {
+          setWelcomeAvatar({ avatarUrl: data.avatarUrl, avatarConfig: data.avatarConfig })
+        }
+      })
+      .catch(() => {})
   }, [user])
 
   useEffect(() => {
@@ -99,42 +231,72 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
     return '~3 min nurture'
   }
 
-  // Theme-sensitive values
-  const blendColor = isDark ? 'rgba(14,20,8,0.90)' : 'rgba(232,224,200,0.84)'
-  const welcomeBg  = isDark ? 'rgba(28,36,20,0.94)' : 'rgba(255,255,255,0.72)'
-  const panelBg    = isDark ? 'rgba(28,36,20,0.96)' : 'rgba(255,255,255,0.84)'
-  const filterBg   = isDark ? 'rgba(24,32,16,0.90)' : 'rgba(255,255,255,0.72)'
+  // Derived stats for welcome bar
+  const totalSessions = progressSummary.reduce((sum, g) => sum + (g.totalSessions ?? 0), 0)
+  const lastPlayed = progressSummary
+    .filter((g) => g.lastPlayedAt)
+    .sort((a, b) => new Date(b.lastPlayedAt!).getTime() - new Date(a.lastPlayedAt!).getTime())[0]
+
+  // Progress data keyed by slug
+  const progressBySlug = useMemo(() => {
+    const map: Record<string, ProgressGame> = {}
+    progressSummary.forEach((g) => { map[g.gameSlug] = g })
+    return map
+  }, [progressSummary])
+
+  // Top score for score-bar computation
+  const topScores = useMemo(() => {
+    const map: Record<string, number> = {}
+    ;['spirit-drift', 'spirit-sapling', 'half-moon'].forEach((slug) => {
+      const top = leaderboards[slug]?.[0]?.value
+      if (top) map[slug] = top
+    })
+    return map
+  }, [leaderboards])
+
+  // Leaderboard entries for the selected tab
+  const activeLeaderEntries = leaderboards[selectedLeader] ?? []
+
+  const dashBgSrc = dashBg || '/assets/whisperwind-grove.jpg'
 
   return (
     <div
       style={{
         minHeight: '100vh',
         padding: 24,
-        backgroundImage: `url('${dashBg || '/assets/whisperwind-grove.jpg'}')`,
+        backgroundImage: `linear-gradient(${dashOverlay}, ${dashOverlay}), url('${dashBgSrc}')`,
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
-        backgroundBlendMode: 'multiply',
-        backgroundColor: blendColor,
         backgroundPosition: `${50 + parallax.x * 2}% ${50 + parallax.y * 2}%`,
         fontFamily: bodyFontFamily,
         color: 'var(--text-body)',
         boxSizing: 'border-box',
-        transition: 'background-color 250ms ease, background-position 300ms ease-out',
+        transition: 'background-position 300ms ease-out',
       }}
       onMouseMove={handleParallaxMove}
       onMouseLeave={() => setParallax({ x: 0, y: 0 })}
     >
       <div style={s.shell}>
 
-        {/* Welcome bar */}
-        <div style={{ ...s.welcomeBar, background: welcomeBg }}>
-          <div>
-            <p style={{ ...s.welcomeTitle, color: 'var(--text-h)' }}>
-              Welcome back, {user?.username ?? 'traveller'} 🌿
-            </p>
-            <p style={{ ...s.welcomeSub, color: 'var(--text-muted)' }}>
-              Whisperwind Grove · Cozy mini-game platform
-            </p>
+        {/* ── Welcome bar ── */}
+        <div style={{ ...s.welcomeBar, background: 'var(--bg-surface)' }}>
+          <div style={s.welcomeLeft}>
+            <MiniAvatar
+              username={user?.username ?? '?'}
+              avatarUrl={welcomeAvatar.avatarUrl}
+              avatarConfig={welcomeAvatar.avatarConfig}
+              size={44}
+            />
+            <div>
+              <p style={{ ...s.welcomeTitle, color: 'var(--text-h)' }}>
+                {timeOfDay()}, {user?.username ?? 'traveller'} 🌿
+              </p>
+              <p style={{ ...s.welcomeSub, color: 'var(--text-muted)' }}>
+                Whisperwind Grove
+                {totalSessions > 0 && ` · ${totalSessions} session${totalSessions !== 1 ? 's' : ''} played`}
+                {lastPlayed && ` · Last: ${GAME_ICONS[lastPlayed.gameSlug] ?? ''} ${timeAgo(lastPlayed.lastPlayedAt)}`}
+              </p>
+            </div>
           </div>
           <div style={s.statsRow}>
             <div style={{ ...s.statChip, background: 'var(--bg-accent-soft)', border: '1px solid var(--border)' }}>
@@ -148,7 +310,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
           </div>
         </div>
 
-        {/* Hero + panels */}
+        {/* ── Hero + side panels ── */}
         <div style={s.heroGrid}>
           <section
             style={{
@@ -168,45 +330,119 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
           </section>
 
           <aside style={s.sideStack}>
-            {/* Best scores */}
-            <section style={{ ...s.panel, background: panelBg }}>
+            {/* ── Your Best Scores ── */}
+            <section style={{ ...s.panel, background: 'var(--bg-surface)' }}>
               <h3 style={{ ...s.panelTitle, color: 'var(--text-h)' }}>Your Best Scores</h3>
-              {games.filter((g) => g.available).map((g) => (
-                <div key={g.id} style={{ ...s.scoreRow, background: 'var(--bg-badge)', border: '1px solid var(--border-muted)' }}>
-                  <span style={{ fontSize: 13, color: 'var(--text-body)' }}>{g.title}</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>
-                    {myBests[g.id] != null ? `${myBests[g.id]} pts` : '—'}
-                  </span>
-                </div>
-              ))}
+              {games.filter((g) => g.available).map((g) => {
+                const prog = progressBySlug[g.id]
+                const myScore = prog?.highScore ?? null
+                const topScore = topScores[g.id] ?? null
+                const barPct = (myScore != null && topScore) ? Math.max(6, (myScore / topScore) * 100) : 0
+                const isDelivery = g.id === 'delivery-on-the-wind'
+                const myTime = isDelivery ? prog?.bestCompletionTimeSeconds ?? null : null
+                const displayVal = isDelivery
+                  ? (myTime != null ? fmtTime(myTime) : '—')
+                  : (myScore != null ? `${myScore} pts` : '—')
+                const hasScore = isDelivery ? myTime != null : myScore != null
+
+                return (
+                  <div key={g.id} style={{ ...s.scoreRow, background: 'var(--bg-badge)', border: '1px solid var(--border-muted)' }}>
+                    <div style={s.scoreRowTop}>
+                      <span style={s.scoreGameIcon}>{GAME_ICONS[g.id]}</span>
+                      <span style={s.scoreGameName}>{g.title}</span>
+                      <span style={{
+                        ...s.scoreValue,
+                        color: hasScore ? 'var(--accent)' : 'var(--text-muted)',
+                        fontFamily: numberFontFamily,
+                      }}>
+                        {displayVal}
+                      </span>
+                    </div>
+                    {!isDelivery && (
+                      <div style={s.scoreBarTrack}>
+                        <div style={{
+                          ...s.scoreBarFill,
+                          width: `${barPct}%`,
+                          background: barPct >= 100
+                            ? 'linear-gradient(90deg, #f9c846, #e6a817)'
+                            : barPct > 60
+                            ? 'linear-gradient(90deg, var(--accent), var(--accent-dark))'
+                            : 'var(--chart-fill)',
+                        }} />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </section>
 
-            {/* Leaderboard */}
-            <section style={s.leaderPanel}>
-              <div style={s.leaderHeader}>
-                <h3 style={s.leaderTitle}>Spirit Drift</h3>
-                <span style={s.leaderSub}>TOP 5</span>
+            {/* ── Leaderboard ── */}
+            <section style={{ ...s.leaderPanel, flex: 1 }}>
+              {/* Game tabs */}
+              <div style={s.leaderTabs}>
+                {LEADER_GAMES.map((g) => (
+                  <button
+                    key={g.slug}
+                    style={{
+                      ...s.leaderTab,
+                      ...(selectedLeader === g.slug ? s.leaderTabActive : {}),
+                    }}
+                    onClick={() => setSelectedLeader(g.slug)}
+                    title={g.slug.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')}
+                  >
+                    {g.icon} {g.label}
+                  </button>
+                ))}
               </div>
-              {leaderboardLoading ? (
+
+              <div style={s.leaderHeaderRow}>
+                <span style={s.leaderSub}>
+                  {selectedLeader === 'delivery-on-the-wind' ? 'FASTEST TIMES' : 'HIGH SCORES'} · TOP 5
+                </span>
+              </div>
+
+              {leaderLoading ? (
                 <p style={s.leaderEmpty}>Loading…</p>
-              ) : leaderboard.length === 0 ? (
+              ) : activeLeaderEntries.length === 0 ? (
                 <p style={s.leaderEmpty}>No scores yet — be first!</p>
               ) : (
-                leaderboard.map((entry, i) => (
-                  <div key={entry.userId} style={s.leaderRow}>
-                    <span style={s.leaderRank}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`}</span>
-                    <div style={s.leaderAvatar}>{entry.username?.[0]?.toUpperCase()}</div>
-                    <span style={s.leaderName}>{entry.username}</span>
-                    <span style={s.leaderScore}>{entry.score}</span>
-                  </div>
-                ))
+                activeLeaderEntries.map((entry, i) => {
+                  const isSelf = entry.username === user?.username
+                  return (
+                    <div
+                      key={`${entry.userId}-${i}`}
+                      style={{
+                        ...s.leaderRow,
+                        background: isSelf ? 'var(--bg-accent-soft)' : 'var(--bg-badge)',
+                        border: isSelf ? '1px solid var(--border-focus)' : '1px solid var(--border-muted)',
+                      }}
+                    >
+                      <span style={s.leaderRank}>
+                        {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`}
+                      </span>
+                      <MiniAvatar
+                        username={entry.username}
+                        avatarUrl={entry.avatarUrl}
+                        avatarConfig={entry.avatarConfig}
+                        size={24}
+                      />
+                      <span style={{ ...s.leaderName, fontWeight: isSelf ? 700 : 500, color: isSelf ? 'var(--accent-dark)' : 'var(--text-body)' }}>
+                        {entry.username}
+                        {isSelf && <span style={s.youBadge}> you</span>}
+                      </span>
+                      <span style={s.leaderScore}>
+                        {entry.isTime ? fmtTime(entry.value) : entry.value}
+                      </span>
+                    </div>
+                  )
+                })
               )}
             </section>
           </aside>
         </div>
 
-        {/* Filter bar */}
-        <div style={{ ...s.filterBar, background: filterBg }}>
+        {/* ── Filter bar ── */}
+        <div style={{ ...s.filterBar, background: 'var(--bg-surface)' }}>
           <div style={s.filterGroup}>
             {(['all', 'playable', 'coming-soon'] as FilterKey[]).map((f) => (
               <button
@@ -229,7 +465,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
           </p>
         </div>
 
-        {/* Game grid */}
+        {/* ── Game grid ── */}
         <div style={s.grid}>
           {visibleGames.length > 0 ? (
             visibleGames.map((g, i) => (
@@ -274,8 +510,9 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: 'var(--shadow-md)',
     transition: 'background 220ms ease',
   },
+  welcomeLeft: { display: 'flex', alignItems: 'center', gap: 12 },
   welcomeTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 24, lineHeight: 1.1 },
-  welcomeSub:   { margin: '3px 0 0', fontSize: 13, lineHeight: 1 },
+  welcomeSub:   { margin: '3px 0 0', fontSize: 13, lineHeight: 1, color: 'var(--text-muted)' },
   statsRow: { display: 'flex', gap: 10 },
   statChip: {
     display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -320,9 +557,9 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     letterSpacing: 0.3,
   },
-  heroTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 36, color: '#f8efda', lineHeight: 1 },
-  heroDesc:  { margin: 0, fontSize: 15, opacity: 0.9, lineHeight: 1.45 },
-  heroActions: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' },
+  heroTitle:      { margin: 0, fontFamily: headingFontFamily, fontSize: 36, color: '#f8efda', lineHeight: 1 },
+  heroDesc:       { margin: 0, fontSize: 15, opacity: 0.9, lineHeight: 1.45 },
+  heroActions:    { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' },
   heroPrimaryBtn: {
     padding: '9px 18px',
     borderRadius: 10,
@@ -355,45 +592,94 @@ const s: Record<string, React.CSSProperties> = {
     gap: 8,
     transition: 'background 220ms ease',
   },
-  panelTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 19 },
+  panelTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 18 },
+
+  // Score rows
   scoreRow: {
     display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '7px 10px',
-    borderRadius: 8,
+    flexDirection: 'column',
+    gap: 5,
+    padding: '8px 10px',
+    borderRadius: 10,
   },
+  scoreRowTop: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  scoreGameIcon: { fontSize: 14, lineHeight: 1, flexShrink: 0 },
+  scoreGameName: { flex: 1, fontSize: 13, color: 'var(--text-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  scoreValue: { fontSize: 14, fontWeight: 700, flexShrink: 0 },
+  scoreBarTrack: {
+    height: 4,
+    borderRadius: 999,
+    background: 'var(--border-muted)',
+    overflow: 'hidden',
+    marginTop: 1,
+  },
+  scoreBarFill: {
+    height: '100%',
+    borderRadius: 999,
+    transition: 'width 600ms cubic-bezier(0.22,0.61,0.36,1)',
+  },
+
+  // Leaderboard panel
   leaderPanel: {
     borderRadius: 15,
     border: '1px solid var(--border)',
     background: 'var(--bg-surface)',
     boxShadow: 'var(--shadow-md)',
-    padding: '14px 16px',
+    padding: '12px 14px',
     color: 'var(--text-body)',
     display: 'flex',
     flexDirection: 'column',
-    gap: 8,
-    flex: 1,
+    gap: 6,
     backdropFilter: 'blur(10px)',
   },
-  leaderHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
-  leaderTitle:  { margin: 0, fontFamily: headingFontFamily, fontSize: 19, color: 'var(--text-h)' },
-  leaderSub:    { fontSize: 11, opacity: 0.6, letterSpacing: 0.5, color: 'var(--text-muted)' },
+  leaderTabs: {
+    display: 'flex',
+    gap: 4,
+    flexWrap: 'wrap',
+    paddingBottom: 8,
+    borderBottom: '1px solid var(--border-muted)',
+    marginBottom: 4,
+  },
+  leaderTab: {
+    padding: '5px 10px',
+    borderRadius: 8,
+    border: '1px solid transparent',
+    background: 'transparent',
+    color: 'var(--text-muted)',
+    fontFamily: bodyFontFamily,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'background 140ms, color 140ms',
+  },
+  leaderTabActive: {
+    background: 'var(--bg-accent-soft)',
+    color: 'var(--accent-dark)',
+    border: '1px solid var(--border-focus)',
+  },
+  leaderHeaderRow: { display: 'flex', justifyContent: 'flex-end' },
+  leaderSub: { fontSize: 10, letterSpacing: 0.6, color: 'var(--text-muted)', fontWeight: 700 },
   leaderRow: {
     display: 'flex', alignItems: 'center', gap: 8,
-    padding: '6px 8px', borderRadius: 8, background: 'var(--bg-badge)',
-    border: '1px solid var(--border-muted)',
+    padding: '6px 8px', borderRadius: 8,
+    transition: 'background 140ms',
   },
-  leaderRank:   { fontSize: 12, width: 20, textAlign: 'center', flexShrink: 0, color: 'var(--text-muted)' },
-  leaderAvatar: {
-    width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-    background: 'linear-gradient(135deg,#ADC178,#6C584C)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 10, fontWeight: 700, color: '#fff',
+  leaderRank: { fontSize: 13, width: 22, textAlign: 'center', flexShrink: 0 },
+  leaderName: {
+    flex: 1, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   },
-  leaderName:   { flex: 1, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-body)' },
-  leaderScore:  { fontSize: 14, fontWeight: 700, color: 'var(--accent)' },
-  leaderEmpty:  { fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0', margin: 0 },
+  leaderScore: {
+    fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: numberFontFamily, flexShrink: 0,
+  },
+  leaderEmpty: { fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0', margin: 0 },
+  youBadge: {
+    fontSize: 10, fontWeight: 800, color: 'var(--accent)', background: 'var(--bg-accent-soft)',
+    padding: '1px 5px', borderRadius: 4, marginLeft: 2,
+  },
 
   filterBar: {
     display: 'flex',

@@ -4,32 +4,72 @@ import {
   createCommunityPost,
   createCommunityReply,
   getCommunityPosts,
+  voteOnPost,
+  mediaUrl,
   type CommunityPost,
   type CommunityTopic,
 } from '../lib/api'
 
 const TOPICS: Array<{ id: CommunityTopic | 'all'; label: string; icon: string }> = [
-  { id: 'all',          label: 'All',             icon: '🌐' },
-  { id: 'general',      label: 'General',         icon: '💬' },
-  { id: 'delivery',     label: 'Delivery',        icon: '📦' },
-  { id: 'sapling',      label: 'Spirit Sapling',  icon: '🌱' },
-  { id: 'half-moon',    label: 'Half Moon',       icon: '🌙' },
-  { id: 'spirit-drift', label: 'Spirit Drift',    icon: '🌊' },
+  { id: 'all',          label: 'All',            icon: '🌐' },
+  { id: 'general',      label: 'General',        icon: '💬' },
+  { id: 'delivery',     label: 'Delivery',       icon: '📦' },
+  { id: 'sapling',      label: 'Spirit Sapling', icon: '🌱' },
+  { id: 'half-moon',    label: 'Half Moon',      icon: '🌙' },
+  { id: 'spirit-drift', label: 'Spirit Drift',   icon: '🌊' },
 ]
 
-const POST_TOPICS = TOPICS.filter((topic): topic is { id: CommunityTopic; label: string; icon: string } => topic.id !== 'all')
+const POST_TOPICS = TOPICS.filter(
+  (t): t is { id: CommunityTopic; label: string; icon: string } => t.id !== 'all',
+)
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+function timeAgo(dateStr: string): string {
+  const sec = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (sec < 60) return 'just now'
+  const m = Math.floor(sec / 60); if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24); if (d < 30) return `${d}d ago`
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function initials(name: string) { return name.slice(0, 2).toUpperCase() }
+
+const AVATAR_PALETTE = ['#4a7c59', '#6b5c3e', '#5c6b9e', '#7a3c5c', '#3c6b7a', '#7a6b3c', '#3c5c7a']
+function avatarColor(name: string) { return AVATAR_PALETTE[name.charCodeAt(0) % AVATAR_PALETTE.length] }
+
+function AvatarCircle({
+  username, avatarUrl, avatarConfig, size = 32,
+}: {
+  username: string
+  avatarUrl?: string | null
+  avatarConfig?: { face: string; color: string; accessory: string } | null
+  size?: number
+}) {
+  if (avatarUrl) {
+    return (
+      <img
+        src={mediaUrl(avatarUrl)}
+        alt=""
+        style={{ width: size, height: size, minWidth: size, borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(0,0,0,0.08)' }}
+      />
+    )
+  }
+  if (avatarConfig) {
+    return (
+      <div style={{ width: size, height: size, minWidth: size, borderRadius: '50%', background: `radial-gradient(circle at 35% 25%, #fff5, transparent 34%), ${avatarConfig.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.44, flexShrink: 0, border: '1px solid rgba(0,0,0,0.08)' }}>
+        {avatarConfig.face}
+      </div>
+    )
+  }
+  return (
+    <div style={{ width: size, height: size, minWidth: size, borderRadius: '50%', background: avatarColor(username), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.375, fontWeight: 800, color: '#fff', flexShrink: 0, letterSpacing: '0.03em' }}>
+      {initials(username)}
+    </div>
+  )
 }
 
 function topicMeta(topic: CommunityTopic) {
-  return POST_TOPICS.find((item) => item.id === topic) ?? POST_TOPICS[0]
+  return POST_TOPICS.find((t) => t.id === topic) ?? POST_TOPICS[0]
 }
 
 export default function CommunityPage() {
@@ -38,10 +78,14 @@ export default function CommunityPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showComposer, setShowComposer] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<'new' | 'top'>('new')
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
-  const [topic, setTopic] = useState<CommunityTopic>('general')
+  const [postTopic, setPostTopic] = useState<CommunityTopic>('general')
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
+  const [submittingReply, setSubmittingReply] = useState<string | null>(null)
 
   const loadPosts = () => {
     setLoading(true)
@@ -52,29 +96,55 @@ export default function CommunityPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => {
-    loadPosts()
-  }, [activeTopic])
+  useEffect(() => { loadPosts() }, [activeTopic])
 
   const stats = useMemo(() => {
-    const replyCount = posts.reduce((total, post) => total + post.replies.length, 0)
+    const replyCount = posts.reduce((total, p) => total + p.replies.length, 0)
     const playerNames = new Set<string>()
-    posts.forEach((post) => {
-      playerNames.add(post.author.username)
-      post.replies.forEach((reply) => playerNames.add(reply.author.username))
+    posts.forEach((p) => {
+      playerNames.add(p.author.username)
+      p.replies.forEach((r) => playerNames.add(r.author.username))
     })
     return { posts: posts.length, replies: replyCount, players: playerNames.size }
   }, [posts])
+
+  const sortedPosts = useMemo(() => {
+    if (sortBy === 'top') return [...posts].sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0))
+    return posts
+  }, [posts, sortBy])
+
+  const handleVote = async (postId: string) => {
+    setPosts((cur) =>
+      cur.map((p) =>
+        p.id !== postId
+          ? p
+          : { ...p, votes: (p.votes ?? 0) + (p.voted ? -1 : 1), voted: !p.voted },
+      ),
+    )
+    try {
+      const r = await voteOnPost(postId)
+      setPosts((cur) => cur.map((p) => (p.id === postId ? { ...p, votes: r.votes, voted: r.voted } : p)))
+    } catch {
+      setPosts((cur) =>
+        cur.map((p) =>
+          p.id !== postId
+            ? p
+            : { ...p, votes: (p.votes ?? 0) + (p.voted ? -1 : 1), voted: !p.voted },
+        ),
+      )
+    }
+  }
 
   const submitPost = async (event: React.FormEvent) => {
     event.preventDefault()
     setSaving(true)
     setError('')
     try {
-      const res = await createCommunityPost({ topic, title, body })
-      setPosts((current) => [res.post, ...current])
+      const res = await createCommunityPost({ topic: postTopic, title, body })
+      setPosts((cur) => [res.post, ...cur])
       setTitle('')
       setBody('')
+      setShowComposer(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create post')
     } finally {
@@ -85,122 +155,268 @@ export default function CommunityPage() {
   const submitReply = async (postId: string) => {
     const reply = replyDrafts[postId]?.trim()
     if (!reply) return
+    setSubmittingReply(postId)
     setError('')
     try {
       const res = await createCommunityReply(postId, reply)
-      setPosts((current) => current.map((post) => (post.id === postId ? res.post : post)))
-      setReplyDrafts((current) => ({ ...current, [postId]: '' }))
+      setPosts((cur) => cur.map((p) => (p.id === postId ? res.post : p)))
+      setReplyDrafts((cur) => ({ ...cur, [postId]: '' }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add reply')
+    } finally {
+      setSubmittingReply(null)
     }
   }
 
   return (
     <div style={s.page}>
-      <div style={s.header}>
+      {/* ── Top bar ── */}
+      <div style={s.topBar}>
         <div>
           <h2 style={s.pageTitle}>Community Grove</h2>
           <p style={s.pageSub}>Share routes, ask for help, and cheer on other players.</p>
         </div>
-        <div style={s.stats}>
-          <div style={s.stat}><strong>{stats.posts}</strong><span>Posts</span></div>
-          <div style={s.stat}><strong>{stats.replies}</strong><span>Replies</span></div>
-          <div style={s.stat}><strong>{stats.players}</strong><span>Players</span></div>
-        </div>
+        <button
+          style={s.newPostBtn}
+          onClick={() => setShowComposer((v) => !v)}
+        >
+          {showComposer ? '✕ Cancel' : '✦ New Post'}
+        </button>
       </div>
 
-      <div style={s.topicBar}>
-        {TOPICS.map((item) => (
-          <button
-            key={item.id}
-            style={{
-              ...s.topicBtn,
-              ...(activeTopic === item.id ? s.topicBtnActive : {}),
-            }}
-            onClick={() => setActiveTopic(item.id)}
-          >
-            <span>{item.icon}</span>
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      <form style={s.composer} onSubmit={submitPost}>
-        <div style={s.composerTop}>
-          <select value={topic} onChange={(event) => setTopic(event.target.value as CommunityTopic)} style={s.select}>
-            {POST_TOPICS.map((item) => (
-              <option key={item.id} value={item.id}>{item.icon} {item.label}</option>
-            ))}
-          </select>
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Start a discussion"
-            style={s.titleInput}
-            maxLength={120}
-            required
-          />
-        </div>
-        <textarea
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          placeholder="Ask for route advice, share a game moment, or leave a tip for other grove players."
-          style={s.textarea}
-          maxLength={1200}
-          required
-        />
-        <div style={s.composerActions}>
-          {error && <p style={s.error}>{error}</p>}
-          <button type="submit" style={s.postBtn} disabled={saving}>
-            {saving ? 'Posting...' : 'Post to Community'}
-          </button>
-        </div>
-      </form>
-
-      {loading ? (
-        <p style={s.empty}>Loading community posts...</p>
-      ) : posts.length === 0 ? (
-        <p style={s.empty}>No posts here yet. Start the first conversation.</p>
-      ) : (
-        <div style={s.feed}>
-          {posts.map((post) => {
-            const meta = topicMeta(post.topic)
-            return (
-              <article key={post.id} style={s.postCard}>
-                <div style={s.postHead}>
-                  <span style={s.topicPill}>{meta.icon} {meta.label}</span>
-                  <span style={s.postTime}>{formatDate(post.createdAt)}</span>
-                </div>
-                <h3 style={s.postTitle}>{post.title}</h3>
-                <p style={s.postBody}>{post.body}</p>
-                <p style={s.author}>Posted by {post.author.username}</p>
-
-                <div style={s.replies}>
-                  {post.replies.map((reply) => (
-                    <div key={reply.id} style={s.reply}>
-                      <p style={s.replyBody}>{reply.body}</p>
-                      <p style={s.replyMeta}>{reply.author.username} · {formatDate(reply.createdAt)}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={s.replyForm}>
-                  <input
-                    value={replyDrafts[post.id] ?? ''}
-                    onChange={(event) => setReplyDrafts((current) => ({ ...current, [post.id]: event.target.value }))}
-                    placeholder="Reply to this post"
-                    style={s.replyInput}
-                    maxLength={800}
-                  />
-                  <button type="button" style={s.replyBtn} onClick={() => submitReply(post.id)}>
-                    Reply
-                  </button>
-                </div>
-              </article>
-            )
-          })}
-        </div>
+      {/* ── Composer ── */}
+      {showComposer && (
+        <form style={s.composer} onSubmit={submitPost}>
+          <div style={s.composerTop}>
+            <select
+              value={postTopic}
+              onChange={(e) => setPostTopic(e.target.value as CommunityTopic)}
+              style={s.select}
+            >
+              {POST_TOPICS.map((t) => (
+                <option key={t.id} value={t.id}>{t.icon} {t.label}</option>
+              ))}
+            </select>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Start a discussion"
+              style={s.titleInput}
+              maxLength={120}
+              required
+            />
+          </div>
+          <div style={{ position: 'relative' }}>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Ask for route advice, share a game moment, or leave a tip for other grove players."
+              style={s.textarea}
+              maxLength={1200}
+              required
+            />
+            <span style={s.charCount}>{body.length}/1200</span>
+          </div>
+          <div style={s.composerActions}>
+            {error && <p style={s.error}>{error}</p>}
+            <button type="submit" style={s.postBtn} disabled={saving}>
+              {saving ? 'Posting...' : '🍃 Post to Grove'}
+            </button>
+          </div>
+        </form>
       )}
+
+      {/* ── Two-column layout ── */}
+      <div style={s.layout}>
+        {/* ── Sidebar ── */}
+        <aside style={s.sidebar}>
+          <div style={s.sideSection}>
+            <p style={s.sideHeading}>Topics</p>
+            {TOPICS.map((t) => {
+              const active = activeTopic === t.id
+              return (
+                <button
+                  key={t.id}
+                  style={{ ...s.topicBtn, ...(active ? s.topicBtnActive : {}) }}
+                  onClick={() => setActiveTopic(t.id)}
+                >
+                  {active && <span style={s.activeDot} />}
+                  <span style={s.topicIcon}>{t.icon}</span>
+                  <span>{t.label}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div style={s.sideSection}>
+            <p style={s.sideHeading}>Grove Stats</p>
+            <div style={s.statRow}>
+              <span style={s.statLabel}>Posts</span>
+              <strong style={s.statValue}>{stats.posts}</strong>
+            </div>
+            <div style={s.statRow}>
+              <span style={s.statLabel}>Replies</span>
+              <strong style={s.statValue}>{stats.replies}</strong>
+            </div>
+            <div style={s.statRow}>
+              <span style={s.statLabel}>Players</span>
+              <strong style={s.statValue}>{stats.players}</strong>
+            </div>
+          </div>
+        </aside>
+
+        {/* ── Feed ── */}
+        <div style={s.feed}>
+          {/* Sort bar */}
+          <div style={s.sortBar}>
+            <button
+              style={{ ...s.sortBtn, ...(sortBy === 'new' ? s.sortBtnActive : {}) }}
+              onClick={() => setSortBy('new')}
+            >
+              🌿 New
+            </button>
+            <button
+              style={{ ...s.sortBtn, ...(sortBy === 'top' ? s.sortBtnActive : {}) }}
+              onClick={() => setSortBy('top')}
+            >
+              🏆 Top
+            </button>
+          </div>
+
+          {loading ? (
+            <p style={s.empty}>Loading community posts...</p>
+          ) : sortedPosts.length === 0 ? (
+            <p style={s.empty}>No posts here yet. Start the first conversation!</p>
+          ) : (
+            sortedPosts.map((post) => {
+              const meta = topicMeta(post.topic)
+              const isExpanded = expandedId === post.id
+              const replyCount = post.replies.length
+
+              return (
+                <article key={post.id} style={s.postCard}>
+                  <div style={s.postRow}>
+                    {/* Vote column */}
+                    <div style={s.voteCol}>
+                      <button
+                        style={{
+                          ...s.voteBtn,
+                          opacity: post.voted ? 1 : 0.45,
+                          transform: post.voted ? 'scale(1.15)' : 'scale(1)',
+                          color: post.voted ? 'var(--accent)' : 'var(--text-muted)',
+                          filter: post.voted ? 'drop-shadow(0 0 4px var(--accent))' : 'none',
+                        }}
+                        onClick={() => handleVote(post.id)}
+                        title={post.voted ? 'Remove vote' : 'Upvote'}
+                      >
+                        🍃
+                      </button>
+                      <span style={s.voteCount}>{post.votes ?? 0}</span>
+                    </div>
+
+                    {/* Content column */}
+                    <div style={s.contentCol}>
+                      <div style={s.postMeta}>
+                        <span style={s.topicPill}>{meta.icon} {meta.label}</span>
+                        <span style={s.metaDot}>·</span>
+                        <AvatarCircle
+                          username={post.author.username}
+                          avatarUrl={post.author.avatarUrl}
+                          avatarConfig={post.author.avatarConfig}
+                          size={20}
+                        />
+                        <span style={s.metaText}>{post.author.username}</span>
+                        {post.author.status && (
+                          <>
+                            <span style={s.metaDot}>·</span>
+                            <span style={{ ...s.metaText, fontStyle: 'italic' }}>{post.author.status}</span>
+                          </>
+                        )}
+                        <span style={s.metaDot}>·</span>
+                        <span style={s.metaText}>{timeAgo(post.createdAt)}</span>
+                      </div>
+
+                      <h3 style={s.postTitle}>{post.title}</h3>
+
+                      <p
+                        style={
+                          isExpanded
+                            ? { ...s.postBody }
+                            : {
+                                ...s.postBody,
+                                overflow: 'hidden',
+                                display: '-webkit-box' as any,
+                                WebkitLineClamp: 3,
+                                WebkitBoxOrient: 'vertical' as any,
+                              }
+                        }
+                      >
+                        {post.body}
+                      </p>
+
+                      <button
+                        style={s.replyToggle}
+                        onClick={() => setExpandedId(isExpanded ? null : post.id)}
+                      >
+                        💬 {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+                        {isExpanded ? ' · collapse' : ' · view'}
+                      </button>
+
+                      {/* Expanded thread */}
+                      {isExpanded && (
+                        <div style={s.thread}>
+                          {post.replies.length > 0 && (
+                            <div style={s.replyList}>
+                              {post.replies.map((reply) => (
+                                <div key={reply.id} style={s.replyItem}>
+                                  <AvatarCircle
+                                    username={reply.author.username}
+                                    avatarUrl={reply.author.avatarUrl}
+                                    avatarConfig={reply.author.avatarConfig}
+                                    size={32}
+                                  />
+                                  <div style={s.replyContent}>
+                                    <div style={s.replyHeader}>
+                                      <strong style={s.replyAuthor}>{reply.author.username}</strong>
+                                      <span style={s.replyTime}>{timeAgo(reply.createdAt)}</span>
+                                    </div>
+                                    <p style={s.replyBody}>{reply.body}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <div style={s.replyForm}>
+                            <textarea
+                              value={replyDrafts[post.id] ?? ''}
+                              onChange={(e) =>
+                                setReplyDrafts((cur) => ({ ...cur, [post.id]: e.target.value }))
+                              }
+                              placeholder="Add a reply..."
+                              style={s.replyTextarea}
+                              maxLength={800}
+                              rows={3}
+                            />
+                            <button
+                              type="button"
+                              style={s.replyBtn}
+                              disabled={submittingReply === post.id}
+                              onClick={() => submitReply(post.id)}
+                            >
+                              {submittingReply === post.id ? 'Sending...' : '↩ Reply'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              )
+            })
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -208,75 +424,426 @@ export default function CommunityPage() {
 const s: Record<string, React.CSSProperties> = {
   page: {
     padding: '28px 32px',
-    maxWidth: 980,
+    maxWidth: 1080,
     display: 'flex',
     flexDirection: 'column',
-    gap: 18,
+    gap: 20,
     fontFamily: bodyFontFamily,
   },
-  header: { display: 'flex', justifyContent: 'space-between', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' },
-  pageTitle: { margin: 0, fontFamily: headingFontFamily, fontSize: 34, color: 'var(--text-h)' },
-  pageSub: { margin: '2px 0 0', fontSize: 14, color: 'var(--text-muted)' },
-  stats: { display: 'flex', gap: 10, flexWrap: 'wrap' },
-  stat: {
-    minWidth: 82,
-    borderRadius: 14,
-    border: '1px solid var(--border)',
-    background: 'var(--bg-surface)',
-    padding: '10px 12px',
-    textAlign: 'center',
-    boxShadow: 'var(--shadow-sm)',
-  },
-  topicBar: { display: 'flex', flexWrap: 'wrap', gap: 8 },
-  topicBtn: {
+  topBar: {
     display: 'flex',
-    alignItems: 'center',
-    gap: 7,
-    padding: '9px 13px',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  pageTitle: {
+    margin: 0,
+    fontFamily: headingFontFamily,
+    fontSize: 34,
+    color: 'var(--text-h)',
+  },
+  pageSub: {
+    margin: '3px 0 0',
+    fontSize: 14,
+    color: 'var(--text-muted)',
+  },
+  newPostBtn: {
+    padding: '10px 20px',
     borderRadius: 999,
-    border: '1px solid var(--border)',
-    background: 'var(--bg-surface)',
-    color: 'var(--text-secondary)',
-    fontFamily: bodyFontFamily,
-    cursor: 'pointer',
-  },
-  topicBtnActive: {
-    background: 'var(--bg-accent-soft)',
+    border: '1.5px solid var(--accent)',
+    background: 'transparent',
     color: 'var(--accent-dark)',
-    borderColor: 'var(--accent)',
+    fontFamily: bodyFontFamily,
     fontWeight: 800,
+    fontSize: 14,
+    cursor: 'pointer',
+    letterSpacing: '0.02em',
   },
+
+  // Composer
   composer: {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
-    padding: 16,
+    padding: 18,
     borderRadius: 18,
     border: '1px solid var(--border)',
     background: 'var(--bg-surface)',
     boxShadow: 'var(--shadow-md)',
   },
-  composerTop: { display: 'grid', gridTemplateColumns: '180px 1fr', gap: 10 },
-  select: { padding: '11px 12px', borderRadius: 10, border: '1px solid var(--border-strong)', background: 'var(--bg-input)', color: 'var(--text-body)' },
-  titleInput: { padding: '11px 12px', borderRadius: 10, border: '1px solid var(--border-strong)', background: 'var(--bg-input)', color: 'var(--text-body)', fontFamily: bodyFontFamily },
-  textarea: { minHeight: 92, resize: 'vertical', padding: 12, borderRadius: 10, border: '1px solid var(--border-strong)', background: 'var(--bg-input)', color: 'var(--text-body)', fontFamily: bodyFontFamily, lineHeight: 1.45 },
-  composerActions: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  postBtn: { padding: '11px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))', color: 'var(--text-on-dark)', fontFamily: bodyFontFamily, fontWeight: 800, cursor: 'pointer' },
-  error: { margin: 0, color: '#C04040', fontSize: 13 },
-  empty: { margin: 0, color: 'var(--text-muted)', padding: 16, borderRadius: 14, background: 'var(--bg-surface)', border: '1px solid var(--border)' },
-  feed: { display: 'flex', flexDirection: 'column', gap: 12 },
-  postCard: { padding: 16, borderRadius: 18, border: '1px solid var(--border)', background: 'var(--bg-surface)', boxShadow: 'var(--shadow-sm)' },
-  postHead: { display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' },
-  topicPill: { padding: '5px 9px', borderRadius: 999, background: 'var(--bg-accent-soft)', color: 'var(--accent-dark)', fontSize: 12, fontWeight: 800 },
-  postTime: { color: 'var(--text-muted)', fontSize: 12 },
-  postTitle: { margin: '12px 0 5px', fontFamily: headingFontFamily, color: 'var(--text-h)', fontSize: 24 },
-  postBody: { margin: 0, color: 'var(--text-body)', lineHeight: 1.5, whiteSpace: 'pre-wrap' },
-  author: { margin: '10px 0 0', color: 'var(--text-muted)', fontSize: 12, fontWeight: 700 },
-  replies: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 },
-  reply: { padding: '10px 12px', borderRadius: 12, background: 'var(--bg-input)', border: '1px solid var(--border)' },
-  replyBody: { margin: 0, color: 'var(--text-body)', fontSize: 14, lineHeight: 1.4 },
-  replyMeta: { margin: '5px 0 0', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700 },
-  replyForm: { display: 'flex', gap: 8, marginTop: 12 },
-  replyInput: { flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border-strong)', background: 'var(--bg-input)', color: 'var(--text-body)', fontFamily: bodyFontFamily },
-  replyBtn: { padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-strong)', background: 'var(--bg-accent-soft)', color: 'var(--accent-dark)', fontFamily: bodyFontFamily, fontWeight: 800, cursor: 'pointer' },
+  composerTop: {
+    display: 'grid',
+    gridTemplateColumns: '180px 1fr',
+    gap: 10,
+  },
+  select: {
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid var(--border-strong)',
+    background: 'var(--bg-input)',
+    color: 'var(--text-body)',
+    fontFamily: bodyFontFamily,
+  },
+  titleInput: {
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid var(--border-strong)',
+    background: 'var(--bg-input)',
+    color: 'var(--text-body)',
+    fontFamily: bodyFontFamily,
+  },
+  textarea: {
+    width: '100%',
+    boxSizing: 'border-box',
+    minHeight: 96,
+    resize: 'vertical',
+    padding: 12,
+    borderRadius: 10,
+    border: '1px solid var(--border-strong)',
+    background: 'var(--bg-input)',
+    color: 'var(--text-body)',
+    fontFamily: bodyFontFamily,
+    lineHeight: 1.45,
+  },
+  charCount: {
+    position: 'absolute',
+    bottom: 8,
+    right: 12,
+    fontSize: 11,
+    color: 'var(--text-muted)',
+    pointerEvents: 'none',
+  },
+  composerActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  postBtn: {
+    padding: '10px 18px',
+    borderRadius: 10,
+    border: 'none',
+    background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))',
+    color: 'var(--text-on-dark)',
+    fontFamily: bodyFontFamily,
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  error: {
+    margin: 0,
+    color: '#C04040',
+    fontSize: 13,
+  },
+
+  // Two-column layout
+  layout: {
+    display: 'grid',
+    gridTemplateColumns: '220px 1fr',
+    gap: 20,
+    alignItems: 'flex-start',
+  },
+
+  // Sidebar
+  sidebar: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+    position: 'sticky',
+    top: 20,
+  },
+  sideSection: {
+    padding: '14px 12px',
+    borderRadius: 16,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-surface)',
+    boxShadow: 'var(--shadow-sm)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  sideHeading: {
+    margin: '0 0 6px',
+    fontSize: 11,
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    color: 'var(--text-muted)',
+  },
+  topicBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '8px 10px',
+    borderRadius: 10,
+    border: 'none',
+    background: 'transparent',
+    color: 'var(--text-body)',
+    fontFamily: bodyFontFamily,
+    fontSize: 13,
+    cursor: 'pointer',
+    textAlign: 'left',
+    position: 'relative',
+  },
+  topicBtnActive: {
+    background: 'var(--bg-accent-soft)',
+    color: 'var(--accent-dark)',
+    fontWeight: 800,
+  },
+  activeDot: {
+    position: 'absolute',
+    left: 2,
+    width: 5,
+    height: 5,
+    borderRadius: '50%',
+    background: 'var(--accent)',
+  },
+  topicIcon: {
+    fontSize: 15,
+  },
+  statRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '5px 2px',
+    borderBottom: '1px solid var(--border)',
+  },
+  statLabel: {
+    fontSize: 13,
+    color: 'var(--text-muted)',
+  },
+  statValue: {
+    fontSize: 14,
+    color: 'var(--text-h)',
+  },
+
+  // Feed
+  feed: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  sortBar: {
+    display: 'flex',
+    gap: 6,
+    padding: '10px 14px',
+    borderRadius: 12,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-surface)',
+    boxShadow: 'var(--shadow-sm)',
+  },
+  sortBtn: {
+    padding: '7px 14px',
+    borderRadius: 8,
+    border: 'none',
+    background: 'transparent',
+    color: 'var(--text-muted)',
+    fontFamily: bodyFontFamily,
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: 'pointer',
+  },
+  sortBtnActive: {
+    background: 'var(--bg-accent-soft)',
+    color: 'var(--accent-dark)',
+  },
+  empty: {
+    margin: 0,
+    color: 'var(--text-muted)',
+    padding: 20,
+    borderRadius: 14,
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
+  },
+
+  // Post card
+  postCard: {
+    borderRadius: 16,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-surface)',
+    boxShadow: 'var(--shadow-sm)',
+    overflow: 'hidden',
+  },
+  postRow: {
+    display: 'flex',
+    alignItems: 'stretch',
+  },
+
+  // Vote column
+  voteCol: {
+    width: 52,
+    minWidth: 52,
+    background: 'var(--bg-input)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 16,
+    gap: 4,
+    borderRight: '1px solid var(--border)',
+  },
+  voteBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 20,
+    lineHeight: 1,
+    padding: '4px 0',
+    transition: 'opacity 0.15s, transform 0.15s, filter 0.15s',
+  },
+  voteCount: {
+    fontSize: 13,
+    fontWeight: 800,
+    color: 'var(--text-muted)',
+    lineHeight: 1,
+  },
+
+  // Content column
+  contentCol: {
+    flex: 1,
+    minWidth: 0,
+    padding: '14px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  postMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  topicPill: {
+    padding: '3px 9px',
+    borderRadius: 999,
+    background: 'var(--bg-accent-soft)',
+    color: 'var(--accent-dark)',
+    fontSize: 11,
+    fontWeight: 800,
+  },
+  metaDot: {
+    color: 'var(--text-muted)',
+    fontSize: 12,
+  },
+  metaText: {
+    color: 'var(--text-muted)',
+    fontSize: 12,
+  },
+  postTitle: {
+    margin: 0,
+    fontFamily: headingFontFamily,
+    color: 'var(--text-h)',
+    fontSize: 18,
+    lineHeight: 1.3,
+  },
+  postBody: {
+    margin: 0,
+    color: 'var(--text-body)',
+    fontSize: 14,
+    lineHeight: 1.55,
+    whiteSpace: 'pre-wrap',
+  },
+  replyToggle: {
+    alignSelf: 'flex-start',
+    padding: '5px 10px',
+    borderRadius: 8,
+    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: 'var(--text-muted)',
+    fontFamily: bodyFontFamily,
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+
+  // Thread / replies
+  thread: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    marginTop: 8,
+    paddingTop: 12,
+    borderTop: '1px solid var(--border)',
+  },
+  replyList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  replyItem: {
+    display: 'flex',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    minWidth: 32,
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 12,
+    fontWeight: 800,
+    color: '#fff',
+    letterSpacing: '0.03em',
+  },
+  replyContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  replyHeader: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: 3,
+  },
+  replyAuthor: {
+    fontSize: 13,
+    color: 'var(--text-h)',
+  },
+  replyTime: {
+    fontSize: 11,
+    color: 'var(--text-muted)',
+  },
+  replyBody: {
+    margin: 0,
+    fontSize: 13,
+    color: 'var(--text-body)',
+    lineHeight: 1.5,
+    whiteSpace: 'pre-wrap',
+  },
+
+  // Reply form
+  replyForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  replyTextarea: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid var(--border-strong)',
+    background: 'var(--bg-input)',
+    color: 'var(--text-body)',
+    fontFamily: bodyFontFamily,
+    fontSize: 13,
+    lineHeight: 1.4,
+    resize: 'vertical',
+  },
+  replyBtn: {
+    alignSelf: 'flex-end',
+    padding: '8px 16px',
+    borderRadius: 10,
+    border: '1px solid var(--border-strong)',
+    background: 'var(--bg-accent-soft)',
+    color: 'var(--accent-dark)',
+    fontFamily: bodyFontFamily,
+    fontWeight: 800,
+    fontSize: 13,
+    cursor: 'pointer',
+  },
 }

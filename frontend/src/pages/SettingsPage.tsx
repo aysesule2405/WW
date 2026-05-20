@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { readableFontFamily, uiFontFamily, titleFontFamily } from '../theme/typography'
 import { useTheme } from '../context/ThemeContext'
-import { THEME_META, GAME_THEMES, type ColorTheme } from '../context/themeTypes'
+import { THEME_META, type ColorTheme } from '../context/themeTypes'
 import { audioManager } from '../lib/AudioManager'
 import { compactSurface, pageShell, uiRadius, uiSpace, uiType, uiWidth } from '../theme/uiTokens'
 import {
@@ -21,7 +21,7 @@ const TOGGLES: Toggle[] = [
   { key: 'particles',    label: 'Ambient Motion Effects', description: 'Show drifting leaves, sparkles, and soft background character motion.' },
 ]
 
-const THEME_ORDER: ColorTheme[] = ['light', 'dark', 'sapling', 'delivery', 'drift', 'halfmoon', 'dashboard']
+const THEME_ORDER: ColorTheme[] = ['light', 'sapling', 'delivery', 'drift', 'halfmoon', 'ember', 'petal', 'frost']
 const BG_COUNT = 9
 
 export default function SettingsPage() {
@@ -92,30 +92,27 @@ export default function SettingsPage() {
           })}
         </div>
 
-        {/* Light / Dark mode toggle — only for game themes */}
-        {GAME_THEMES.includes(theme) && (
-          <div style={s.modeRow}>
-            <div style={s.toggleInfo}>
-              <p style={s.toggleLabel}>Theme Mode</p>
-              <p style={s.toggleDesc}>Switch between dark and light variants of the selected theme.</p>
-            </div>
-            <div style={s.modePills}>
-              {(['dark', 'light'] as const).map((m) => (
-                <button
-                  key={m}
-                  style={{
-                    ...s.modePill,
-                    ...(mode === m ? s.modePillActive : {}),
-                  }}
-                  onClick={() => { if (mode !== m) toggleMode() }}
-                  aria-pressed={mode === m}
-                >
-                  {m === 'dark' ? '🌙 Dark' : '☀️ Light'}
-                </button>
-              ))}
-            </div>
+        <div style={s.modeRow}>
+          <div style={s.toggleInfo}>
+            <p style={s.toggleLabel}>Mode</p>
+            <p style={s.toggleDesc}>Switch between light and dark variants of the selected theme.</p>
           </div>
-        )}
+          <div style={s.modePills}>
+            {(['light', 'dark'] as const).map((m) => (
+              <button
+                key={m}
+                style={{
+                  ...s.modePill,
+                  ...(mode === m ? s.modePillActive : {}),
+                }}
+                onClick={() => { if (mode !== m) toggleMode() }}
+                aria-pressed={mode === m}
+              >
+                {m === 'dark' ? '🌙 Dark' : '☀️ Light'}
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ── Dashboard Background ──────────────────────────────────── */}

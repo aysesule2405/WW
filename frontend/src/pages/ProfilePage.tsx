@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import api from '../lib/api'
-import { bodyFontFamily, headingFontFamily, readableFontFamily } from '../theme/typography'
+import { bodyFontFamily, headingFontFamily, numberFontFamily, readableFontFamily } from '../theme/typography'
 import { inputSurface, pageShell, primaryButton, surfaceCard, uiRadius, uiSpace, uiType, uiWidth } from '../theme/uiTokens'
 
 type AvatarConfig = { face: string; color: string; accessory: string }
@@ -125,6 +125,32 @@ export default function ProfilePage() {
             <p style={s.previewLine}><strong>Favorite song</strong><span>{favoriteSong || 'Not set yet'}</span></p>
             <p style={s.previewLine}><strong>Favorite Steam games</strong><span>{favoriteSteamGames || 'Not set yet'}</span></p>
           </div>
+
+          {/* ── How you appear ── */}
+          <div style={s.howYouAppear}>
+            <p style={s.howYouAppearLabel}>How you appear</p>
+
+            <div style={s.appearBlock}>
+              <p style={s.appearBlockLabel}>Community post</p>
+              <div style={s.appearAuthorRow}>
+                <AvatarPreview config={avatarConfig} image={profile.avatarUrl ?? null} fallback={username?.[0] ?? '?'} size={28} />
+                <div style={{ minWidth: 0 }}>
+                  <span style={s.appearUsername}>{username || 'Grove Visitor'}</span>
+                  {status && <p style={s.appearStatusLine}>{status}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div style={s.appearBlock}>
+              <p style={s.appearBlockLabel}>Leaderboard row</p>
+              <div style={s.appearLeaderRow}>
+                <span style={{ fontSize: 18 }}>🥇</span>
+                <AvatarPreview config={avatarConfig} image={profile.avatarUrl ?? null} fallback={username?.[0] ?? '?'} size={28} />
+                <span style={s.appearUsername}>{username || 'Grove Visitor'}</span>
+                <span style={s.appearScore}>— pts</span>
+              </div>
+            </div>
+          </div>
         </aside>
 
         <section style={s.card}>
@@ -240,19 +266,22 @@ export default function ProfilePage() {
   )
 }
 
-function AvatarPreview({ config, image, fallback, large = false }: {
+function AvatarPreview({ config, image, fallback, large = false, size: sizeProp }: {
   config: AvatarConfig
   image: string | null
   fallback: string
   large?: boolean
+  size?: number
 }) {
-  const size = large ? 112 : 80
+  const size = sizeProp ?? (large ? 112 : 80)
+  const fontSize = large ? 42 : sizeProp ? Math.round(sizeProp * 0.46) : 32
+  const showCharm = !sizeProp || sizeProp >= 40
   return image ? (
-    <img src={api.mediaUrl(image)} alt="avatar" style={{ ...s.avatarImg, width: size, height: size }} />
+    <img src={api.mediaUrl(image)} alt="avatar" style={{ ...s.avatarImg, width: size, height: size, borderRadius: sizeProp && sizeProp < 48 ? '50%' : undefined }} />
   ) : (
-    <div style={{ ...s.customAvatar, width: size, height: size, background: `radial-gradient(circle at 35% 25%, #fff8, transparent 32%), ${config.color}` }}>
-      <span style={{ fontSize: large ? 42 : 32 }}>{config.face || fallback.toUpperCase()}</span>
-      <span style={s.avatarCharm}>{accessoryIcon(config.accessory)}</span>
+    <div style={{ ...s.customAvatar, width: size, height: size, background: `radial-gradient(circle at 35% 25%, #fff8, transparent 32%), ${config.color}`, borderRadius: sizeProp && sizeProp < 48 ? '50%' : undefined }}>
+      <span style={{ fontSize }}>{config.face || fallback.toUpperCase()}</span>
+      {showCharm && <span style={s.avatarCharm}>{accessoryIcon(config.accessory)}</span>}
     </div>
   )
 }
@@ -400,4 +429,17 @@ const s: Record<string, React.CSSProperties> = {
     padding: '12px 0',
     fontFamily: bodyFontFamily, fontSize: 16, fontWeight: 700,
   },
+
+  howYouAppear: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 },
+  howYouAppearLabel: { margin: '0 0 2px', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontFamily: readableFontFamily },
+  appearBlock: {
+    padding: '10px 12px', borderRadius: uiRadius.md, border: '1px solid var(--border-muted)',
+    background: 'var(--bg-badge)', display: 'flex', flexDirection: 'column', gap: 8,
+  },
+  appearBlockLabel: { margin: 0, fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: readableFontFamily },
+  appearAuthorRow: { display: 'flex', alignItems: 'center', gap: 8 },
+  appearLeaderRow: { display: 'flex', alignItems: 'center', gap: 8 },
+  appearUsername: { fontSize: 13, fontWeight: 700, color: 'var(--text-body)', fontFamily: bodyFontFamily },
+  appearStatusLine: { margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', fontFamily: readableFontFamily, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 },
+  appearScore: { marginLeft: 'auto', fontSize: 13, fontWeight: 700, color: 'var(--accent)', fontFamily: numberFontFamily },
 }

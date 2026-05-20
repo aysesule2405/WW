@@ -17,11 +17,18 @@ const MODE_STORAGE_KEY = 'ww_theme_mode'
 
 function getInitialTheme(): ColorTheme {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY) as ColorTheme
-    const valid: ColorTheme[] = ['light', 'dark', 'sapling', 'delivery', 'drift', 'halfmoon', 'dashboard']
-    if (stored && valid.includes(stored)) return stored
+    const stored = localStorage.getItem(STORAGE_KEY)
+    // Migrate old 'dark' theme → 'light' + dark mode
+    if (stored === 'dark') {
+      try { localStorage.setItem(MODE_STORAGE_KEY, 'dark') } catch { /* ignore */ }
+      return 'light'
+    }
+    // Migrate old 'dashboard' theme → 'light'
+    if (stored === 'dashboard') return 'light'
+    const valid: ColorTheme[] = ['light', 'sapling', 'delivery', 'drift', 'halfmoon']
+    if (stored && valid.includes(stored as ColorTheme)) return stored as ColorTheme
   } catch { /* ignore */ }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return 'light'
 }
 
 function getInitialMode(): 'dark' | 'light' {
@@ -29,7 +36,7 @@ function getInitialMode(): 'dark' | 'light' {
     const stored = localStorage.getItem(MODE_STORAGE_KEY)
     if (stored === 'dark' || stored === 'light') return stored
   } catch { /* ignore */ }
-  return 'dark'
+  return 'light'
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -54,20 +61,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute('data-mode', mode)
   }, [mode])
 
-  // When on a base theme (light/dark): toggle switches between themes.
-  // When on a game theme: toggle switches the dark/light mode.
-  const toggleTheme = () => {
-    if (GAME_THEMES.includes(theme)) {
-      setMode(mode === 'dark' ? 'light' : 'dark')
-    } else {
-      setTheme(theme === 'light' ? 'dark' : 'light')
-    }
-  }
+  // All themes support light/dark mode toggle now
+  const toggleTheme = () => setMode(mode === 'dark' ? 'light' : 'dark')
 
-  // Explicit mode toggle (always switches dark ↔ light regardless of theme)
+  // Explicit mode toggle (always switches dark ↔ light)
   const toggleMode = () => setMode(mode === 'dark' ? 'light' : 'dark')
 
-  const isDark = theme !== 'light'
+  const isDark = mode === 'dark'
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, toggleMode, isDark, mode }}>

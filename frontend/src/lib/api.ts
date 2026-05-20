@@ -261,17 +261,21 @@ export async function getAchievementCatalog() {
 
 export type CommunityTopic = 'general' | 'delivery' | 'sapling' | 'half-moon' | 'spirit-drift'
 
+export type AvatarConfig = { face: string; color: string; accessory: string }
+
 export type CommunityPost = {
   id: string
   topic: CommunityTopic
   title: string
   body: string
-  author: { id: string; username: string }
+  votes: number
+  voted?: boolean
+  author: { id: string; username: string; avatarUrl?: string | null; avatarConfig?: AvatarConfig | null; status?: string | null }
   replies: Array<{
     id: string
     body: string
     createdAt: string
-    author: { id: string; username: string }
+    author: { id: string; username: string; avatarUrl?: string | null; avatarConfig?: AvatarConfig | null }
   }>
   createdAt: string
   updatedAt: string
@@ -305,11 +309,20 @@ export async function createCommunityReply(postId: string, body: string) {
   return res.json() as Promise<{ post: CommunityPost }>
 }
 
+export async function voteOnPost(postId: string): Promise<{ votes: number; voted: boolean }> {
+  const res = await fetch(apiUrl(`/community/posts/${postId}/vote`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+  })
+  if (!res.ok) throw new Error('Could not vote')
+  return res.json()
+}
+
 export default {
   getToken, getUsername, register, login,
   apiUrl, mediaUrl, saveProgress, getMyProgress, getProfile, updateProfile, uploadAvatar,
   submitScore, submitSession, getGameSessions, getProgressSummary,
   getScoreLeaderboard, getDeliveryLeaderboard, getMyBest, getRecentScores,
   getAchievements, getAchievementCatalog,
-  getCommunityPosts, createCommunityPost, createCommunityReply,
+  getCommunityPosts, createCommunityPost, createCommunityReply, voteOnPost,
 }

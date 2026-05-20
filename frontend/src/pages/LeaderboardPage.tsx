@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { bodyFontFamily, headingFontFamily, numberFontFamily } from '../theme/typography'
-import { getScoreLeaderboard, getDeliveryLeaderboard } from '../lib/api'
+import { getScoreLeaderboard, getDeliveryLeaderboard, mediaUrl, type AvatarConfig } from '../lib/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -8,6 +8,8 @@ type ScoreRow = {
   rank: number
   userId: string
   username: string
+  avatarUrl?: string | null
+  avatarConfig?: AvatarConfig | null
   score: number
   achievedAt: string
 }
@@ -16,6 +18,8 @@ type TimeRow = {
   rank: number
   userId: string
   username: string
+  avatarUrl?: string | null
+  avatarConfig?: AvatarConfig | null
   bestTimeSeconds: number
   achievedAt: string
 }
@@ -27,6 +31,8 @@ type GameBoard =
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const MEDAL = ['🥇', '🥈', '🥉']
+const AVATAR_PALETTE = ['#4a7c59', '#6b5c3e', '#5c6b9e', '#7a3c5c', '#3c6b7a', '#7a6b3c', '#3c5c7a']
+function rowAvatarColor(name: string) { return AVATAR_PALETTE[name.charCodeAt(0) % AVATAR_PALETTE.length] }
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -40,6 +46,32 @@ function formatDate(iso: string): string {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+function PlayerAvatar({ row }: { row: ScoreRow | TimeRow }) {
+  const size = 26
+  if (row.avatarUrl) {
+    return (
+      <img
+        src={mediaUrl(row.avatarUrl)}
+        alt=""
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border)' }}
+      />
+    )
+  }
+  if (row.avatarConfig) {
+    const cfg = row.avatarConfig
+    return (
+      <div style={{ width: size, height: size, borderRadius: '50%', background: `radial-gradient(circle at 35% 25%, #fff5, transparent 34%), ${cfg.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0, border: '1px solid rgba(0,0,0,0.08)' }}>
+        {cfg.face}
+      </div>
+    )
+  }
+  return (
+    <div style={{ width: size, height: size, borderRadius: '50%', background: rowAvatarColor(row.username), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0, letterSpacing: '0.03em' }}>
+      {row.username.slice(0, 2).toUpperCase()}
+    </div>
+  )
+}
 
 function RankBadge({ rank }: { rank: number }) {
   if (rank <= 3) return <span style={s.medal}>{MEDAL[rank - 1]}</span>
@@ -59,7 +91,10 @@ function ScoreTable({ rows }: { rows: ScoreRow[] }) {
       {rows.map((row) => (
         <div key={row.userId} style={{ ...s.tableRow, ...(row.rank <= 3 ? s.tableRowTop : {}) }}>
           <span style={s.colRank}><RankBadge rank={row.rank} /></span>
-          <span style={s.colName}>{row.username}</span>
+          <span style={{ ...s.colName, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PlayerAvatar row={row} />
+            {row.username}
+          </span>
           <span style={s.colScore}>{row.score} pts</span>
           <span style={s.colDate}>{formatDate(row.achievedAt)}</span>
         </div>
@@ -81,7 +116,10 @@ function TimeTable({ rows }: { rows: TimeRow[] }) {
       {rows.map((row) => (
         <div key={row.userId} style={{ ...s.tableRow, ...(row.rank <= 3 ? s.tableRowTop : {}) }}>
           <span style={s.colRank}><RankBadge rank={row.rank} /></span>
-          <span style={s.colName}>{row.username}</span>
+          <span style={{ ...s.colName, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PlayerAvatar row={row} />
+            {row.username}
+          </span>
           <span style={s.colScore}>{formatTime(row.bestTimeSeconds)}</span>
           <span style={s.colDate}>{formatDate(row.achievedAt)}</span>
         </div>

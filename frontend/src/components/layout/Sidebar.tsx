@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react'
+import { useState, useEffect } from 'react'
 import { headingFontFamily, bodyFontFamily } from '../../theme/typography'
 import { useTheme } from '../../context/ThemeContext'
 import { GAME_THEMES } from '../../context/themeTypes'
+import { getProfile, mediaUrl, type AvatarConfig } from '../../lib/api'
 
 export type SidebarSection = 'games' | 'community' | 'progress' | 'achievements' | 'leaderboard' | 'profile' | 'settings'
 
@@ -29,6 +31,22 @@ export default function Sidebar({ active, onChange, username, onLogout }: Props)
   const isGameTheme  = GAME_THEMES.includes(theme)
   const toggleIsDark = isGameTheme ? mode === 'dark' : isDark
   const avatarLetter = username?.[0]?.toUpperCase() ?? '?'
+
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | null>(null)
+  const [userStatus, setUserStatus] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!username) return
+    getProfile()
+      .then((data) => {
+        if (data?.error) return
+        setAvatarUrl(data.avatarUrl ?? null)
+        setAvatarConfig(data.avatarConfig ?? null)
+        setUserStatus(data.status ?? null)
+      })
+      .catch(() => {})
+  }, [username])
 
   return (
     <aside style={s.sidebar}>
@@ -92,10 +110,31 @@ export default function Sidebar({ active, onChange, username, onLogout }: Props)
 
       {/* User footer */}
       <div style={s.footer}>
-        <div style={s.userRow}>
-          <div style={s.avatar}>{avatarLetter}</div>
-          <span style={s.userName}>{username}</span>
-        </div>
+        <button style={s.userRow} onClick={() => onChange('profile')} title="Edit profile">
+          {avatarUrl ? (
+            <img
+              src={mediaUrl(avatarUrl)}
+              alt=""
+              style={{ ...s.avatar, objectFit: 'cover', padding: 0 } as CSSProperties}
+            />
+          ) : avatarConfig ? (
+            <div style={{
+              ...s.avatar,
+              background: `radial-gradient(circle at 35% 25%, #fff5, transparent 34%), ${avatarConfig.color}`,
+              fontSize: 15,
+            }}>
+              {avatarConfig.face}
+            </div>
+          ) : (
+            <div style={s.avatar}>{avatarLetter}</div>
+          )}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <span style={s.userName}>{username}</span>
+            {userStatus && (
+              <p style={s.userStatus}>{userStatus}</p>
+            )}
+          </div>
+        </button>
         <button style={s.logoutBtn} onClick={onLogout}>Sign out</button>
       </div>
     </aside>
@@ -228,10 +267,15 @@ const s: Record<string, CSSProperties> = {
     flexDirection: 'column',
     gap: 8,
   },
-  userRow: { display: 'flex', alignItems: 'center', gap: 8 },
+  userRow: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 2px',
+    borderRadius: 8, width: '100%', textAlign: 'left',
+    transition: 'background 140ms',
+  },
   avatar: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     borderRadius: '50%',
     background: 'linear-gradient(135deg, var(--sidebar-pip), var(--sidebar-muted))',
     display: 'flex',
@@ -241,8 +285,10 @@ const s: Record<string, CSSProperties> = {
     fontSize: 13,
     fontWeight: 700,
     flexShrink: 0,
+    border: '1.5px solid var(--sidebar-border)',
   },
   userName: {
+    display: 'block',
     fontSize: 14,
     color: 'var(--sidebar-muted)',
     fontWeight: 600,
@@ -250,7 +296,18 @@ const s: Record<string, CSSProperties> = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
-    maxWidth: 120,
+  },
+  userStatus: {
+    margin: 0,
+    fontSize: 11,
+    color: 'var(--sidebar-muted)',
+    opacity: 0.65,
+    fontFamily: bodyFontFamily,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    fontStyle: 'italic',
+    lineHeight: 1.3,
   },
   logoutBtn: {
     padding: '7px 12px',

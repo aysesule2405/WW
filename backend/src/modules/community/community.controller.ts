@@ -9,16 +9,23 @@ function isCommunityTopic(topic: unknown): topic is CommunityTopic {
   return typeof topic === 'string' && TOPICS.has(topic as CommunityTopic)
 }
 
-function normalizePost(post: any) {
+function normalizePost(post: any, currentUserId?: string) {
   const author = post.author ?? {}
   return {
     id: post._id.toString(),
     topic: post.topic,
     title: post.title,
     body: post.body,
+    votes: post.votes ?? 0,
+    voted: currentUserId
+      ? (post.voters ?? []).some((v: any) => v.toString() === currentUserId)
+      : false,
     author: {
-      id: author._id?.toString?.() ?? String(post.author),
-      username: author.username ?? 'Unknown player',
+      id:           author._id?.toString?.() ?? String(post.author),
+      username:     author.username ?? 'Unknown player',
+      avatarUrl:    author.avatarUrl ?? null,
+      avatarConfig: author.avatarConfig ?? null,
+      status:       author.status ?? null,
     },
     replies: (post.replies ?? []).map((reply: any) => {
       const replyAuthor = reply.author ?? {}
@@ -27,8 +34,10 @@ function normalizePost(post: any) {
         body: reply.body,
         createdAt: reply.createdAt,
         author: {
-          id: replyAuthor._id?.toString?.() ?? String(reply.author),
-          username: replyAuthor.username ?? 'Unknown player',
+          id:           replyAuthor._id?.toString?.() ?? String(reply.author),
+          username:     replyAuthor.username ?? 'Unknown player',
+          avatarUrl:    replyAuthor.avatarUrl ?? null,
+          avatarConfig: replyAuthor.avatarConfig ?? null,
         },
       }
     }),
@@ -44,11 +53,11 @@ export const listPosts = async (req: AuthRequest, res: Response) => {
     const posts = await CommunityPost.find(filter)
       .sort({ createdAt: -1 })
       .limit(50)
-      .populate('author', 'username')
-      .populate('replies.author', 'username')
+      .populate('author', 'username avatarUrl avatarConfig status')
+      .populate('replies.author', 'username avatarUrl avatarConfig')
       .lean()
 
-    return res.status(200).json({ posts: posts.map(normalizePost) })
+    return res.status(200).json({ posts: posts.map((p) => normalizePost(p, req.userId)) })
   } catch (err: any) {
     return res.status(500).json({ error: err.message })
   }
@@ -71,10 +80,10 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       body: String(body).trim(),
     })
     const populated = await CommunityPost.findById(post._id)
-      .populate('author', 'username')
-      .populate('replies.author', 'username')
+      .populate('author', 'username avatarUrl avatarConfig status')
+      .populate('replies.author', 'username avatarUrl avatarConfig')
       .lean()
-    return res.status(201).json({ post: normalizePost(populated) })
+    return res.status(201).json({ post: normalizePost(populated, req.userId) })
   } catch (err: any) {
     return res.status(500).json({ error: err.message })
   }
@@ -100,8 +109,8 @@ export const createReply = async (req: AuthRequest, res: Response) => {
     await post.save()
 
     const populated = await CommunityPost.findById(post._id)
-      .populate('author', 'username')
-      .populate('replies.author', 'username')
+      .populate('author', 'username avatarUrl avatarConfig status')
+      .populate('replies.author', 'username avatarUrl avatarConfig')
       .lean()
     return res.status(201).json({ post: normalizePost(populated) })
   } catch (err: any) {
@@ -109,4 +118,30 @@ export const createReply = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export default { listPosts, createPost, createReply }
+export const votePost = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+
+    const post = await CommunityPost.findById(req.params.postId)
+    if (!post) return res.status(404).json({ error: 'Post not found' })
+
+    const userObjectId = new Types.ObjectId(userId)
+    const alreadyVoted = post.voters.some((v) => v.equals(userObjectId))
+
+    if (alreadyVoted) {
+      post.voters = post.voters.filter((v) => !v.equals(userObjectId))
+      post.votes = Math.max(0, (post.votes ?? 0) - 1)
+    } else {
+      post.voters.push(userObjectId)
+      post.votes = (post.votes ?? 0) + 1
+    }
+
+    await post.save()
+    return res.status(200).json({ votes: post.votes, voted: !alreadyVoted })
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message })
+  }
+}
+
+export default { listPosts, createPost, createReply, votePost }

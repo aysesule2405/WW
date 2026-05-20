@@ -16,6 +16,8 @@ export interface ICommunityPost extends Document {
   title: string
   body: string
   replies: ICommunityReply[]
+  votes: number
+  voters: Types.ObjectId[]
   createdAt: Date
   updatedAt: Date
 }
@@ -35,6 +37,8 @@ const CommunityPostSchema = new Schema<ICommunityPost>(
     title:   { type: String, required: true, trim: true, minlength: 3, maxlength: 120 },
     body:    { type: String, required: true, trim: true, minlength: 1, maxlength: 1200 },
     replies: { type: [CommunityReplySchema], default: [] },
+    votes:   { type: Number, default: 0 },
+    voters:  [{ type: Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true },
 )

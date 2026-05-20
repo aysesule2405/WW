@@ -10,8 +10,7 @@ type Props = {
 
 export default function RegisterPage({ onGoToLogin, onGoToLanding }: Props) {
   const { register } = useAuth();
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { isDark } = useTheme();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
