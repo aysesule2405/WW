@@ -16,24 +16,6 @@ class AudioManager {
   private musicEl: HTMLAudioElement | null = null
   private currentTrack = ''
   private audioCtx: AudioContext | null = null
-  private unlocked = false
-  private pendingTrack: { name: string; volume: number } | null = null
-
-  constructor() {
-    const unlock = () => {
-      if (this.unlocked) return
-      this.unlocked = true
-      if (this.audioCtx?.state === 'suspended') this.audioCtx.resume().catch(() => {})
-      if (this.pendingTrack) {
-        this.playMusic(this.pendingTrack.name, this.pendingTrack.volume)
-        this.pendingTrack = null
-      }
-      document.removeEventListener('click', unlock)
-      document.removeEventListener('keydown', unlock)
-    }
-    document.addEventListener('click', unlock)
-    document.addEventListener('keydown', unlock)
-  }
 
   preload(paths: string[], poolSize = 3) {
     for (const path of paths) {
@@ -120,10 +102,6 @@ class AudioManager {
   playMusic(name: string, volume = 0.35) {
     if (!musicEnabled()) return
     if (this.currentTrack === name && this.musicEl && !this.musicEl.paused) return
-    if (!this.unlocked) {
-      this.pendingTrack = { name, volume }
-      return
-    }
     this.stopMusic()
     this.currentTrack = name
     const el = new Audio(`/assets/audio/music/${name}.mp3`)

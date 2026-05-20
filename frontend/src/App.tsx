@@ -36,7 +36,8 @@ function AppContent() {
   useEffect(() => {
     const settings = loadUserSettings()
     document.documentElement.setAttribute('data-reduce-motion', settings.reduceMotion ? 'true' : 'false')
-    if (user && !activeGame && settings.music) {
+    if (activeGame) return // game components manage their own music
+    if (user && settings.music) {
       audioManager.playMusic('menu', 0.35)
     } else {
       audioManager.stopMusic(600)
