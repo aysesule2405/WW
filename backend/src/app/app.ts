@@ -10,7 +10,12 @@ import routes from '../routes'
 const createApp = () => {
   const app = express()
   app.use(helmet())
-  app.use(cors())
+
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : true // allow all in dev
+
+  app.use(cors({ origin: allowedOrigins, credentials: true }))
   app.use(express.json({ limit: '15mb' }))
   app.use('/uploads', express.static(path.resolve(__dirname, '../../public/uploads')))
   app.use(requestLogger)

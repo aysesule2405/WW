@@ -53,8 +53,8 @@
 :root {
   /* Font system */
   --font-ui:     'Kingthings Clarity';
-  --font-title:  'Si Kancil';
-  --font-accent: 'Waterlily';
+  --font-title:  'Waterlily', 'Si Kancil', cursive;
+  --font-accent: var(--font-title);
   --font-number: 'Kingthings Clarity';
 
   /* Legacy aliases */

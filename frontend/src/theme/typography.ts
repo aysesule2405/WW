@@ -4,15 +4,15 @@ export const uiFontFamily = '"Kingthings Clarity"'
 /** Long-form readable font — settings, profile fields, tables, and descriptions */
 export const readableFontFamily = '"Flamante Round"'
 
-/** Playful title font — game names, section headers, score displays */
-export const titleFontFamily = '"Si Kancil"'
+/** Playful title font — game names, section headers, and Whisperwind Grove branding */
+export const titleFontFamily = '"Waterlily", "Si Kancil", cursive'
 
 /** Decorative accent font — short decorative headings only, never long text */
-export const accentFontFamily = '"Waterlily"'
+export const accentFontFamily = titleFontFamily
 
 /** Number font — any element displaying a numeric value (scores, timers, counters) */
 export const numberFontFamily = uiFontFamily
 
 // Legacy aliases — updated to the new hierarchy for backward compatibility
 export const bodyFontFamily    = uiFontFamily    // was Si Kancil
-export const headingFontFamily = titleFontFamily  // was Waterlily
+export const headingFontFamily = titleFontFamily
