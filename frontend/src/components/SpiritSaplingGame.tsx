@@ -20,6 +20,7 @@ type Guardian = {
   id: GuardianId;
   name: string;
   image: string;
+  hearButton: string;
   talkButton: string;
   fruitTree: string;
   fruitBasket: string;
@@ -32,6 +33,7 @@ const guardians: Guardian[] = [
     id: 'deer',
     name: 'Deer',
     image: '/assets/backgrounds/spirit-sapling/guardians/deer-guardian.png',
+    hearButton: '/assets/backgrounds/spirit-sapling/buttons/deer-hear-button.png',
     talkButton: '/assets/backgrounds/spirit-sapling/buttons/deer-talk-button.png',
     fruitTree: '/assets/backgrounds/spirit-sapling/sacred-fruit-trees/peach-deer.png',
     fruitBasket: '/assets/backgrounds/spirit-sapling/baskets/basket-of-peach.png',
@@ -42,6 +44,7 @@ const guardians: Guardian[] = [
     id: 'fox',
     name: 'Fox',
     image: '/assets/backgrounds/spirit-sapling/guardians/fox-guardian.png',
+    hearButton: '/assets/backgrounds/spirit-sapling/buttons/fox-hear-button.png',
     talkButton: '/assets/backgrounds/spirit-sapling/buttons/fox-talk-button.png',
     fruitTree: '/assets/backgrounds/spirit-sapling/sacred-fruit-trees/persimmon-fox.png',
     fruitBasket: '/assets/backgrounds/spirit-sapling/baskets/basket-of-persimmon.png',
@@ -52,6 +55,7 @@ const guardians: Guardian[] = [
     id: 'kodama',
     name: 'Kodama',
     image: '/assets/backgrounds/spirit-sapling/guardians/kodama-guardian.png',
+    hearButton: '/assets/backgrounds/spirit-sapling/buttons/kodama-hear-button.png',
     talkButton: '/assets/backgrounds/spirit-sapling/buttons/kodama-talk-button.png',
     fruitTree: '/assets/backgrounds/spirit-sapling/sacred-fruit-trees/pear-kodama.png',
     fruitBasket: '/assets/backgrounds/spirit-sapling/baskets/basket-of-pear.png',
@@ -62,6 +66,7 @@ const guardians: Guardian[] = [
     id: 'mononoke',
     name: 'Mononoke',
     image: '/assets/backgrounds/spirit-sapling/guardians/mononoke-guardian.png',
+    hearButton: '/assets/backgrounds/spirit-sapling/buttons/mononoke-hear-button.png',
     talkButton: '/assets/backgrounds/spirit-sapling/buttons/mononoke-talk-button.png',
     fruitTree: '/assets/backgrounds/spirit-sapling/sacred-fruit-trees/apple-mononoke.png',
     fruitBasket: '/assets/backgrounds/spirit-sapling/baskets/basket-of-apple.png',
@@ -490,8 +495,8 @@ export default function SpiritSaplingGame({ onExit }: Props) {
         onClick={() => setShowTalkPanel(true)}
         disabled={isTalking}
       >
-        <span style={styles.buttonEmoji}>💬</span>
-        <span style={styles.actionLabel}>Talk to Sapling</span>
+        <img src={selectedGuardian.talkButton} alt={`Talk to ${selectedGuardian.name}`} style={styles.buttonArt} />
+        <span style={styles.actionLabel}>Talk to Spirit</span>
         <span style={styles.actionHint}>Kind words help it grow</span>
       </button>
       <button
@@ -508,7 +513,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
         onClick={handleHearGuardian}
         disabled={!canUseNurtureAction}
       >
-        <img src={selectedGuardian.talkButton} alt={`Hear ${selectedGuardian.name}`} style={styles.buttonArt} />
+        <img src={selectedGuardian.hearButton} alt={`Hear ${selectedGuardian.name}`} style={styles.buttonArt} />
         <span style={styles.actionLabel}>Hear {selectedGuardian.name}</span>
         <span style={styles.actionHint}>Guardian speaks</span>
       </button>
