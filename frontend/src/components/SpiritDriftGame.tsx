@@ -4,12 +4,62 @@ import { createGame } from '../game/createGame';
 import { uiFontFamily, titleFontFamily, numberFontFamily } from '../theme/typography';
 import { getScoreLeaderboard, getMyBest, submitScore, submitSession } from '../lib/api';
 import GameShell from './game/GameShell';
-import AchievementToast from './AchievementToast';
-import type { UnlockedAchievement } from './AchievementToast';
 
 type Props = { onExit: () => void };
+type Screen = 'rules' | 'realm-select' | 'game' | 'results';
 
-const BG = "linear-gradient(rgba(12,30,52,0.7), rgba(6,18,34,0.85)), url('/assets/backgrounds/spirit-drift/game-bg.png') center/cover no-repeat"
+// ─── Realm definitions ────────────────────────────────────────────────────────
+
+type Realm = {
+  id: string
+  name: string
+  tagline: string
+  icon: string
+  accent: string
+  cardGradient: string
+  bg: string
+}
+
+const REALMS: Realm[] = [
+  {
+    id: 'wind',
+    name: 'Wind Spirit Realm',
+    tagline: 'Chase spirits through open skies and drifting clouds.',
+    icon: '🌬️',
+    accent: '#4cb7f1',
+    cardGradient: 'linear-gradient(145deg, rgba(12,40,70,0.96) 0%, rgba(20,60,100,0.96) 100%)',
+    bg: "linear-gradient(rgba(12,30,52,0.7), rgba(6,18,34,0.85)), url('/assets/backgrounds/spirit-drift/Spirit%20Drift%20Wind%20Realm%20Background.png') center/cover no-repeat",
+  },
+  {
+    id: 'forest',
+    name: 'Forest Spirit Realm',
+    tagline: 'Spirits weave between ancient trees in dappled light.',
+    icon: '🌿',
+    accent: '#6AAF60',
+    cardGradient: 'linear-gradient(145deg, rgba(10,28,14,0.96) 0%, rgba(18,44,20,0.96) 100%)',
+    bg: "linear-gradient(rgba(10,28,14,0.72), rgba(5,20,8,0.88)), url('/assets/backgrounds/spirit-drift/Spirit%20Drift%20Forest%20Realm%20Background.png') center/cover no-repeat",
+  },
+  {
+    id: 'lake',
+    name: 'Lake Spirit Realm',
+    tagline: 'Spirits shimmer above still waters under moonlight.',
+    icon: '🌊',
+    accent: '#5DD6C8',
+    cardGradient: 'linear-gradient(145deg, rgba(8,24,36,0.96) 0%, rgba(12,40,54,0.96) 100%)',
+    bg: "linear-gradient(rgba(8,24,36,0.72), rgba(4,18,30,0.88)), url('/assets/backgrounds/spirit-drift/Spirit%20Drift%20Lake%20Realm%20Background.png') center/cover no-repeat",
+  },
+  {
+    id: 'mountain',
+    name: 'Mountain Spirit Realm',
+    tagline: 'Ancient spirits drift through misty, cloud-wrapped peaks.',
+    icon: '⛰️',
+    accent: '#A78BC4',
+    cardGradient: 'linear-gradient(145deg, rgba(18,14,30,0.96) 0%, rgba(30,22,48,0.96) 100%)',
+    bg: "linear-gradient(rgba(18,14,30,0.72), rgba(10,6,22,0.88)), url('/assets/backgrounds/spirit-drift/Spirit%20Drift%20Mountain%20Realm%20Background.png') center/cover no-repeat",
+  },
+]
+
+const SHELL_BG = "linear-gradient(rgba(12,30,52,0.7), rgba(6,18,34,0.85)), url('/assets/backgrounds/spirit-drift/Spirit%20Drift%20Wind%20Realm%20Background.png') center/cover no-repeat"
 
 // ─── Rules content ───────────────────────────────────────────────────────────
 
@@ -17,8 +67,8 @@ const RULES_SECTIONS = [
   {
     heading: 'Objective',
     items: [
-      'Click wind spirits as they drift across the screen.',
-      'You have 60 seconds — collect as many points as possible.',
+      'Click wind spirits as they drift and weave across the screen.',
+      'You have 60 seconds — rack up as many points as possible.',
     ],
   },
   {
@@ -29,27 +79,46 @@ const RULES_SECTIONS = [
     ],
   },
   {
-    heading: 'Scoring',
+    heading: 'Spirit Types',
     items: [
-      'Regular spirit: +1 point.',
-      'Gold spirit (rare): +5 points.',
-      'Cursed spirit (purple glow): −3 points and breaks your combo.',
-      'Chain combo: catch spirits without missing to build up to a 4× multiplier.',
+      'Common spirit — +1 point.',
+      'Silver spirit (cyan glow) — +3 points.',
+      'Gold spirit (rare, shimmering) — +5 points.',
+      'Fleeting spirit (pink, fast) — +3 points, but moves at 1.75× speed.',
+      'Cursed spirit (purple glow) — −3 points and breaks your combo.',
     ],
   },
   {
-    heading: 'Special Events',
+    heading: 'Scoring & Combo',
     items: [
-      'Wind Surge: all spirits glow gold for 4 seconds — points are doubled.',
-      'The grove gets more restless as time passes — three phases, each faster.',
+      'Catch spirits without missing to build your streak.',
+      'Reach 4 in a row for ×2, 9 for ×3, 16 for a massive ×4 multiplier.',
+      'Catch a spirit in the first moments of its flight for a +1 Timing Bonus.',
+      'Entering a new phase with a 5+ streak rewards a Phase Bonus: streak × 2 pts.',
+    ],
+  },
+  {
+    heading: 'Phases',
+    items: [
+      'Phase I — The Awakening: slow and gentle, learn the patterns.',
+      'Phase II — The Drift: speed picks up, fleeting and cursed spirits appear.',
+      'Phase III — The Storm: rapid spawns, high curse rate — keep your combo alive.',
+    ],
+  },
+  {
+    heading: 'Wind Surge',
+    items: [
+      'Every 20 seconds a Wind Surge erupts for 3.5 seconds.',
+      'During the Surge, all spirits glow gold — points double.',
+      'Prioritise gold and silver spirits when the Surge hits.',
     ],
   },
   {
     heading: 'Tips',
     items: [
-      'Keep your combo alive for massive multiplier bonuses.',
-      'Skip cursed spirits — losing 3 points plus your combo hurts.',
-      'Prioritize gold spirits during Wind Surge events.',
+      'Let cursed spirits pass — −3 pts plus a broken combo is very costly.',
+      'Aim for fleeting spirits early in their path to grab the timing bonus.',
+      'Going into Phase III with a long streak triggers a huge phase bonus.',
     ],
   },
 ]
@@ -62,24 +131,27 @@ type PersonalBest   = { score: number; achievedAt: string } | null
 export default function SpiritDriftGame({ onExit }: Props) {
   useGameMusic('spirit-drift')
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const apiRef = useRef<ReturnType<typeof createGame> | null>(null);
-  const [showRules,   setShowRules]   = useState(true);
-  const [finalScore,  setFinalScore]  = useState<number | null>(null);
-  const [sessionId,   setSessionId]   = useState(0);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
+  const containerRef  = useRef<HTMLDivElement | null>(null);
+  const apiRef        = useRef<ReturnType<typeof createGame> | null>(null);
+  const [screen,       setScreen]       = useState<Screen>('rules');
+  const [realm,        setRealm]        = useState<Realm>(REALMS[0]);
+  const [hoveredRealm, setHoveredRealm] = useState<string | null>(null);
+  const [finalScore,   setFinalScore]   = useState<number | null>(null);
+  const [sessionId,    setSessionId]    = useState(0);
+  const [leaderboard,  setLeaderboard]  = useState<LeaderboardRow[]>([]);
   const [personalBest, setPersonalBest] = useState<PersonalBest>(null);
-  const [unlockedAchievements, setUnlockedAchievements] = useState<UnlockedAchievement[]>([]);
 
   useEffect(() => {
-    if (showRules) return;
+    if (screen !== 'game') return;
     if (!containerRef.current || finalScore !== null) return;
 
     apiRef.current = createGame(containerRef.current, {
-      onGameEnd: async (score) => {
+      realmId: realm.id,
+      onGameEnd: async (result) => {
+        const { score, raresCaught, fleetingCaught, cursedCaught, maxComboStreak, timingBonuses } = result;
         apiRef.current?.destroy();
         apiRef.current = null;
-        const saveResults = await Promise.all([
+        await Promise.all([
           submitScore('spirit-drift', {
             score,
             metadata: { completed: true, won: true },
@@ -90,11 +162,14 @@ export default function SpiritDriftGame({ onExit }: Props) {
             score,
             completionTimeSeconds: 60,
             completionTime: 60,
+            realmId:        realm.id,
+            raresCaught,
+            fleetingCaught,
+            cursedCaught,
+            maxComboStreak,
+            timingBonuses,
           }),
         ]);
-        setUnlockedAchievements(
-          saveResults.flatMap((result) => result?.achievements ?? [])
-        );
         const [lb, me] = await Promise.all([
           getScoreLeaderboard('spirit-drift', 10),
           getMyBest('spirit-drift'),
@@ -102,6 +177,7 @@ export default function SpiritDriftGame({ onExit }: Props) {
         setLeaderboard(lb.leaderboard ?? []);
         setPersonalBest(me.best ?? null);
         setFinalScore(score);
+        setScreen('results');
       },
     });
     apiRef.current.start?.();
@@ -110,18 +186,24 @@ export default function SpiritDriftGame({ onExit }: Props) {
       apiRef.current?.destroy();
       apiRef.current = null;
     };
-  }, [showRules, finalScore, sessionId]);
+  }, [screen, finalScore, sessionId]);
 
-  const restart = () => {
+  const startGame = (r: Realm) => {
+    setRealm(r);
+    setFinalScore(null);
+    setScreen('game');
+  };
+
+  const playAgain = () => {
     setFinalScore(null);
     setSessionId((v) => v + 1);
+    setScreen('game');
   };
 
   // ── Rules ─────────────────────────────────────────────────────────────────
-  if (showRules) {
+  if (screen === 'rules') {
     return (
-      <GameShell title="Spirit Drift" onExit={onExit} background={BG} accentColor="#aeddd9">
-        <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
+      <GameShell title="Spirit Drift" onExit={onExit} background={SHELL_BG} accentColor="#aeddd9">
         <div style={s.scrollArea}>
           <div style={s.rulesCard}>
             <div style={s.rulesHeader}>
@@ -146,21 +228,84 @@ export default function SpiritDriftGame({ onExit }: Props) {
 
             <div style={s.spiritLegend}>
               <div style={s.legendItem}>
-                <img src="/assets/sprites/wind-spirit-2.png" alt="" style={s.legendSprite} />
-                <span style={s.legendText}>Regular spirit — <strong>+1 pt</strong></span>
+                <img src="/assets/sprites/wind-spirit-2.png" alt="" style={{ ...s.legendSprite, filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.9)) drop-shadow(0 0 8px rgba(255,255,255,0.5))' }} />
+                <span style={s.legendText}>Common — <strong>+1 pt</strong></span>
               </div>
               <div style={s.legendItem}>
-                <img src="/assets/sprites/wind-spirit-gold.png" alt="" style={s.legendSprite} />
-                <span style={s.legendText}>Gold spirit — <strong>+5 pts</strong></span>
+                <img src="/assets/sprites/wind-spirit-3.png" alt="" style={{ ...s.legendSprite, filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.9)) drop-shadow(0 0 10px #9decff)' }} />
+                <span style={s.legendText}>Silver — <strong>+3 pts</strong></span>
               </div>
               <div style={s.legendItem}>
-                <span style={{ ...s.legendSprite, fontSize: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>💜</span>
-                <span style={s.legendText}>Cursed spirit — <strong>−3 pts</strong></span>
+                <img src="/assets/sprites/wind-spirit-rare.png" alt="" style={{ ...s.legendSprite, filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.9)) drop-shadow(0 0 10px #ffe070)' }} />
+                <span style={s.legendText}>Gold — <strong>+5 pts</strong></span>
+              </div>
+              <div style={s.legendItem}>
+                <img src="/assets/sprites/wind-spirit-1.png" alt="" style={{ ...s.legendSprite, filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.9)) drop-shadow(0 0 10px #ffb0e0)' }} />
+                <span style={s.legendText}>Fleeting — <strong>+3 pts</strong>, fast</span>
+              </div>
+              <div style={s.legendItem}>
+                <img src="/assets/sprites/wind-spirit-2.png" alt="" style={{ ...s.legendSprite, filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.9)) drop-shadow(0 0 12px #9b30e0)' }} />
+                <span style={s.legendText}>Cursed — <strong>−3 pts</strong>, skip it</span>
               </div>
             </div>
 
-            <button style={s.startBtn} onClick={() => setShowRules(false)}>
-              Begin
+            <button style={s.startBtn} onClick={() => setScreen('realm-select')}>
+              Choose Your Realm
+            </button>
+          </div>
+        </div>
+      </GameShell>
+    );
+  }
+
+  // ── Realm selection ────────────────────────────────────────────────────────
+  if (screen === 'realm-select') {
+    return (
+      <GameShell title="Spirit Drift" onExit={onExit} background={SHELL_BG} accentColor="#aeddd9">
+        <div style={s.scrollArea}>
+          <div style={s.realmSelectWrap}>
+            <div style={s.realmHeader}>
+              <h3 style={s.realmTitle}>Choose Your Realm</h3>
+              <p style={s.realmSubtitle}>Each realm holds its own spirits — where will you drift?</p>
+            </div>
+
+            <div style={s.realmGrid} className="sd-realm-grid">
+              {REALMS.map((r) => {
+                const isHovered = hoveredRealm === r.id
+                return (
+                  <button
+                    key={r.id}
+                    style={{
+                      ...s.realmCard,
+                      background: r.cardGradient,
+                      borderColor: isHovered ? r.accent : `${r.accent}44`,
+                      boxShadow: isHovered
+                        ? `0 0 0 1px ${r.accent}88, 0 20px 48px rgba(0,0,0,0.6), 0 0 32px ${r.accent}22`
+                        : '0 8px 28px rgba(0,0,0,0.5)',
+                      transform: isHovered ? 'translateY(-4px) scale(1.015)' : 'none',
+                    }}
+                    onMouseEnter={() => setHoveredRealm(r.id)}
+                    onMouseLeave={() => setHoveredRealm(null)}
+                    onClick={() => startGame(r)}
+                  >
+                    <div style={{ ...s.realmAccentBar, background: `linear-gradient(90deg, ${r.accent}, ${r.accent}44)` }} />
+                    <div style={{ ...s.realmIconWrap, background: `${r.accent}18`, borderColor: `${r.accent}33` }}>
+                      <span style={s.realmIcon}>{r.icon}</span>
+                    </div>
+                    <div style={s.realmCardBody}>
+                      <p style={{ ...s.realmName, color: r.accent }}>{r.name}</p>
+                      <p style={s.realmTagline}>{r.tagline}</p>
+                    </div>
+                    <div style={{ ...s.realmEnterBtn, borderColor: `${r.accent}55`, color: r.accent }}>
+                      Enter →
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            <button style={s.backLink} onClick={() => setScreen('rules')}>
+              ← Back to Rules
             </button>
           </div>
         </div>
@@ -169,19 +314,20 @@ export default function SpiritDriftGame({ onExit }: Props) {
   }
 
   // ── Results ───────────────────────────────────────────────────────────────
-  if (finalScore !== null) {
+  if (screen === 'results' && finalScore !== null) {
     const isNewBest = personalBest ? finalScore > personalBest.score : true
     return (
-      <GameShell title="Spirit Drift" onExit={onExit} background={BG} accentColor="#aeddd9">
+      <GameShell title="Spirit Drift" onExit={onExit} background={realm.bg} accentColor={realm.accent}>
         <div style={s.scrollArea}>
           <div style={s.resultsCard}>
-            <div style={s.resultsIcon}>✦</div>
+            <div style={{ ...s.resultsIcon, color: realm.accent }}>✦</div>
             <h3 style={s.resultsTitle}>Round Complete</h3>
+            <p style={{ ...s.rulesSubtitle, marginTop: -8 }}>{realm.name}</p>
 
-            <div style={s.scoreBig}>
-              <span style={s.scoreBigLabel}>Final Score</span>
+            <div style={{ ...s.scoreBig, borderColor: `${realm.accent}55`, background: `${realm.accent}14` }}>
+              <span style={{ ...s.scoreBigLabel, color: realm.accent }}>Final Score</span>
               <span style={s.scoreBigValue}>{finalScore}</span>
-              {isNewBest && <span style={s.newBestTag}>New Personal Best!</span>}
+              {isNewBest && <span style={{ ...s.newBestTag, background: `${realm.accent}30` }}>New Personal Best!</span>}
               {!isNewBest && personalBest && (
                 <span style={s.personalBestNote}>Best: {personalBest.score} pts</span>
               )}
@@ -189,10 +335,10 @@ export default function SpiritDriftGame({ onExit }: Props) {
 
             {leaderboard.length > 0 && (
               <div style={s.leaderboardPanel}>
-                <div style={s.leaderboardTitle}>Top Scores</div>
+                <div style={{ ...s.leaderboardTitle, color: realm.accent }}>Top Scores</div>
                 {leaderboard.slice(0, 8).map((row) => (
                   <div key={row.rank} style={s.leaderboardRow}>
-                    <span style={s.leaderboardRank}>#{row.rank}</span>
+                    <span style={{ ...s.leaderboardRank, color: realm.accent }}>#{row.rank}</span>
                     <span style={s.leaderboardUsername}>{row.username}</span>
                     <span style={s.leaderboardScore}>{row.score}</span>
                     <span style={s.leaderboardDate}>{new Date(row.achievedAt).toLocaleDateString()}</span>
@@ -202,8 +348,12 @@ export default function SpiritDriftGame({ onExit }: Props) {
             )}
 
             <div style={s.resultActions}>
-              <button style={s.primaryBtn} onClick={restart}>Play Again</button>
-              <button style={s.secondaryBtn} onClick={() => setShowRules(true)}>Rules</button>
+              <button style={{ ...s.primaryBtn, background: `linear-gradient(135deg, ${realm.accent}cc, ${realm.accent}88)` }} onClick={playAgain}>
+                Play Again
+              </button>
+              <button style={s.secondaryBtn} onClick={() => setScreen('realm-select')}>
+                Change Realm
+              </button>
               <button style={s.ghostBtn} onClick={onExit}>← Grove</button>
             </div>
           </div>
@@ -214,8 +364,7 @@ export default function SpiritDriftGame({ onExit }: Props) {
 
   // ── Game canvas ───────────────────────────────────────────────────────────
   return (
-    <GameShell title="Spirit Drift" onExit={onExit} background={BG} accentColor="#aeddd9">
-      <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
+    <GameShell title="Spirit Drift" onExit={onExit} background={realm.bg} accentColor={realm.accent}>
       <div key={sessionId} ref={containerRef} style={s.gameWrap} />
     </GameShell>
   );
@@ -316,6 +465,97 @@ const s: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     letterSpacing: 0.3,
     boxShadow: '0 8px 24px rgba(44,141,194,0.45)',
+  },
+
+  /* Realm selection */
+  realmSelectWrap: {
+    width: 'min(760px, 100%)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 24,
+  },
+  realmHeader: { textAlign: 'center' as const, display: 'flex', flexDirection: 'column', gap: 8 },
+  realmTitle: {
+    margin: 0,
+    fontFamily: titleFontFamily,
+    fontSize: 34,
+    color: '#fffbdc',
+  },
+  realmSubtitle: {
+    margin: 0,
+    fontFamily: uiFontFamily,
+    fontSize: 15,
+    color: '#aeddd9',
+    lineHeight: 1.5,
+  },
+  realmGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: 16,
+  },
+  realmCard: {
+    position: 'relative' as const,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: 12,
+    padding: '28px 20px 20px',
+    borderRadius: 18,
+    border: '1.5px solid',
+    cursor: 'pointer',
+    overflow: 'hidden' as const,
+    transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
+    textAlign: 'center' as const,
+  },
+  realmAccentBar: {
+    position: 'absolute' as const,
+    top: 0, left: 0, right: 0,
+    height: 3,
+    borderRadius: '18px 18px 0 0',
+  },
+  realmIconWrap: {
+    width: 64, height: 64,
+    borderRadius: 16,
+    border: '1px solid',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  realmIcon: { fontSize: 32, lineHeight: 1 },
+  realmCardBody: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
+  realmName: {
+    margin: 0,
+    fontFamily: titleFontFamily,
+    fontSize: 18,
+    fontWeight: 700,
+  },
+  realmTagline: {
+    margin: 0,
+    fontFamily: uiFontFamily,
+    fontSize: 13,
+    color: 'rgba(255,251,220,0.65)',
+    lineHeight: 1.45,
+  },
+  realmEnterBtn: {
+    marginTop: 4,
+    padding: '7px 22px',
+    borderRadius: 999,
+    border: '1px solid',
+    background: 'transparent',
+    fontFamily: uiFontFamily,
+    fontSize: 13,
+    fontWeight: 700,
+    letterSpacing: 0.3,
+    pointerEvents: 'none' as const,
+  },
+  backLink: {
+    alignSelf: 'center' as const,
+    padding: '8px 18px',
+    border: 'none',
+    background: 'transparent',
+    fontFamily: uiFontFamily,
+    fontSize: 14,
+    color: 'rgba(174,221,217,0.6)',
+    cursor: 'pointer',
+    letterSpacing: 0.2,
   },
 
   /* Results card */

@@ -5,8 +5,6 @@ import { audioManager } from '../lib/AudioManager';
 import GameShell from './game/GameShell';
 import GameDescriptionPanel from '../games/spirit-sapling/GameDescriptionPanel';
 import TalkToSaplingPanel from '../games/spirit-sapling/TalkToSaplingPanel';
-import AchievementToast from './AchievementToast';
-import type { UnlockedAchievement } from './AchievementToast';
 import { useGameMusic } from '../hooks/useGameMusic';
 
 const bodyFontFamily    = uiFontFamily
@@ -120,7 +118,6 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   const [harvestScore, setHarvestScore] = useState<number | null>(null);
   const [showTalkPanel, setShowTalkPanel] = useState(false);
   const [talkBoostTotal, setTalkBoostTotal] = useState(0);
-  const [unlockedAchievements, setUnlockedAchievements] = useState<UnlockedAchievement[]>([]);
   const waterCountRef = useRef(0);
   const sunCountRef   = useRef(0);
   const talkCountRef  = useRef(0);
@@ -360,8 +357,6 @@ export default function SpiritSaplingGame({ onExit }: Props) {
       saplingsGrown: 1,
       fruitsCollected: 1,
     });
-    setUnlockedAchievements(result?.achievements ?? []);
-
     window.setTimeout(() => {
       setHasCollectedFruit(true);
       setScreen('results');
@@ -613,7 +608,6 @@ export default function SpiritSaplingGame({ onExit }: Props) {
         background="linear-gradient(rgba(20,20,20,0.2),rgba(20,20,20,0.2)), url('/assets/backgrounds/spirit-sapling/game-bg.png') center/cover no-repeat"
         accentColor="#F0EAD2"
       >
-        <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
         <div style={styles.celebrationWrap}>
           <div style={styles.celebrationCard}>
             <p style={styles.celebrationOverline}>Sacred Harvest Gathered</p>
@@ -686,7 +680,6 @@ export default function SpiritSaplingGame({ onExit }: Props) {
 
   return (
     <GameShell title="Spirit Sapling" onExit={onExit} background={SHELL_BG} accentColor="#F0EAD2">
-      <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
       {showTalkPanel && (
         <TalkToSaplingPanel
           guardianName={selectedGuardian.name}

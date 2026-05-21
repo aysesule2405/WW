@@ -7,8 +7,6 @@ import { getScoreLeaderboard, getMyBest, getRecentScores, submitScore, submitSes
 import { uiFontFamily, titleFontFamily, numberFontFamily } from '../../theme/typography'
 import { GAME_BG_HTML } from './assets'
 import GameShell from '../../components/game/GameShell'
-import AchievementToast from '../../components/AchievementToast'
-import type { UnlockedAchievement } from '../../components/AchievementToast'
 import { useGameMusic } from '../../hooks/useGameMusic'
 
 const bodyFontFamily    = uiFontFamily
@@ -109,7 +107,6 @@ export default function HalfMoonGame({ onExit }: Props) {
   const [recentScores,  setRecentScores]  = useState<RecentScore[]>([])
   const [leaderboard,   setLeaderboard]   = useState<LeaderboardRow[]>([])
   const [scoreLoading,  setScoreLoading]  = useState(false)
-  const [unlockedAchievements, setUnlockedAchievements] = useState<UnlockedAchievement[]>([])
 
   const refreshScorePanels = useCallback(async () => {
     const [recent, board, best] = await Promise.all([
@@ -160,9 +157,6 @@ export default function HalfMoonGame({ onExit }: Props) {
         finalPlayerScore: playerScore,
       }),
     ])
-    setUnlockedAchievements(
-      saveResults.flatMap((result) => result?.achievements ?? [])
-    )
     await refreshScorePanels()
     setScoreLoading(false)
   }, [refreshScorePanels])
@@ -357,8 +351,7 @@ export default function HalfMoonGame({ onExit }: Props) {
     const resultAccent = isVictory ? SCOREBOARD_ACCENT : RESULT_MUTED_ACCENT
     return (
       <GameShell title="Rise of the Half Moon" onExit={onExit} background={SHELL_BG} accentColor="#D6D3A9">
-        <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
-        <div style={s.centre}>
+          <div style={s.centre}>
           <div style={{ ...s.endCard, borderColor: isVictory ? 'rgba(99,232,231,0.6)' : 'rgba(214,211,169,0.42)' }}>
             <div style={s.endMoon}>{isVictory ? '◯' : '☾'}</div>
             <h2 style={{ ...s.endTitle, color: resultAccent }}>
@@ -431,7 +424,6 @@ export default function HalfMoonGame({ onExit }: Props) {
     const wonText = `You won the ${ordinalLevel(levelResult.level)} level`
     return (
     <GameShell title="Rise of the Half Moon" onExit={onExit} background={SHELL_BG} accentColor="#D6D3A9">
-      <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
       <div style={s.centre}>
           <div style={{ ...s.endCard, borderColor: 'rgba(200,168,75,0.5)' }}>
             <div style={s.endMoon}>◯</div>
@@ -466,7 +458,6 @@ export default function HalfMoonGame({ onExit }: Props) {
 
   return (
     <GameShell title="Rise of the Half Moon" onExit={onExit} background={SHELL_BG} accentColor="#D6D3A9">
-      <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
 
       <div style={s.gameArea}>
         <div key={sessionId} ref={containerRef} style={s.gameWrap} />

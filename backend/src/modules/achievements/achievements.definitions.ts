@@ -236,6 +236,87 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     criteria: { gameSlug: 'spirit-drift', allAtmospheresCleared: true },
   },
 
+  // ── Spirit Drift — Realms ───────────────────────────────────────────────────
+  {
+    code: 'drift_realm_wind',
+    title: 'Wind Walker',
+    description: 'Drift through the Wind Spirit Realm.',
+    icon: '🌬️', rarity: 'common', category: 'drift',
+    criteria: { gameSlug: 'spirit-drift', realmId: 'wind' },
+  },
+  {
+    code: 'drift_realm_forest',
+    title: 'Forest Wanderer',
+    description: 'Drift through the Forest Spirit Realm.',
+    icon: '🌿', rarity: 'common', category: 'drift',
+    criteria: { gameSlug: 'spirit-drift', realmId: 'forest' },
+  },
+  {
+    code: 'drift_realm_lake',
+    title: 'Lake Gazer',
+    description: 'Drift through the Lake Spirit Realm.',
+    icon: '🌊', rarity: 'common', category: 'drift',
+    criteria: { gameSlug: 'spirit-drift', realmId: 'lake' },
+  },
+  {
+    code: 'drift_realm_mountain',
+    title: 'Mountain Drifter',
+    description: 'Drift through the Mountain Spirit Realm.',
+    icon: '⛰️', rarity: 'common', category: 'drift',
+    criteria: { gameSlug: 'spirit-drift', realmId: 'mountain' },
+  },
+  {
+    code: 'drift_all_realms',
+    title: 'Realm Seeker',
+    description: 'Play a session in every Spirit Drift realm.',
+    icon: '🗺️', rarity: 'epic', category: 'drift',
+    criteria: { gameSlug: 'spirit-drift', allRealmsPlayed: true },
+  },
+
+  // ── Spirit Drift — Run challenges ───────────────────────────────────────────
+  {
+    code: 'drift_score_1500',
+    title: 'Drift Legend',
+    description: 'Score 1500 or more points in a single Spirit Drift run.',
+    icon: '🌌', rarity: 'legendary', category: 'drift',
+    criteria: { gameSlug: 'spirit-drift', scoreGt: 1500 },
+  },
+  {
+    code: 'drift_rare_5',
+    title: 'Golden Touch',
+    description: 'Catch 5 rare spirits in a single run.',
+    icon: '✨', rarity: 'rare', category: 'drift',
+    criteria: { gameSlug: 'spirit-drift', raresCaughtGte: 5 },
+  },
+  {
+    code: 'drift_pure_run',
+    title: 'Untainted Wind',
+    description: 'Complete a Spirit Drift run without catching a single cursed spirit.',
+    icon: '🕊️', rarity: 'rare', category: 'drift',
+    criteria: { gameSlug: 'spirit-drift', cursedCaught: 0 },
+  },
+  {
+    code: 'drift_max_multiplier',
+    title: 'Storm Rider',
+    description: 'Reach the ×4 multiplier in a single run.',
+    icon: '⚡', rarity: 'rare', category: 'drift',
+    criteria: { gameSlug: 'spirit-drift', maxComboStreakGte: 16 },
+  },
+  {
+    code: 'drift_fleeting_5',
+    title: 'Swift Current',
+    description: 'Catch 5 fleeting spirits in a single run.',
+    icon: '🍃', rarity: 'rare', category: 'drift',
+    criteria: { gameSlug: 'spirit-drift', fleetingCaughtGte: 5 },
+  },
+  {
+    code: 'drift_timing_10',
+    title: 'Drift Reflex',
+    description: 'Land 10 timing bonuses in a single run.',
+    icon: '⏱️', rarity: 'epic', category: 'drift',
+    criteria: { gameSlug: 'spirit-drift', timingBonusesGte: 10 },
+  },
+
   // ── Rise of the Half Moon ───────────────────────────────────────────────────
   {
     code: 'half_moon_score_50',

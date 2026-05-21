@@ -6,6 +6,8 @@ import { UserHighScore } from '../../models/UserHighScore'
 import { Game } from '../../models/Game'
 import { ACHIEVEMENTS, type AchievementDefinition } from './achievements.definitions'
 
+const ALL_GAME_SLUGS_SET = new Set(['spirit-drift', 'delivery-on-the-wind', 'spirit-sapling', 'half-moon'])
+
 export type AchievementDTO = AchievementDefinition & {
   earned: boolean
   awardedAt: Date | null
@@ -44,11 +46,13 @@ async function award(userId: string, code: string) {
 
   if (result.upsertedCount === 0) return null
   return {
-    code: definition.code,
-    title: definition.title,
+    code:        definition.code,
+    title:       definition.title,
     description: definition.description,
-    iconUrl: definition.iconUrl ?? null,
-    awardedAt: new Date(),
+    icon:        definition.icon ?? '🏅',
+    rarity:      definition.rarity ?? 'common',
+    iconUrl:     definition.iconUrl ?? null,
+    awardedAt:   new Date(),
   }
 }
 
@@ -59,6 +63,17 @@ async function awardMany(userId: string, codes: string[]) {
     if (a) unlocked.push(a)
   }
   return unlocked
+}
+
+async function getUnlockedRealmCount(userId: string) {
+  const realmCodes = ['drift_realm_wind', 'drift_realm_forest', 'drift_realm_lake', 'drift_realm_mountain']
+  const badges = await Badge.find({ code: { $in: realmCodes } }).select('_id').lean()
+  if (badges.length === 0) return 0
+  const earned = await UserBadge.countDocuments({
+    userId: new Types.ObjectId(userId),
+    badgeId: { $in: badges.map((b) => b._id) },
+  })
+  return earned
 }
 
 async function getUnlockedSacredTreeCount(userId: string) {
@@ -269,6 +284,13 @@ export default {
     guardianId?: string | null
     won?: boolean | null
     harmonyBonus?: boolean | null
+    // Spirit Drift run stats
+    realmId?: string | null
+    raresCaught?: number | null
+    fleetingCaught?: number | null
+    cursedCaught?: number | null
+    maxComboStreak?: number | null
+    timingBonuses?: number | null
   }) => {
     const codes: string[] = []
 
@@ -301,7 +323,58 @@ export default {
       if (input.score >= 200) codes.push('half_moon_score_200')
     }
 
+    // Spirit Drift — realm exploration
+    if (input.gameSlug === 'spirit-drift' && input.realmId) {
+      const realmCode = `drift_realm_${input.realmId}`
+      if (byCode.has(realmCode)) codes.push(realmCode)
+    }
+
+    // Spirit Drift — single-run challenges
+    if (input.gameSlug === 'spirit-drift') {
+      if ((input.raresCaught   ?? 0) >= 5)  codes.push('drift_rare_5')
+      if ((input.fleetingCaught ?? 0) >= 5) codes.push('drift_fleeting_5')
+      if ((input.maxComboStreak ?? 0) >= 16) codes.push('drift_max_multiplier')
+      if ((input.timingBonuses  ?? 0) >= 10) codes.push('drift_timing_10')
+      if (input.cursedCaught === 0 && input.completed) codes.push('drift_pure_run')
+    }
+
     const unlocked = await awardMany(input.userId, codes)
+
+    // Spirit Drift — all realms (needs live badge count after realm award above)
+    if (input.gameSlug === 'spirit-drift' && input.realmId) {
+      const realmCount = await getUnlockedRealmCount(input.userId)
+      if (realmCount >= 4) {
+        const a = await award(input.userId, 'drift_all_realms')
+        if (a) unlocked.push(a)
+      }
+    }
+
+    // Half Moon wins milestone (needs live count)
+    if (input.gameSlug === 'half-moon' && input.won) {
+      const wins = await GameSession.countDocuments({ userId: new Types.ObjectId(input.userId), gameSlug: 'half-moon', won: true })
+      if (wins === 5) {
+        const a = await award(input.userId, 'half_moon_wins_5')
+        if (a) unlocked.push(a)
+      }
+    }
+
+    // Sapling harmony milestone
+    if (input.gameSlug === 'spirit-sapling' && input.harmonyBonus) {
+      const harmonyCount = await GameSession.countDocuments({ userId: new Types.ObjectId(input.userId), gameSlug: 'spirit-sapling', harmonyBonus: true })
+      if (harmonyCount === 5) {
+        const a = await award(input.userId, 'sapling_harmony_5')
+        if (a) unlocked.push(a)
+      }
+    }
+
+    // Sapling guardian devotion milestone
+    if (input.gameSlug === 'spirit-sapling' && input.completed && input.guardianId) {
+      const guardianCount = await GameSession.countDocuments({ userId: new Types.ObjectId(input.userId), gameSlug: 'spirit-sapling', guardianId: input.guardianId, completed: true })
+      if (guardianCount === 10) {
+        const a = await award(input.userId, 'sapling_guardian_devoted')
+        if (a) unlocked.push(a)
+      }
+    }
 
     // Sapling all-trees check (needs DB)
     if (input.gameSlug === 'spirit-sapling') {
@@ -311,6 +384,64 @@ export default {
         if (allTrees) unlocked.push(allTrees)
       }
     }
+
+    // ── Session-count and grove-wide achievements ─────────────────────────────
+    const userOid = new Types.ObjectId(input.userId)
+
+    const [totalSessions, gameSessionCount, allDistinctSlugs] = await Promise.all([
+      GameSession.countDocuments({ userId: userOid }),
+      GameSession.countDocuments({ userId: userOid, gameSlug: input.gameSlug }),
+      GameSession.distinct('gameSlug', { userId: userOid }),
+    ])
+
+    const countCodes: string[] = []
+
+    // Grove-wide session milestones
+    if (totalSessions === 1)   countCodes.push('grove_first_session')
+    if (totalSessions === 10)  countCodes.push('grove_10_sessions')
+    if (totalSessions === 50)  countCodes.push('grove_50_sessions')
+    if (totalSessions === 100) countCodes.push('grove_100_sessions')
+
+    // Played all 4 games
+    if (ALL_GAME_SLUGS_SET.size > 0 &&
+        [...ALL_GAME_SLUGS_SET].every((s) => (allDistinctSlugs as string[]).includes(s))) {
+      countCodes.push('grove_all_games')
+    }
+
+    // Per-game session milestones
+    if (gameSessionCount === 10) {
+      const perGameCode: Record<string, string> = {
+        'spirit-drift': 'drift_10_sessions',
+        'delivery-on-the-wind': 'delivery_10_sessions',
+        'spirit-sapling': 'sapling_10_sessions',
+        'half-moon': 'half_moon_10_sessions',
+      }
+      if (perGameCode[input.gameSlug]) countCodes.push(perGameCode[input.gameSlug])
+    }
+    if (gameSessionCount === 50) {
+      const perGameCode: Record<string, string> = {
+        'spirit-drift': 'drift_50_sessions',
+        'delivery-on-the-wind': 'delivery_50_sessions',
+      }
+      if (perGameCode[input.gameSlug]) countCodes.push(perGameCode[input.gameSlug])
+    }
+
+    // Easter egg: time-of-day
+    const hour = new Date().getHours()
+    if (hour >= 0 && hour < 4) countCodes.push('easter_midnight')
+    if (hour >= 4 && hour < 6) countCodes.push('easter_early_bird')
+
+    // Easter egg: 5 sessions in a day
+    const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0)
+    const sessionsToday = await GameSession.countDocuments({ userId: userOid, createdAt: { $gte: startOfDay } })
+    if (sessionsToday >= 5) countCodes.push('easter_5_in_day')
+
+    // 3 different games in a day
+    const slugsToday = await GameSession.distinct('gameSlug', { userId: userOid, createdAt: { $gte: startOfDay } })
+    if ((slugsToday as string[]).length >= 3) countCodes.push('grove_3_in_day')
+
+    const countUnlocked = await awardMany(input.userId, countCodes)
+    unlocked.push(...countUnlocked)
 
     return unlocked
   },
@@ -325,6 +456,7 @@ export default {
       if (input.score > 200)  codes.push('drift_score_200')
       if (input.score > 500)  codes.push('drift_score_500')
       if (input.score > 1000) codes.push('drift_score_1000')
+      if (input.score >= 1500) codes.push('drift_score_1500')
     }
     if (input.gameSlug === 'half-moon') {
       if (input.score >= 50)  codes.push('half_moon_score_50')

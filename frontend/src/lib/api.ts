@@ -114,6 +114,13 @@ export async function uploadAvatar(avatarBase64: string) {
 
 // ── Session recording ─────────────────────────────────────────────────────────
 
+function fireAchievementEvents(achievements: unknown[]) {
+  if (!Array.isArray(achievements)) return
+  achievements.forEach((a) =>
+    window.dispatchEvent(new CustomEvent('ww-achievement', { detail: a }))
+  )
+}
+
 export async function submitSession(
   gameSlug: string,
   data: {
@@ -146,7 +153,10 @@ export async function submitSession(
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(data),
     })
-    return res.ok ? res.json() : null
+    if (!res.ok) return null
+    const json = await res.json()
+    fireAchievementEvents(json?.achievements)
+    return json
   } catch {
     return null
   }
@@ -166,7 +176,10 @@ export async function submitScore(
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(data),
     })
-    return res.ok ? res.json() : null
+    if (!res.ok) return null
+    const json = await res.json()
+    fireAchievementEvents(json?.achievements)
+    return json
   } catch {
     return null
   }

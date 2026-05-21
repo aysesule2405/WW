@@ -1194,7 +1194,18 @@ button:focus-visible {
   animation: ww-avatar-ring 3s ease-in-out infinite;
 }
 
+/* Toast progress bar */
+@keyframes ww-toast-progress {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
 /* Hide decorative images on narrow screens to keep layout clean */
 @media (max-width: 680px) {
   .ww-deco-img { display: none !important; }
+}
+
+/* Spirit Drift realm grid — single column on narrow screens */
+@media (max-width: 520px) {
+  .sd-realm-grid { grid-template-columns: 1fr !important; }
 }

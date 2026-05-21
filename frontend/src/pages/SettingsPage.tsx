@@ -115,7 +115,7 @@ function VolumeRow({
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 const THEME_ORDER: ColorTheme[] = ['light', 'sapling', 'delivery', 'drift', 'halfmoon', 'ember', 'petal', 'frost']
-const BG_COUNT = 9
+const BG_COUNT = 14
 const TEXT_SIZES: { key: TextSize; label: string; hint: string }[] = [
   { key: 'sm', label: 'S',  hint: 'Small' },
   { key: 'md', label: 'M',  hint: 'Medium (default)' },

@@ -11,6 +11,7 @@ import SpiritSaplingGame from './components/SpiritSaplingGame'
 import HalfMoonGame from './games/half-moon/HalfMoonGame'
 import { audioManager } from './lib/AudioManager'
 import { SETTINGS_EVENT, loadUserSettings } from './lib/userSettings'
+import AchievementToast from './components/AchievementToast'
 
 type GameView = 'spirit-drift' | 'delivery-on-the-wind' | 'spirit-sapling' | 'half-moon'
 type RootView = 'landing' | 'login' | 'register'
@@ -47,17 +48,20 @@ function AppContent() {
   // ── Logged in ──────────────────────────────────────────────────────────────
   if (user) {
     const exitGame = () => setActiveGame(null)
-
-    if (activeGame === 'spirit-drift')        return <SpiritDriftGame onExit={exitGame} />
-    if (activeGame === 'delivery-on-the-wind') return <DeliveryOnTheWindGame onExit={exitGame} />
-    if (activeGame === 'spirit-sapling')      return <SpiritSaplingGame onExit={exitGame} />
-    if (activeGame === 'half-moon')           return <HalfMoonGame onExit={exitGame} />
-
     return (
-      <AppShell
-        onSelect={(id) => setActiveGame(id as GameView)}
-        onLogout={logout}
-      />
+      <>
+        <AchievementToast />
+        {activeGame === 'spirit-drift'         && <SpiritDriftGame onExit={exitGame} />}
+        {activeGame === 'delivery-on-the-wind' && <DeliveryOnTheWindGame onExit={exitGame} />}
+        {activeGame === 'spirit-sapling'       && <SpiritSaplingGame onExit={exitGame} />}
+        {activeGame === 'half-moon'            && <HalfMoonGame onExit={exitGame} />}
+        {!activeGame && (
+          <AppShell
+            onSelect={(id) => setActiveGame(id as GameView)}
+            onLogout={logout}
+          />
+        )}
+      </>
     )
   }
 

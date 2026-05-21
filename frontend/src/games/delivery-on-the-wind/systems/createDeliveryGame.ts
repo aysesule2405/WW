@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { DeliveryGameScene } from '../DeliveryGameScene'
 import type { SceneCallbacks } from '../DeliveryGameScene'
 import { VIEWPORT_W, VIEWPORT_H } from '../data/deliveryConfig'
+import { getMapConfig } from '../data/mapRegistry'
 
 export type { HUDState, InspectData, NpcTalkData } from '../data/deliveryConfig'
 
@@ -24,6 +25,7 @@ export type DeliveryGameAPI = {
 export function createDeliveryGame(
   parent: HTMLDivElement,
   options: DeliveryGameOptions = {},
+  mapId = 'village',
 ): DeliveryGameAPI {
   const callbacks: SceneCallbacks = {
     onGameEnd:        options.onGameEnd        ?? (() => {}),
@@ -48,7 +50,8 @@ export function createDeliveryGame(
     scene: [],
   })
 
-  game.scene.add('DeliveryGameScene', DeliveryGameScene, true, callbacks)
+  const mapCfg = getMapConfig(mapId)
+  game.scene.add('DeliveryGameScene', DeliveryGameScene, true, { callbacks, mapCfg })
 
   const getScene = (): DeliveryGameScene | null =>
     game.scene.getScene('DeliveryGameScene') as DeliveryGameScene | null

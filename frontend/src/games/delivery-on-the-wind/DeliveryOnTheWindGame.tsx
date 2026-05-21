@@ -2,14 +2,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createDeliveryGame } from './systems/createDeliveryGame'
 import type { DeliveryGameAPI, HUDState, InspectData, NpcTalkData } from './systems/createDeliveryGame'
 import { DELIVERY_TYPES } from './data/deliveryConfig'
+import { MAP_REGISTRY } from './data/mapRegistry'
 import { uiFontFamily, titleFontFamily, numberFontFamily } from '../../theme/typography'
 import { submitSession } from '../../lib/api'
 import GameShell from '../../components/game/GameShell'
-import AchievementToast from '../../components/AchievementToast'
-import type { UnlockedAchievement } from '../../components/AchievementToast'
 import { useGameMusic } from '../../hooks/useGameMusic'
 
 type Props = { onExit: () => void }
+
+type Screen = 'map-select' | 'rules' | 'intro' | 'game' | 'results'
 
 type EndResult = {
   outcome: 'win' | 'lose'
@@ -17,7 +18,7 @@ type EndResult = {
   timeRemaining: number
 }
 
-const BG = `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url('/assets/backgrounds/delivery-on-the-wind/game-bg.png') center/cover no-repeat`
+const SHELL_BG = `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url('/assets/backgrounds/delivery-on-the-wind/game-bg.png') center/cover no-repeat`
 const INTRO_VIDEO = '/assets/animation/delivery-animation.mp4'
 
 const STEPS = [
@@ -80,24 +81,27 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const apiRef = useRef<DeliveryGameAPI | null>(null)
 
-  const [showRules, setShowRules] = useState(true)
-  const [showIntro, setShowIntro] = useState(false)
-  const [result, setResult]       = useState<EndResult | null>(null)
-  const [sessionId, setSessionId] = useState(0)
-  const [hud, setHud]             = useState<HUDState | null>(null)
-  const [inspecting, setInspecting] = useState<InspectData | null>(null)
-  const [talkingNpc, setTalkingNpc] = useState<NpcTalkData | null>(null)
-  const [unlockedAchievements, setUnlockedAchievements] = useState<UnlockedAchievement[]>([])
+  const [screen, setScreen]           = useState<Screen>('map-select')
+  const [selectedMapId, setSelectedMapId] = useState('village')
+  const [hoveredMapId, setHoveredMapId]   = useState<string | null>(null)
+  const [result, setResult]           = useState<EndResult | null>(null)
+  const [sessionId, setSessionId]     = useState(0)
+  const [hud, setHud]                 = useState<HUDState | null>(null)
+  const [inspecting, setInspecting]   = useState<InspectData | null>(null)
+  const [talkingNpc, setTalkingNpc]   = useState<NpcTalkData | null>(null)
+
+  const selectedMap = MAP_REGISTRY.find(m => m.id === selectedMapId) ?? MAP_REGISTRY[0]
+  const bg = selectedMap.bg
 
   useEffect(() => {
-    if (showRules || showIntro || result !== null || !containerRef.current) return
+    if (screen !== 'game' || !containerRef.current) return
 
     apiRef.current = createDeliveryGame(containerRef.current, {
       onGameEnd: async (outcome, deliveries, timeRemaining) => {
         apiRef.current?.destroy()
         apiRef.current = null
         const won = outcome === 'win'
-        const result = await submitSession('delivery-on-the-wind', {
+        await submitSession('delivery-on-the-wind', {
           completed: won,
           won,
           deliveriesCompleted: deliveries,
@@ -105,20 +109,20 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
           completionTime: won ? 120 - timeRemaining : null,
           shortestTime: won ? 120 - timeRemaining : null,
         })
-        setUnlockedAchievements(result?.achievements ?? [])
         setResult({ outcome, deliveries, timeRemaining })
+        setScreen('results')
       },
       onHUDUpdate:      (state) => setHud(state),
       onInspectPackage: (data) => setInspecting(data),
       onInspectHouse:   (data) => setInspecting(data),
       onTalkNpc:        (data) => setTalkingNpc(data),
-    })
+    }, selectedMapId)
 
     return () => {
       apiRef.current?.destroy()
       apiRef.current = null
     }
-  }, [showRules, showIntro, result, sessionId])
+  }, [screen, sessionId, selectedMapId])
 
   const closeInspect = useCallback(() => {
     setInspecting(null)
@@ -132,27 +136,77 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
     setInspecting(null)
     setTalkingNpc(null)
     setSessionId(v => v + 1)
+    setScreen('intro')
   }
 
-  const beginIntro = () => {
-    setShowRules(false)
-    setShowIntro(true)
-  }
+  const startGame = () => setScreen('game')
 
-  const startGame = () => {
-    setShowIntro(false)
+  // ── Map selection screen ──────────────────────────────────────────────────
+  if (screen === 'map-select') {
+    return (
+      <GameShell title="Delivery on the Wind" onExit={onExit} background={SHELL_BG} accentColor="#e9dfc2">
+        <div style={s.scrollArea}>
+          <div style={s.mapSelectCard}>
+            <div style={s.rulesHeader}>
+              <h3 style={s.rulesTitle}>Choose Your Route</h3>
+              <p style={s.rulesSub}>Select a delivery map to begin. More routes are on the way.</p>
+            </div>
+
+            <div style={s.mapGrid}>
+              {MAP_REGISTRY.map(map => {
+                const hovered = hoveredMapId === map.id
+                return (
+                  <button
+                    key={map.id}
+                    style={{
+                      ...s.mapCard,
+                      background: map.cardGradient,
+                      border: `1.5px solid ${hovered && map.available ? map.accentColor : 'rgba(255,255,255,0.10)'}`,
+                      opacity: map.available ? 1 : 0.55,
+                      transform: hovered && map.available ? 'translateY(-3px)' : 'none',
+                      cursor: map.available ? 'pointer' : 'not-allowed',
+                      boxShadow: hovered && map.available ? `0 8px 28px rgba(0,0,0,0.55), 0 0 0 1px ${map.accentColor}40` : '0 4px 16px rgba(0,0,0,0.4)',
+                    }}
+                    onClick={() => {
+                      if (!map.available) return
+                      setSelectedMapId(map.id)
+                      setScreen('rules')
+                    }}
+                    onMouseEnter={() => setHoveredMapId(map.id)}
+                    onMouseLeave={() => setHoveredMapId(null)}
+                  >
+                    <div style={{ ...s.mapAccentBar, background: map.accentColor }} />
+                    <div style={s.mapCardBody}>
+                      <span style={s.mapEmoji}>{map.emoji}</span>
+                      <div style={s.mapCardText}>
+                        <span style={{ ...s.mapCardName, color: map.accentColor }}>{map.name}</span>
+                        <span style={s.mapCardDesc}>{map.description}</span>
+                      </div>
+                      {map.available
+                        ? <span style={{ ...s.mapChip, borderColor: map.accentColor, color: map.accentColor }}>Play →</span>
+                        : <span style={s.comingSoonChip}>Soon</span>
+                      }
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </GameShell>
+    )
   }
 
   // ── Rules screen ──────────────────────────────────────────────────────────
-  if (showRules) {
+  if (screen === 'rules') {
+    const durationMin = Math.floor(selectedMap.gameDurationMs / 60_000)
     return (
-      <GameShell title="Delivery on the Wind" onExit={onExit} background={BG} accentColor="#e9dfc2">
-        <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
+      <GameShell title="Delivery on the Wind" onExit={onExit} background={bg} accentColor="#e9dfc2">
         <div style={s.scrollArea}>
           <div style={s.rulesCard}>
             <div style={s.rulesHeader}>
               <h3 style={s.rulesTitle}>Help Kiki Deliver!</h3>
-              <p style={s.rulesSub}>Match each package to its house using the signs. You have 2 minutes.</p>
+              <p style={s.rulesSub}>Match each package to its house using the signs. You have {durationMin} minutes.</p>
             </div>
 
             <div style={s.rulesSections}>
@@ -186,9 +240,12 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
               </div>
             </div>
 
-            <button style={s.startBtn} onClick={beginIntro}>
-              Begin Delivery
-            </button>
+            <div style={s.rulesBtnRow}>
+              <button style={s.ghostBtn} onClick={() => setScreen('map-select')}>← Change Route</button>
+              <button style={{ ...s.startBtn, flex: 2 }} onClick={() => setScreen('intro')}>
+                Begin Delivery
+              </button>
+            </div>
           </div>
         </div>
       </GameShell>
@@ -196,9 +253,9 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   }
 
   // ── Intro animation ──────────────────────────────────────────────────────
-  if (showIntro) {
+  if (screen === 'intro') {
     return (
-      <GameShell title="Delivery on the Wind" onExit={onExit} background={BG} accentColor="#e9dfc2">
+      <GameShell title="Delivery on the Wind" onExit={onExit} background={bg} accentColor="#e9dfc2">
         <div style={s.introArea}>
           <div style={s.introCard}>
             <video
@@ -225,13 +282,13 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   }
 
   // ── End screen ────────────────────────────────────────────────────────────
-  if (result !== null) {
+  if (screen === 'results' && result !== null) {
     const won = result.outcome === 'win'
-    const completionTime = won ? 120 - result.timeRemaining : null
+    const completionTime = won ? Math.round(selectedMap.gameDurationMs / 1000) - result.timeRemaining : null
     const kikiOpinion = getKikiOpinion(result)
 
     return (
-      <GameShell title="Delivery on the Wind" onExit={onExit} background={BG} accentColor="#e9dfc2">
+      <GameShell title="Delivery on the Wind" onExit={onExit} background={bg} accentColor="#e9dfc2">
         <div style={s.scrollArea}>
           <div style={{ ...s.resultsCard, borderColor: won ? 'rgba(154,162,83,0.45)' : 'rgba(203,91,64,0.4)' }}>
             <div style={{ ...s.resultIcon, color: won ? '#c6cf79' : '#cb5b40' }}>
@@ -291,6 +348,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
 
             <div style={s.resultActions}>
               <button style={s.primaryBtn} onClick={restart}>Play Again</button>
+              <button style={{ ...s.ghostBtn, flex: 'unset' as const }} onClick={() => { setResult(null); setScreen('map-select') }}>Change Route</button>
               <button style={s.ghostBtn} onClick={onExit}>← Grove</button>
             </div>
           </div>
@@ -301,8 +359,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
 
   // ── Game screen ───────────────────────────────────────────────────────────
   return (
-    <GameShell title="Delivery on the Wind" onExit={onExit} background={BG} accentColor="#e9dfc2">
-      <AchievementToast achievements={unlockedAchievements} onDone={() => setUnlockedAchievements([])} />
+    <GameShell title="Delivery on the Wind" onExit={onExit} background={bg} accentColor="#e9dfc2">
       <div style={s.gameArea}>
         <div key={sessionId} ref={containerRef} style={s.gameWrap}>
           {hud && (
@@ -418,6 +475,96 @@ const s: Record<string, React.CSSProperties> = {
     flex: 1, overflowY: 'auto',
     display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
     padding: '28px 20px 36px', boxSizing: 'border-box',
+  },
+
+  /* Map select */
+  mapSelectCard: {
+    width: 'min(680px, 100%)',
+    background: 'rgba(10,18,8,0.84)',
+    backdropFilter: 'blur(16px)',
+    borderRadius: 22,
+    border: '1px solid rgba(154,162,83,0.24)',
+    boxShadow: '0 24px 56px rgba(0,0,0,0.50)',
+    padding: '32px 36px 28px',
+    boxSizing: 'border-box' as const,
+    display: 'flex', flexDirection: 'column' as const, gap: 24,
+  },
+  mapGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 14,
+  },
+  mapCard: {
+    position: 'relative' as const,
+    borderRadius: 16,
+    overflow: 'hidden',
+    padding: 0,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    textAlign: 'left' as const,
+    transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
+  },
+  mapAccentBar: {
+    height: 4,
+    width: '100%',
+  },
+  mapCardBody: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 6,
+    padding: '14px 16px 16px',
+  },
+  mapEmoji: {
+    fontSize: 28,
+    lineHeight: 1,
+  },
+  mapCardText: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 3,
+    flex: 1,
+  },
+  mapCardName: {
+    fontSize: 15,
+    fontWeight: 700,
+    fontFamily: uiFontFamily,
+    lineHeight: 1.2,
+  },
+  mapCardDesc: {
+    fontSize: 12,
+    color: '#b0a890',
+    fontFamily: uiFontFamily,
+    lineHeight: 1.4,
+  },
+  mapChip: {
+    display: 'inline-block',
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    padding: '3px 10px',
+    borderRadius: 20,
+    border: '1px solid',
+    fontSize: 11,
+    fontWeight: 700,
+    fontFamily: uiFontFamily,
+    letterSpacing: 0.4,
+  },
+  comingSoonChip: {
+    display: 'inline-block',
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    padding: '3px 10px',
+    borderRadius: 20,
+    border: '1px solid rgba(255,255,255,0.18)',
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 11,
+    fontWeight: 700,
+    fontFamily: uiFontFamily,
+    letterSpacing: 0.4,
+  },
+  rulesBtnRow: {
+    display: 'flex',
+    gap: 10,
+    alignItems: 'stretch',
   },
 
   /* Rules */

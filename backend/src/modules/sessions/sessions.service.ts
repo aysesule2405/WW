@@ -31,6 +31,13 @@ export interface CreateSessionInput {
   saplingsGrown?: number | null
   fruitsCollected?: number | null
   shortestGrowthTimeSeconds?: number | null
+  // Spirit Drift run stats
+  realmId?:        string | null
+  raresCaught?:    number | null
+  fleetingCaught?: number | null
+  cursedCaught?:   number | null
+  maxComboStreak?: number | null
+  timingBonuses?:  number | null
 }
 
 const sessionsService = {
@@ -108,6 +115,13 @@ const sessionsService = {
       completionTimeSeconds: rest.completionTimeSeconds ?? null,
       guardianId: rest.guardianId ?? null,
       won: rest.won ?? null,
+      harmonyBonus: rest.harmonyBonus ?? null,
+      realmId:        rest.realmId        ?? null,
+      raresCaught:    rest.raresCaught    ?? null,
+      fleetingCaught: rest.fleetingCaught ?? null,
+      cursedCaught:   rest.cursedCaught   ?? null,
+      maxComboStreak: rest.maxComboStreak ?? null,
+      timingBonuses:  rest.timingBonuses  ?? null,
     })
 
     return { id: session._id.toString(), achievements }

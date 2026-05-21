@@ -1,13 +1,12 @@
 import Phaser from 'phaser'
 import {
-  TILE, HOUSE_SIZE, MAP_COLS, MAP_ROWS, MAP_DATA, TILE_RULES,
+  TILE, HOUSE_SIZE, TILE_RULES,
   VIEWPORT_W, VIEWPORT_H,
-  NPC_CONFIGS, NPC_POSITIONS,
+  NPC_CONFIGS,
   DELIVERY_TYPES, CORRECT_MESSAGES, WRONG_MESSAGES,
-  HOUSE_POSITIONS, PACKAGE_POSITIONS, PLAYER_START,
-  GAME_DURATION_MS,
 } from './data/deliveryConfig'
 import type { TileType, HUDState, InspectData, NpcTalkData } from './data/deliveryConfig'
+import type { MapConfig } from './data/mapRegistry'
 import { Player } from './entities/Player'
 import { Package } from './entities/Package'
 import { House } from './entities/House'
@@ -33,13 +32,14 @@ export type SceneCallbacks = {
   onTalkNpc: (data: NpcTalkData) => void
 }
 
-const WORLD_W    = MAP_COLS * TILE
-const WORLD_H    = MAP_ROWS * TILE
 const HUD_H      = 40
 const BASE_MOVE  = 115               // ms per tile on grass
 
 export class DeliveryGameScene extends Phaser.Scene {
   private cb!: SceneCallbacks
+  private mapCfg!: MapConfig
+  private worldW = 0
+  private worldH = 0
 
   private player!: Player
   private packages: Package[] = []
@@ -50,7 +50,7 @@ export class DeliveryGameScene extends Phaser.Scene {
   private moveRepeatTimer = 0
   private readonly MOVE_REPEAT = 150
 
-  private timeLeftMs    = GAME_DURATION_MS
+  private timeLeftMs    = 0
   private deliveredCount = 0
   private running        = false
   private timerPaused    = false
@@ -68,9 +68,10 @@ export class DeliveryGameScene extends Phaser.Scene {
 
   constructor() { super({ key: 'DeliveryGameScene' }) }
 
-  init(data: SceneCallbacks) {
-    this.cb             = data
-    this.timeLeftMs     = GAME_DURATION_MS
+  init(data: { callbacks: SceneCallbacks; mapCfg: MapConfig }) {
+    this.cb             = data.callbacks
+    this.mapCfg         = data.mapCfg
+    this.timeLeftMs     = data.mapCfg.gameDurationMs
     this.deliveredCount = 0
     this.running        = false
     this.timerPaused    = false
@@ -106,6 +107,9 @@ export class DeliveryGameScene extends Phaser.Scene {
   }
 
   create() {
+    this.worldW = this.mapCfg.cols * TILE
+    this.worldH = this.mapCfg.rows * TILE
+
     // Pixel texture for particles
     const pg = this.add.graphics().setVisible(false)
     pg.fillStyle(0xffffff)
@@ -114,7 +118,7 @@ export class DeliveryGameScene extends Phaser.Scene {
     pg.destroy()
 
     // Camera world bounds
-    this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H)
+    this.cameras.main.setBounds(0, 0, this.worldW, this.worldH)
 
     this.drawTiles()
     this.createAtmosphere()
@@ -199,8 +203,8 @@ export class DeliveryGameScene extends Phaser.Scene {
   private describeHousePosition(houseCol: number, houseRow: number): string {
     const centerCol = houseCol + Math.floor(HOUSE_SIZE / 2)
     const centerRow = houseRow + Math.floor(HOUSE_SIZE / 2)
-    const vertical = centerRow < MAP_ROWS / 2 ? 'north' : 'south'
-    const horizontal = centerCol < MAP_COLS / 2 ? 'west' : 'east'
+    const vertical = centerRow < this.mapCfg.rows / 2 ? 'north' : 'south'
+    const horizontal = centerCol < this.mapCfg.cols / 2 ? 'west' : 'east'
     return `${vertical}-${horizontal} cottage`
   }
 
@@ -234,11 +238,11 @@ export class DeliveryGameScene extends Phaser.Scene {
 
   private drawTiles() {
     // Bake all tiles into a single RenderTexture for best performance
-    const rt = this.add.renderTexture(0, 0, WORLD_W, WORLD_H).setDepth(0).setOrigin(0, 0)
+    const rt = this.add.renderTexture(0, 0, this.worldW, this.worldH).setDepth(0).setOrigin(0, 0)
     const flippedShore = this.make.image({ key: 'tile-ocean_shore', add: false }).setOrigin(0, 0).setFlipY(true)
 
-    for (let row = 0; row < MAP_ROWS; row++) {
-      for (let col = 0; col < MAP_COLS; col++) {
+    for (let row = 0; row < this.mapCfg.rows; row++) {
+      for (let col = 0; col < this.mapCfg.cols; col++) {
         this.drawTile(rt, row, col, flippedShore)
       }
     }
@@ -252,7 +256,7 @@ export class DeliveryGameScene extends Phaser.Scene {
     col: number,
     flippedShore: Phaser.GameObjects.Image,
   ) {
-    const tile = MAP_DATA[row][col]
+    const tile = this.mapCfg.tiles[row][col]
     const x = col * TILE
     const y = row * TILE
 
@@ -275,7 +279,7 @@ export class DeliveryGameScene extends Phaser.Scene {
   }
 
   private isLowerShore(row: number, col: number): boolean {
-    const tileAbove = MAP_DATA[row - 1]?.[col]
+    const tileAbove = this.mapCfg.tiles[row - 1]?.[col]
     return tileAbove === 'water' || tileAbove === 'water_alt' || tileAbove === 'bridge'
   }
 
@@ -291,7 +295,7 @@ export class DeliveryGameScene extends Phaser.Scene {
         const alt = (row + col) % 2 === 0
         return alt ? 'tile-path' : 'tile-path_alt'
       case 'tree': {
-        return (row * MAP_COLS + col) % 2 === 0 ? 'tile-tree' : 'tile-tree_alt'
+        return (row * this.mapCfg.cols + col) % 2 === 0 ? 'tile-tree' : 'tile-tree_alt'
       }
       case 'tree_dense':
         return 'tile-tree_dense'
@@ -343,7 +347,7 @@ export class DeliveryGameScene extends Phaser.Scene {
 
     for (let i = 0; i < 4; i++) {
       const cfg = shuffled[i]
-      const pos = HOUSE_POSITIONS[i]
+      const pos = this.mapCfg.housePositions[i]
       this.houses.push(new House(
         this, cfg.type, cfg.colorNum, cfg.colorHex, cfg.imageIndex, pos.col, pos.row,
       ))
@@ -352,18 +356,18 @@ export class DeliveryGameScene extends Phaser.Scene {
     const pkgOrder = [...shuffled].sort(() => Math.random() - 0.5)
     for (let i = 0; i < 4; i++) {
       const cfg = pkgOrder[i]
-      const pos = PACKAGE_POSITIONS[i]
+      const pos = this.mapCfg.packagePositions[i]
       this.packages.push(new Package(
         this, cfg.type, cfg.colorNum, cfg.imageIndex, pos.col, pos.row,
       ))
     }
 
-    for (const pos of NPC_POSITIONS) {
+    for (const pos of this.mapCfg.npcPositions) {
       const cfg = NPC_CONFIGS.find(npc => npc.id === pos.id)
       if (cfg) this.npcs.push(new Npc(this, cfg, pos.col, pos.row))
     }
 
-    this.player = new Player(this, PLAYER_START.col, PLAYER_START.row)
+    this.player = new Player(this, this.mapCfg.playerStart.col, this.mapCfg.playerStart.row)
   }
 
   // ── HUD (setScrollFactor(0) keeps everything fixed to the camera) ─────────────
@@ -377,7 +381,7 @@ export class DeliveryGameScene extends Phaser.Scene {
 
     this.timerBar = this.add.graphics().setDepth(20).setScrollFactor(0)
 
-    this.timerText = this.add.text(VIEWPORT_W / 2, HUD_H / 2, '2:00', {
+    this.timerText = this.add.text(VIEWPORT_W / 2, HUD_H / 2, this.formatTime(this.mapCfg.gameDurationMs), {
       fontSize: '22px',
       fontStyle: 'bold',
       color: '#F0EAD2',
@@ -448,8 +452,8 @@ export class DeliveryGameScene extends Phaser.Scene {
     const nx = this.player.gridX + dx
     const ny = this.player.gridY + dy
 
-    if (nx < 0 || nx >= MAP_COLS || ny < 0 || ny >= MAP_ROWS) return
-    const tile = MAP_DATA[ny]?.[nx]
+    if (nx < 0 || nx >= this.mapCfg.cols || ny < 0 || ny >= this.mapCfg.rows) return
+    const tile = this.mapCfg.tiles[ny]?.[nx]
     if (!tile || !TILE_RULES[tile].walkable) {
       this.cameras.main.shake(50, 0.0015)
       return
@@ -589,8 +593,8 @@ export class DeliveryGameScene extends Phaser.Scene {
       fontFamily: uiFontFamily,
     }).setOrigin(0.5, 0.5)
 
-    const wx = Phaser.Math.Clamp((gridX + 1) * TILE + TILE / 2, bW / 2 + 6, WORLD_W - bW / 2 - 6)
-    const wy = Phaser.Math.Clamp(gridY * TILE - 18, bH / 2 + 48, WORLD_H - bH - 18)
+    const wx = Phaser.Math.Clamp((gridX + 1) * TILE + TILE / 2, bW / 2 + 6, this.worldW - bW / 2 - 6)
+    const wy = Phaser.Math.Clamp(gridY * TILE - 18, bH / 2 + 48, this.worldH - bH - 18)
     const bubble = this.add.container(wx, wy, [g, t])
     bubble.setDepth(12).setAlpha(0).setScale(0.7)
 
@@ -612,7 +616,7 @@ export class DeliveryGameScene extends Phaser.Scene {
     const s = sec % 60
     this.timerText.setText(`${m}:${s.toString().padStart(2, '0')}`)
 
-    const ratio  = this.timeLeftMs / GAME_DURATION_MS
+    const ratio  = this.timeLeftMs / this.mapCfg.gameDurationMs
     const barW   = VIEWPORT_W * ratio
     const barCol = ratio > 0.5 ? 0x5ABA2E : ratio > 0.25 ? 0xE8C030 : 0xEE3322
 
