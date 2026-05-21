@@ -145,6 +145,13 @@ export async function submitSession(
     finalPlayerScore?: number | null
     completionTime?: number | null
     shortestTime?: number | null
+    // Spirit Drift run stats
+    realmId?:        string | null
+    raresCaught?:    number | null
+    fleetingCaught?: number | null
+    cursedCaught?:   number | null
+    maxComboStreak?: number | null
+    timingBonuses?:  number | null
   }
 ) {
   try {

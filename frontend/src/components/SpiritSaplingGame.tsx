@@ -344,7 +344,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     setHarvestedGuardianId(selectedGuardianId);
     setHarvestScore(score);
 
-    const result = await submitSession('spirit-sapling', {
+    await submitSession('spirit-sapling', {
       completed: true,
       won: true,
       score,

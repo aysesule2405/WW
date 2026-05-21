@@ -139,7 +139,7 @@ export default function HalfMoonGame({ onExit }: Props) {
     completionTimeSeconds: number
   }) => {
     setScoreLoading(true)
-    const saveResults = await Promise.all([
+    await Promise.all([
       submitScore(GAME_SLUG, {
         score: playerScore,
         metadata: { level: levelReached, won, aiScore: moonScore, completed },

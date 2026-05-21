@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { bodyFontFamily, headingFontFamily } from '../theme/typography'
+import { bodyFontFamily } from '../theme/typography'
 import { uiRadius, uiSpace, uiType } from '../theme/uiTokens'
 
 // ─── Types ────────────────────────────────────────────────────────────────────

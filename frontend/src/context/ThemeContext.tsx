@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { GAME_THEMES, type ColorTheme } from './themeTypes'
+import { type ColorTheme } from './themeTypes'
 
 type ThemeContextType = {
   theme: ColorTheme

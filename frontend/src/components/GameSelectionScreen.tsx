@@ -4,7 +4,6 @@ import games from './gameData'
 import { bodyFontFamily, headingFontFamily, numberFontFamily } from '../theme/typography'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { GAME_THEMES } from '../context/themeTypes'
 import {
   getScoreLeaderboard,
   getDeliveryLeaderboard,

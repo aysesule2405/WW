@@ -39,7 +39,7 @@ function AppContent() {
     document.documentElement.setAttribute('data-reduce-motion', settings.reduceMotion ? 'true' : 'false')
     if (activeGame) return // game components manage their own music
     if (user && settings.music) {
-      audioManager.playMusic('menu', 0.35)
+      audioManager.playMusic('menu')
     } else {
       audioManager.stopMusic(600)
     }

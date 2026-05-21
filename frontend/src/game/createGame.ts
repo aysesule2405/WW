@@ -71,7 +71,7 @@ const GLOW_COLORS: Record<SpiritKind, number> = {
 // ── Scene ─────────────────────────────────────────────────────────────────────
 
 class CatchWindSpritesScene extends Phaser.Scene {
-  private readonly onGameEnd?: (score: number) => void
+  private readonly onGameEnd?: (result: RunResult) => void
   private readonly realmId:    string
 
   // ── State ──────────────────────────────────────────────────────────────────
