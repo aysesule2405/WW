@@ -1,4 +1,40 @@
 import { useEffect, useState } from 'react'
+
+function ShellDecor() {
+  return (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:0, overflow:'hidden' }} aria-hidden="true">
+      {/* Willow — top corners */}
+      <img src="/assets/animation/willow-leaves.gif" alt="" style={{ position:'absolute', top:0, left:-15, width:195, height:'auto', opacity:0.20, animation:'ww-float-gentle 9s ease-in-out 0s infinite', filter:'drop-shadow(0 4px 12px rgba(80,140,60,0.18))' }} />
+      <img src="/assets/animation/willow-leaves.gif" alt="" style={{ position:'absolute', top:0, right:-15, width:175, height:'auto', opacity:0.16, animation:'ww-float-gentle 11s ease-in-out 1.5s infinite', filter:'drop-shadow(0 4px 12px rgba(80,140,60,0.16))', transform:'scaleX(-1)' }} />
+      {/* Wind — drifting through */}
+      <img src="/assets/animation/wind.gif" alt="" style={{ position:'absolute', top:'18%', left:'3%',  width:155, height:'auto', opacity:0.12, animation:'ww-drift 12s ease-in-out 0s   infinite' }} />
+      <img src="/assets/animation/wind.gif" alt="" style={{ position:'absolute', top:'52%', right:'5%', width:140, height:'auto', opacity:0.10, animation:'ww-drift 15s ease-in-out 3.5s infinite' }} />
+      <img src="/assets/animation/wind.gif" alt="" style={{ position:'absolute', top:'36%', left:'40%', width:120, height:'auto', opacity:0.08, animation:'ww-drift 18s ease-in-out 7s   infinite' }} />
+      {/* Shines — sparse scatter */}
+      {([
+        ['shine-3.gif','10%','17%',52,0.26,'0.5s','6.2s'],['shine-1.gif','7%', '54%',44,0.20,'2.0s','7.0s'],
+        ['shine-2.gif','28%','78%',48,0.22,'1.0s','5.8s'],['shine-3.gif','58%','30%',40,0.18,'3.0s','8.0s'],
+        ['shine-1.gif','70%','64%',46,0.20,'1.5s','6.5s'],['shine-2.gif','44%','6%', 38,0.16,'4.0s','7.5s'],
+        ['shine-3.gif','82%','88%',42,0.18,'2.5s','6.0s'],['shine-1.gif','48%','46%',50,0.22,'0.8s','5.5s'],
+      ] as [string,string,string,number,number,string,string][]).map(([src,top,left,w,op,d,dr],i) => (
+        <img key={i} src={`/assets/animation/${src}`} alt="" style={{ position:'absolute', top, left, width:w, height:'auto', opacity:op, animation:`ww-twinkle ${dr} ease-in-out ${d} infinite` }} />
+      ))}
+    </div>
+  )
+}
+
+function WaterStrip() {
+  return (
+    <div style={{ position:'fixed', bottom:0, left:0, right:0, height:150, zIndex:0, pointerEvents:'none', overflow:'visible' }} aria-hidden="true">
+      <div style={{ position:'absolute', inset:0, background:'linear-gradient(180deg, transparent 0%, rgba(56,158,146,0.16) 40%, rgba(30,110,102,0.26) 100%)' }} />
+      <img src="/assets/animation/lily-leaf-1.gif" alt="" style={{ position:'absolute', bottom:-8,  left:'6%',  width:118, height:'auto', opacity:0.68, animation:'ww-lily-bob 6.2s ease-in-out 0s   infinite', filter:'drop-shadow(0 4px 12px rgba(32,120,80,0.3))'  }} />
+      <img src="/assets/animation/lily-leaf-2.gif" alt="" style={{ position:'absolute', bottom:-5,  left:'32%', width:155, height:'auto', opacity:0.60, animation:'ww-lily-bob 7.8s ease-in-out 1.3s infinite', filter:'drop-shadow(0 4px 12px rgba(32,120,80,0.25))' }} />
+      <img src="/assets/animation/lily-leaf-1.gif" alt="" style={{ position:'absolute', bottom:-10, left:'60%', width:100, height:'auto', opacity:0.55, animation:'ww-lily-bob 8.5s ease-in-out 2.7s infinite', filter:'drop-shadow(0 4px 12px rgba(32,120,80,0.28))', transform:'scaleX(-1)' }} />
+      <img src="/assets/animation/lily-leaf-2.gif" alt="" style={{ position:'absolute', bottom:-6,  left:'80%', width:138, height:'auto', opacity:0.52, animation:'ww-lily-bob 9.2s ease-in-out 4.0s infinite', filter:'drop-shadow(0 4px 12px rgba(32,120,80,0.22))' }} />
+    </div>
+  )
+}
+
 import Sidebar from './Sidebar'
 import type { SidebarSection } from './Sidebar'
 import { useAuth } from '../../context/AuthContext'
@@ -54,7 +90,8 @@ export default function AppShell({ onSelect, onLogout }: Props) {
       backgroundAttachment: 'fixed',
       transition: 'background 250ms ease',
     }}>
-      {settings.particles && !settings.reduceMotion && <ShellParticles />}
+      <ShellDecor />
+      <WaterStrip />
       <Sidebar
         active={section}
         onChange={setSection}
@@ -74,67 +111,4 @@ export default function AppShell({ onSelect, onLogout }: Props) {
   )
 }
 
-type Particle = {
-  src: string
-  top?: string; bottom?: string; left?: string; right?: string
-  width: number; opacity: number; anim: string
-}
 
-const PARTICLES: Particle[] = [
-  // ─ Willow leaves — top canopy
-  { src: '/assets/animation/willow-leaves.gif', top: '0%',   left: '15%',  width: 148, opacity: 0.24, anim: 'float-spirit 9s ease-in-out 0s infinite' },
-  { src: '/assets/animation/willow-leaves.gif', top: '1%',   left: '71%',  width: 116, opacity: 0.18, anim: 'float-spirit 11.5s ease-in-out 3.2s infinite' },
-  // ─ Lily leaves — mid sides
-  { src: '/assets/animation/lily-leaf-1.gif',   top: '32%',  left: '1%',   width: 126, opacity: 0.21, anim: 'float-spirit 12s ease-in-out 1.8s infinite' },
-  { src: '/assets/animation/lily-leaf-2.gif',   top: '50%',  left: '91%',  width: 118, opacity: 0.19, anim: 'float-spirit 10.5s ease-in-out 4.2s infinite' },
-  { src: '/assets/animation/lily-leaf-1.gif',   top: '76%',  left: '5%',   width: 98,  opacity: 0.16, anim: 'float-spirit 13s ease-in-out 6s infinite' },
-  // ─ Wind — atmospheric drift
-  { src: '/assets/animation/wind.gif',          top: '55%',  left: '74%',  width: 155, opacity: 0.17, anim: 'ww-drift 11s ease-in-out 1s infinite' },
-  { src: '/assets/animation/wind.gif',          top: '22%',  left: '44%',  width: 108, opacity: 0.10, anim: 'ww-drift 14s ease-in-out 5.5s infinite' },
-  // ─ Shines / sparkles
-  { src: '/assets/animation/shine-1.gif',       top: '17%',  left: '61%',  width: 58,  opacity: 0.34, anim: 'ww-twinkle 7s ease-in-out 0.5s infinite' },
-  { src: '/assets/animation/shine-2.gif',       top: '74%',  left: '40%',  width: 52,  opacity: 0.25, anim: 'ww-twinkle 8.5s ease-in-out 2s infinite' },
-  { src: '/assets/animation/shine-3.gif',       top: '43%',  left: '87%',  width: 46,  opacity: 0.30, anim: 'ww-twinkle 6.5s ease-in-out 3s infinite' },
-  { src: '/assets/animation/shine-1.gif',       top: '88%',  left: '21%',  width: 42,  opacity: 0.20, anim: 'ww-twinkle 9s ease-in-out 1.2s infinite' },
-  // ─ Ladies — bottom, gentle sway
-  { src: '/assets/animation/lady-1.gif',        bottom: '0%', left: '6%',  width: 88,  opacity: 0.22, anim: 'ww-sway 10s ease-in-out 0.8s infinite' },
-  { src: '/assets/animation/lady-2.gif',        bottom: '0%', left: '83%', width: 94,  opacity: 0.19, anim: 'ww-sway 11s ease-in-out 2.5s infinite' },
-  { src: '/assets/animation/lady-3.gif',        bottom: '0%', left: '47%', width: 84,  opacity: 0.16, anim: 'ww-sway 12.5s ease-in-out 4s infinite' },
-]
-
-function ShellParticles() {
-  return (
-    <div style={particleStyles.wrap} aria-hidden="true">
-      {PARTICLES.map((p, i) => (
-        <img
-          key={i}
-          src={p.src}
-          alt=""
-          style={{
-            ...particleStyles.image,
-            top: p.top, bottom: p.bottom,
-            left: p.left, right: p.right,
-            width: p.width,
-            opacity: p.opacity,
-            animation: p.anim,
-          }}
-        />
-      ))}
-    </div>
-  )
-}
-
-const particleStyles: Record<string, React.CSSProperties> = {
-  wrap: {
-    position: 'fixed',
-    inset: 0,
-    overflow: 'hidden',
-    pointerEvents: 'none',
-    zIndex: 0,
-  },
-  image: {
-    position: 'absolute',
-    height: 'auto',
-    filter: 'drop-shadow(0 4px 16px rgba(120,160,80,0.28))',
-  },
-}

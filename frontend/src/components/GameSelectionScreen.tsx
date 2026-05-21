@@ -303,15 +303,6 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
       onMouseMove={handleParallaxMove}
       onMouseLeave={() => setParallax({ x: 0, y: 0 })}
     >
-      {/* ── Ambient decorations ── */}
-      <img src="/assets/animation/lily-leaf-1.gif" aria-hidden="true" className="ww-deco-img"
-        style={{ position: 'absolute', bottom: 0, left: 0, width: 210, height: 'auto', opacity: 0.30, pointerEvents: 'none', animation: 'ww-float-gentle 12s ease-in-out 0s infinite', filter: 'drop-shadow(0 6px 20px rgba(80,140,60,0.35))', zIndex: 0 }} />
-      <img src="/assets/animation/lily-leaf-2.gif" aria-hidden="true" className="ww-deco-img"
-        style={{ position: 'absolute', bottom: 0, right: 0, width: 185, height: 'auto', opacity: 0.26, pointerEvents: 'none', animation: 'ww-float-gentle 14s ease-in-out 2.5s infinite', filter: 'drop-shadow(0 6px 20px rgba(80,140,60,0.30))', zIndex: 0 }} />
-      <img src="/assets/animation/ray-of-light-animation.gif" aria-hidden="true" className="ww-deco-img"
-        style={{ position: 'absolute', top: 40, right: '7%', width: 260, height: 'auto', opacity: 0.12, pointerEvents: 'none', animation: 'float-spirit 18s ease-in-out 5s infinite', zIndex: 0 }} />
-      <img src="/assets/animation/willow-leaves.gif" aria-hidden="true" className="ww-deco-img"
-        style={{ position: 'absolute', top: 0, left: '38%', width: 130, height: 'auto', opacity: 0.18, pointerEvents: 'none', animation: 'float-spirit 10s ease-in-out 1s infinite', filter: 'drop-shadow(0 4px 12px rgba(120,160,80,0.25))', zIndex: 0 }} />
 
       <div style={{ ...s.shell, position: 'relative', zIndex: 1 }}>
 

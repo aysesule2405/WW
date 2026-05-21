@@ -58,10 +58,12 @@ const hasSpeechRecognition =
   (window.SpeechRecognition != null || window.webkitSpeechRecognition != null)
 
 const OPENING_MESSAGES: Record<string, string> = {
-  deer:     'I feel the earth breathing slowly beneath me... What is on your heart today?',
-  fox:      'Oh! You came to visit me! The sunlight feels warmer when you\'re near. What shall we talk about?',
-  kodama:   'The old woods told me you were coming. I have been waiting quietly. Tell me everything.',
-  mononoke: 'You approach without fear. I like that. Speak freely — what does the wild in you want to say?',
+  deer:       'I feel the earth breathing slowly beneath me... What is on your heart today?',
+  fox:        "Oh! You came to visit me! The sunlight feels warmer when you're near. What shall we talk about?",
+  kodama:     'The old woods told me you were coming. I have been waiting quietly. Tell me everything.',
+  mononoke:   'You approach without fear. I like that. Speak freely — what does the wild in you want to say?',
+  wanderer:   'You found me in this grove. Interesting. I travel far and rarely stay — but I will listen. What calls to you?',
+  'silent one': '…the silence between us holds more than words. But if you must speak, I will hold it gently.',
 }
 
 async function sendChat(
@@ -351,10 +353,10 @@ export default function TalkToSaplingPanel({ guardianName, onClose, onEnergyEval
   )
 }
 
-function energyTagText(sentiment: SaplingSentiment, delta: number): string {
-  if (sentiment === 'positive') return `${delta}s recharge`
-  if (sentiment === 'negative') return `+${delta}s recharge`
-  return 'energy unchanged'
+function energyTagText(sentiment: SaplingSentiment, _delta: number): string {
+  if (sentiment === 'positive') return '✦ orb restored'
+  if (sentiment === 'negative') return 'grove darkened'
+  return 'unchanged'
 }
 
 const s: Record<string, React.CSSProperties> = {

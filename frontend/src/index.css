@@ -1177,6 +1177,77 @@ button:focus-visible {
   50%        { box-shadow: 0 0 0 5px rgba(173,193,120,0.38); }
 }
 
+@keyframes ww-lady-float {
+  0%,  100% { transform: translateY(0)   rotate(-1deg); }
+  50%        { transform: translateY(-9px) rotate(1deg);  }
+}
+
+@keyframes ww-lily-bob {
+  0%,  100% { transform: translateX(0)   rotate(-3deg) translateY(0);   }
+  50%        { transform: translateX(5px) rotate(3deg)  translateY(-6px); }
+}
+
+@keyframes ww-rain-sweep-l {
+  0%   { transform: translateX(-280px); opacity: 0; }
+  8%   { opacity: 0.92; }
+  88%  { opacity: 0.92; }
+  100% { transform: translateX(2400px); opacity: 0; }
+}
+
+@keyframes ww-rain-sweep-r {
+  0%   { transform: translateX(280px);  opacity: 0; }
+  8%   { opacity: 0.88; }
+  88%  { opacity: 0.88; }
+  100% { transform: translateX(-2400px); opacity: 0; }
+}
+
+@keyframes ww-sun-sweep {
+  0%   { transform: translateX(-280px) translateY(-10px); opacity: 0; }
+  10%  { opacity: 0.95; }
+  88%  { opacity: 0.95; }
+  100% { transform: translateX(2400px) translateY(-10px); opacity: 0; }
+}
+
+@keyframes ww-rain-droplets-fade {
+  0%   { opacity: 0; }
+  18%  { opacity: 0.28; }
+  78%  { opacity: 0.28; }
+  100% { opacity: 0; }
+}
+
+@keyframes ww-need-flash {
+  0%   { transform: translateX(-50%) scale(1);    background: rgba(6,14,6,0.80); }
+  25%  { transform: translateX(-50%) scale(1.07); background: rgba(28,72,24,0.88); }
+  100% { transform: translateX(-50%) scale(1);    background: rgba(6,14,6,0.80); }
+}
+
+@keyframes ww-wilt-pulse {
+  0%, 100% { border-color: rgba(235,100,60,0.55); box-shadow: 0 0 8px rgba(235,100,60,0.28); }
+  50%       { border-color: rgba(235,100,60,0.95); box-shadow: 0 0 18px rgba(235,100,60,0.58); }
+}
+
+@keyframes ww-event-appear {
+  0%   { transform: translateX(-50%) translateY(18px) scale(0.92); opacity: 0; }
+  100% { transform: translateX(-50%) translateY(0)    scale(1);    opacity: 1; }
+}
+
+@keyframes ww-event-flash {
+  0%   { opacity: 1; }
+  60%  { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+@keyframes ww-spore-float {
+  0%   { transform: translateY(0)     scale(1)    rotate(0deg);   opacity: var(--spore-opacity, 0.55); }
+  40%  { transform: translateY(-45px) scale(0.85) rotate(12deg);  opacity: calc(var(--spore-opacity, 0.55) * 0.8); }
+  100% { transform: translateY(-110px) scale(0.5) rotate(-8deg);  opacity: 0; }
+}
+
+@keyframes ww-corruption-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%       { opacity: 0.85; }
+}
+
 /* Medal bounce classes */
 .ww-medal-1 { display: inline-block; animation: ww-medal-bounce 3.2s ease-in-out 0s   infinite; }
 .ww-medal-2 { display: inline-block; animation: ww-medal-bounce 3.6s ease-in-out 0.5s infinite; }

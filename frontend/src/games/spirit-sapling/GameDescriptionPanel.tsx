@@ -5,11 +5,37 @@ type Props = {
   onContinue: () => void
 }
 
-const STATS = [
-  { icon: '🌱', label: 'Saplings grown' },
-  { icon: '🍑', label: 'Fruits collected' },
-  { icon: '✨', label: 'Harmony bonus' },
-  { icon: '🏆', label: 'Final score' },
+const MECHANICS = [
+  {
+    icon: '🔮',
+    title: '12 Spirit Orbs / Day',
+    body: 'Each action costs one orb. Kind words can restore one. Orbs refill the next day — spend them wisely.',
+  },
+  {
+    icon: '🌿',
+    title: 'Daily Need',
+    body: 'The sapling craves water, sunlight, conversation, or spirit energy. Match its need for a harmony boost.',
+  },
+  {
+    icon: '⚡',
+    title: 'Forest Events',
+    body: 'Droughts, blights, frosts, and storms erupt without warning. Counter them in time — or face the consequences.',
+  },
+  {
+    icon: '✦',
+    title: 'Guardian Synergy',
+    body: 'Each guardian amplifies one type of care. Matching their synergy to the daily need earns bonus growth.',
+  },
+  {
+    icon: '⏳',
+    title: 'Regression',
+    body: 'Neglect causes the sapling to wilt and lose a growth stage. Keep nurturing it — the countdown never stops.',
+  },
+  {
+    icon: '☠',
+    title: 'Corruption',
+    body: 'Harsh words, missed events, and neglect corrupt the grove through five darkening stages. Tend carefully.',
+  },
 ]
 
 export default function GameDescriptionPanel({ onContinue }: Props) {
@@ -19,26 +45,28 @@ export default function GameDescriptionPanel({ onContinue }: Props) {
         <p style={s.overline}>Welcome to</p>
         <h2 style={s.title}>Spirit Sapling</h2>
         <p style={s.body}>
-          A gentle growth game where you guide a small magical sapling through care, timing,
-          and guardian support. Choose a guardian to shape your play style, nurture your sapling
-          with water, sunlight, and kind words, and collect fruits before the journey ends.
+          A grove-tending game of care and consequence. Choose a guardian, spend your daily spirit orbs wisely,
+          and grow your sapling to a sacred fruit tree before corruption takes hold.
         </p>
 
-        <div style={s.guardianNote}>
-          <span style={s.guardianIcon}>🦌</span>
-          <p style={s.guardianText}>
-            Each guardian brings a unique voice and energy. Your guardian will speak to the sapling,
-            and the sapling listens — kind words make it grow.
-          </p>
-        </div>
-
-        <div style={s.statGrid}>
-          {STATS.map(({ icon, label }) => (
-            <div key={label} style={s.statItem}>
-              <span style={s.statIcon}>{icon}</span>
-              <span style={s.statLabel}>{label}</span>
+        <div style={s.mechanicGrid}>
+          {MECHANICS.map(({ icon, title, body }) => (
+            <div key={title} style={s.mechanicCard}>
+              <span style={s.mechanicIcon}>{icon}</span>
+              <div>
+                <p style={s.mechanicTitle}>{title}</p>
+                <p style={s.mechanicBody}>{body}</p>
+              </div>
             </div>
           ))}
+        </div>
+
+        <div style={s.lockedNote}>
+          <span style={s.lockedNoteIcon}>🔒</span>
+          <p style={s.lockedNoteText}>
+            Two hidden guardians — <strong>The Wanderer</strong> and <strong>The Silent One</strong> — can be unlocked
+            through specific challenges. Check the guardian selection screen to track your progress.
+          </p>
         </div>
 
         <div style={s.howRow}>
@@ -59,7 +87,7 @@ export default function GameDescriptionPanel({ onContinue }: Props) {
         </div>
 
         <button style={s.btn} onClick={onContinue}>
-          Choose Your Guardian →
+          Begin Your Journey →
         </button>
       </div>
     </div>
@@ -76,8 +104,8 @@ const s: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
   },
   card: {
-    width: 'min(660px, 100%)',
-    background: 'rgba(30, 20, 12, 0.78)',
+    width: 'min(680px, 100%)',
+    background: 'rgba(30, 20, 12, 0.82)',
     backdropFilter: 'blur(18px)',
     borderRadius: 22,
     border: '1px solid rgba(242,204,143,0.22)',
@@ -87,6 +115,8 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 16,
+    maxHeight: 'calc(100vh - 40px)',
+    overflowY: 'auto',
   },
   overline: {
     margin: 0,
@@ -114,45 +144,57 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.6,
     textAlign: 'center',
   },
-  guardianNote: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 12,
-    background: 'rgba(242,204,143,0.1)',
-    border: '1px solid rgba(242,204,143,0.2)',
-    borderRadius: 12,
-    padding: '12px 16px',
+  mechanicGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: 10,
   },
-  guardianIcon: { fontSize: 24, flexShrink: 0, lineHeight: 1 },
-  guardianText: {
-    margin: 0,
+  mechanicCard: {
+    display: 'flex',
+    gap: 10,
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    padding: '10px 12px',
+    alignItems: 'flex-start',
+  },
+  mechanicIcon: {
+    fontSize: 20,
+    lineHeight: 1,
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  mechanicTitle: {
+    margin: '0 0 3px',
     fontFamily: uiFontFamily,
     fontSize: 13,
+    fontWeight: 700,
+    color: '#f2cc8f',
+    lineHeight: 1.2,
+  },
+  mechanicBody: {
+    margin: 0,
+    fontFamily: uiFontFamily,
+    fontSize: 12,
+    color: '#c4bd8e',
+    lineHeight: 1.45,
+  },
+  lockedNote: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+    background: 'rgba(242,204,143,0.08)',
+    border: '1px solid rgba(242,204,143,0.18)',
+    borderRadius: 12,
+    padding: '10px 14px',
+  },
+  lockedNoteIcon: { fontSize: 16, flexShrink: 0, lineHeight: 1, marginTop: 1 },
+  lockedNoteText: {
+    margin: 0,
+    fontFamily: uiFontFamily,
+    fontSize: 12,
     color: '#d9c9a3',
     lineHeight: 1.5,
-  },
-  statGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: 8,
-  },
-  statItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 4,
-    background: 'rgba(255,255,255,0.05)',
-    borderRadius: 10,
-    padding: '10px 6px',
-    border: '1px solid rgba(255,255,255,0.08)',
-  },
-  statIcon: { fontSize: 20, lineHeight: 1 },
-  statLabel: {
-    fontFamily: uiFontFamily,
-    fontSize: 11,
-    color: '#c4bd8e',
-    textAlign: 'center',
-    lineHeight: 1.3,
   },
   howRow: {
     display: 'flex',

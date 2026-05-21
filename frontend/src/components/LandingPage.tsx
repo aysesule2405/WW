@@ -87,32 +87,10 @@ const COMING_SOON = [
   { icon: '🎧', title: 'Adaptive Audio World', desc: 'More ambient layers, reactive music, accessibility controls, and richer guardian voice direction.' },
 ];
 
-const FLOATING_ANIMS: {
-  src: string; top?: string; bottom?: string; left: string; width: number;
-  opacity: number; delay: string; duration: string; flip?: boolean;
-}[] = [
-  // Willow curtains — normal left, flipped right
-  { src: '/assets/animation/willow-leaves.gif', top: '0%',    left: '-1%',  width: 210, opacity: 0.88, delay: '0s',   duration: '7.2s'             },
-  { src: '/assets/animation/willow-leaves.gif', top: '0%',    left: '82%',  width: 210, opacity: 0.88, delay: '0.5s', duration: '7.2s', flip: true },
-  // Ladies — bottom-pinned so feet sit on the hero edge
-  { src: '/assets/animation/lady-1.gif',        bottom: '0%', left: '6%',   width: 160, opacity: 0.95, delay: '0.6s', duration: '6.4s'             },
-  { src: '/assets/animation/lady-2.gif',        bottom: '0%', left: '40%',  width: 160, opacity: 0.95, delay: '1.0s', duration: '6.8s'             },
-  { src: '/assets/animation/lady-3.gif',        bottom: '0%', left: '74%',  width: 145, opacity: 0.95, delay: '0.3s', duration: '6.1s'             },
-  // Wind — lower-left and lower-right
-  { src: '/assets/animation/wind.gif',          top: '62%',   left: '-2%',  width: 165, opacity: 0.52, delay: '1.2s', duration: '8.2s'             },
-  { src: '/assets/animation/wind.gif',          top: '55%',   left: '83%',  width: 150, opacity: 0.46, delay: '3.0s', duration: '9.0s', flip: true },
-  // Shines scattered across mid-field
-  { src: '/assets/animation/shine-1.gif',       top: '22%',   left: '20%',  width: 74,  opacity: 0.55, delay: '0.9s', duration: '5.2s'             },
-  { src: '/assets/animation/shine-2.gif',       top: '46%',   left: '66%',  width: 66,  opacity: 0.50, delay: '1.8s', duration: '6.6s'             },
-  { src: '/assets/animation/shine-3.gif',       top: '34%',   left: '88%',  width: 58,  opacity: 0.45, delay: '3.1s', duration: '7.0s'             },
-  { src: '/assets/animation/shine-1.gif',       top: '68%',   left: '42%',  width: 60,  opacity: 0.40, delay: '2.2s', duration: '5.8s'             },
-  { src: '/assets/animation/shine-2.gif',       top: '14%',   left: '52%',  width: 55,  opacity: 0.38, delay: '4.0s', duration: '6.2s'             },
-];
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
-  const [activeGuardianId, setActiveGuardianId] = useState(GUARDIANS[1].id);
+  const [activeGuardianId, setActiveGuardianId] = useState<string | null>(null);
   const [playingGuardianId, setPlayingGuardianId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
@@ -186,35 +164,47 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <section style={s.hero}>
         {/* Ray of light */}
-        <img
-          src="/assets/animation/ray-of-light-animation.gif"
-          alt=""
-          style={s.rayOverlay}
-          aria-hidden="true"
-        />
+        <img src="/assets/animation/ray-of-light-animation.gif" alt="" style={s.rayOverlay} aria-hidden="true" />
 
-        {/* Floating GIF animations */}
-        {FLOATING_ANIMS.map((anim, i) => (
-          <img
-            key={i}
-            src={anim.src}
-            alt=""
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              top: anim.top,
-              bottom: anim.bottom,
-              left: anim.left,
-              width: anim.width,
-              height: 'auto',
-              opacity: anim.opacity,
-              animation: `float-spirit ${anim.duration} ease-in-out ${anim.delay} infinite`,
-              pointerEvents: 'none',
-              filter: 'drop-shadow(0 4px 16px rgba(120,160,80,0.35))',
-              transform: anim.flip ? 'scaleX(-1)' : undefined,
-            }}
-          />
+        {/* ── Willow drapes — top corners ── */}
+        <img src="/assets/animation/willow-leaves.gif" alt="" aria-hidden="true" style={{ position:'absolute', top:0, left:-12, width:230, height:'auto', opacity:0.82, pointerEvents:'none', animation:'ww-float-gentle 8s ease-in-out 0s infinite', filter:'drop-shadow(0 6px 18px rgba(80,140,60,0.3))' }} />
+        <img src="/assets/animation/willow-leaves.gif" alt="" aria-hidden="true" style={{ position:'absolute', top:0, right:-12, width:210, height:'auto', opacity:0.78, pointerEvents:'none', animation:'ww-float-gentle 10s ease-in-out 1.2s infinite', filter:'drop-shadow(0 6px 18px rgba(80,140,60,0.28))', transform:'scaleX(-1)' }} />
+        <img src="/assets/animation/willow-leaves.gif" alt="" aria-hidden="true" style={{ position:'absolute', top:0, left:'28%', width:150, height:'auto', opacity:0.42, pointerEvents:'none', animation:'ww-float-gentle 12s ease-in-out 3s infinite', filter:'drop-shadow(0 4px 12px rgba(80,140,60,0.2))' }} />
+        <img src="/assets/animation/willow-leaves.gif" alt="" aria-hidden="true" style={{ position:'absolute', top:0, left:'60%', width:135, height:'auto', opacity:0.35, pointerEvents:'none', animation:'ww-float-gentle 9s ease-in-out 5s infinite', filter:'drop-shadow(0 4px 12px rgba(80,140,60,0.18))', transform:'scaleX(-1)' }} />
+
+        {/* ── Wind clouds — scattered mid-field ── */}
+        {([
+          { top:'26%', left:'2%',  w:170, op:0.28, d:'0s',   dr:'10s' },
+          { top:'18%', left:'74%', w:185, op:0.24, d:'2.8s', dr:'12s' },
+          { top:'48%', left:'14%', w:145, op:0.20, d:'5s',   dr:'11s' },
+          { top:'60%', left:'52%', w:160, op:0.22, d:'1.5s', dr:'9s'  },
+          { top:'34%', left:'88%', w:130, op:0.18, d:'7s',   dr:'13s' },
+        ] as const).map((w, i) => (
+          <img key={i} src="/assets/animation/wind.gif" alt="" aria-hidden="true" style={{ position:'absolute', top:w.top, left:w.left, width:w.w, height:'auto', opacity:w.op, pointerEvents:'none', animation:`ww-drift ${w.dr} ease-in-out ${w.d} infinite`, filter:'drop-shadow(0 4px 16px rgba(220,180,80,0.2))' }} />
         ))}
+
+        {/* ── Shines — covering the background ── */}
+        {([
+          ['shine-1.gif','4%', '7%',  72, 0.60,'0s',   '4.2s'],['shine-2.gif','7%', '24%', 56, 0.52,'0.7s', '5.0s'],
+          ['shine-3.gif','3%', '44%', 82, 0.70,'1.4s', '3.8s'],['shine-1.gif','6%', '64%', 62, 0.55,'2.1s', '4.6s'],
+          ['shine-2.gif','5%', '84%', 68, 0.58,'0.4s', '5.2s'],['shine-3.gif','21%','3%',  67, 0.50,'1.1s', '4.8s'],
+          ['shine-1.gif','17%','21%', 74, 0.62,'2.8s', '3.6s'],['shine-2.gif','24%','41%', 60, 0.48,'0.2s', '5.5s'],
+          ['shine-3.gif','19%','61%', 70, 0.56,'1.8s', '4.2s'],['shine-1.gif','14%','81%', 78, 0.62,'3.2s', '4.0s'],
+          ['shine-2.gif','39%','11%', 62, 0.46,'0.9s', '5.8s'],['shine-3.gif','37%','31%', 57, 0.52,'2.0s', '4.4s'],
+          ['shine-1.gif','41%','51%', 72, 0.58,'1.3s', '3.9s'],['shine-2.gif','34%','71%', 64, 0.46,'3.5s', '5.1s'],
+          ['shine-3.gif','39%','91%', 60, 0.52,'0.6s', '4.7s'],['shine-1.gif','57%','3%',  66, 0.42,'1.5s', '5.3s'],
+          ['shine-3.gif','54%','27%', 74, 0.52,'2.4s', '4.0s'],['shine-2.gif','61%','49%', 58, 0.42,'0.8s', '5.6s'],
+          ['shine-1.gif','56%','73%', 70, 0.48,'3.0s', '4.3s'],['shine-3.gif','59%','89%', 62, 0.42,'1.7s', '5.0s'],
+        ] as [string,string,string,number,number,string,string][]).map(([src,top,left,w,op,d,dr], i) => (
+          <img key={i} src={`/assets/animation/${src}`} alt="" aria-hidden="true" style={{ position:'absolute', top, left, width:w, height:'auto', opacity:op, pointerEvents:'none', animation:`ww-twinkle ${dr} ease-in-out ${d} infinite`, filter:'drop-shadow(0 2px 10px rgba(140,220,200,0.4))' }} />
+        ))}
+
+        {/* ── Ladies — welcoming at hero bottom ── */}
+        <img src="/assets/animation/lady-2.gif" alt="" aria-hidden="true" style={{ position:'absolute', bottom:0, left:'5%',  width:180, height:'auto', opacity:0.96, pointerEvents:'none', animation:'ww-lady-float 7.2s ease-in-out 0.3s infinite', filter:'drop-shadow(0 8px 24px rgba(0,0,0,0.4))' }} />
+        <img src="/assets/animation/lady-1.gif" alt="" aria-hidden="true" style={{ position:'absolute', bottom:0, left:'38%', width:200, height:'auto', opacity:0.96, pointerEvents:'none', animation:'ww-lady-float 8.0s ease-in-out 0.9s infinite', filter:'drop-shadow(0 8px 24px rgba(0,0,0,0.4))' }} />
+        <img src="/assets/animation/lady-3.gif" alt="" aria-hidden="true" style={{ position:'absolute', bottom:0, left:'72%', width:188, height:'auto', opacity:0.96, pointerEvents:'none', animation:'ww-lady-float 6.8s ease-in-out 0.1s infinite', filter:'drop-shadow(0 8px 24px rgba(0,0,0,0.4))' }} />
+
+
 
         <div style={s.heroContent}>
           <span style={s.heroBadge}>A cozy micro-game grove</span>
