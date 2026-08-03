@@ -23,6 +23,7 @@ export class House {
     imageIndex: number,
     gridX: number,
     gridY: number,
+    showSprite = true,
   ) {
     this.scene = scene
     this.type = type
@@ -32,28 +33,30 @@ export class House {
     this.colorHex = colorHex
     this.imageIndex = imageIndex
 
-    const halfBlock = (HOUSE_SIZE / 2) * TILE  // 72px — half the 3×3 block
+    const blockSize = HOUSE_SIZE * TILE
+    const halfBlock = blockSize / 2
 
     // Shadow ellipse beneath house
     const shadow = scene.add.graphics()
     shadow.fillStyle(0x000000, 0.18)
-    shadow.fillEllipse(0, halfBlock - 12, 132, 34)
+    shadow.fillEllipse(0, -10, 132, 34)
+    shadow.setVisible(showSprite)
 
-    // House image — display at HOUSE_SIZE × HOUSE_SIZE tiles
-    this.sprite = scene.add.image(0, -8, `house-${imageIndex}`)
-    this.sprite.setDisplaySize(HOUSE_SIZE * TILE, HOUSE_SIZE * TILE)
+    // House image — keep the native PNG size and bottom-align it to the yard.
+    this.sprite = scene.add.image(0, -10, `house-${imageIndex}`).setOrigin(0.5, 1)
+    this.sprite.setVisible(showSprite)
 
     // Color-coded badge ring around the base
     const badge = scene.add.graphics()
     badge.lineStyle(4, colorNum, 0.8)
-    badge.strokeCircle(0, halfBlock - 18, halfBlock - 18)
+    badge.strokeCircle(0, -20, halfBlock - 18)
     badge.fillStyle(colorNum, 0.10)
-    badge.fillCircle(0, halfBlock - 18, halfBlock - 18)
+    badge.fillCircle(0, -20, halfBlock - 18)
 
-    // Container anchored at the center of the 3×3 block
+    // Container anchored at the bottom-center of the blocked house footprint.
     this.container = scene.add.container(
-      (gridX + 1) * TILE + TILE / 2,
-      (gridY + 1) * TILE + TILE / 2,
+      (gridX + HOUSE_SIZE / 2) * TILE,
+      (gridY + HOUSE_SIZE) * TILE,
       [shadow, badge, this.sprite],
     )
     this.container.setDepth(2)
@@ -64,8 +67,8 @@ export class House {
 
     // Sparkle burst — fires from center of 3×3 block
     const px = this.scene.add.particles(
-      (this.gridX + 1) * TILE + TILE / 2,
-      (this.gridY + 1) * TILE + TILE / 2,
+      (this.gridX + HOUSE_SIZE / 2) * TILE,
+      (this.gridY + HOUSE_SIZE / 2) * TILE,
       'pixel',
       {
         speed: { min: 70, max: 180 },

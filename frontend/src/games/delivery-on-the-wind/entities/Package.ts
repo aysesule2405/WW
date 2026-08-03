@@ -12,6 +12,8 @@ export class Package {
   private scene: Phaser.Scene
   private container: Phaser.GameObjects.Container
   private colorNum: number
+  private sparkle: Phaser.GameObjects.Image
+  private sparkleTimer: Phaser.Time.TimerEvent | null = null
 
   constructor(
     scene: Phaser.Scene,
@@ -28,47 +30,59 @@ export class Package {
     this.colorNum = colorNum
     this.imageIndex = imageIndex
 
+    const backing = scene.add.graphics()
+    backing.fillStyle(0x081106, 0.66)
+    backing.fillCircle(0, 0, 25)
+
     // Outer glow ring
     const glow = scene.add.graphics()
-    glow.lineStyle(4, colorNum, 0.45)
-    glow.strokeCircle(0, 0, 38)
-    glow.lineStyle(2, colorNum, 0.2)
-    glow.strokeCircle(0, 0, 46)
+    glow.lineStyle(4, colorNum, 0.94)
+    glow.strokeCircle(0, 0, 27)
+    glow.lineStyle(2, 0xfff3c6, 0.88)
+    glow.strokeCircle(0, 0, 31)
 
-    // Package image — display at 56×56
+    const marker = scene.add.graphics()
+    marker.fillStyle(0xfff3c6, 0.98)
+    marker.fillTriangle(0, -31, -6, -40, 6, -40)
+    marker.lineStyle(2, colorNum, 0.95)
+    marker.strokeTriangle(0, -31, -6, -40, 6, -40)
+
+    const outline = scene.add.image(0, 0, `package-${imageIndex}`)
+    outline.setDisplaySize(51, 51)
+    outline.setTint(0xfff2bd).setAlpha(0.78)
+
+    // Package image — large enough to remain legible against the painted maps.
     const sprite = scene.add.image(0, 0, `package-${imageIndex}`)
-    sprite.setDisplaySize(56, 56)
+    sprite.setDisplaySize(46, 46)
+
+    this.sparkle = scene.add.image(0, 0, 'package-sparkle-0')
+    this.sparkle.setDisplaySize(48, 48).setAlpha(0.92)
 
     this.container = scene.add.container(
       gridX * TILE + TILE / 2,
       gridY * TILE + TILE / 2,
-      [glow, sprite],
+      [backing, glow, marker, outline, sprite, this.sparkle],
     )
-    this.container.setDepth(3)
+    this.container.setDepth(6)
 
-    // Idle float
-    scene.tweens.add({
-      targets: this.container,
-      y: this.container.y - 6,
-      duration: 900 + Math.random() * 300,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.InOut',
-    })
-
-    // Glow pulse
-    scene.tweens.add({
-      targets: glow,
-      alpha: 0.15,
-      duration: 1100 + Math.random() * 400,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.InOut',
-    })
+    const motionEnabled = typeof window === 'undefined' || !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (motionEnabled) {
+      let sparkleFrame = imageIndex % 4
+      this.sparkleTimer = scene.time.addEvent({
+        delay: 205 + imageIndex * 18,
+        loop: true,
+        callback: () => {
+          sparkleFrame = (sparkleFrame + 1) % 4
+          this.sparkle.setTexture(`package-sparkle-${sparkleFrame}`)
+        },
+      })
+    }
   }
 
   pickup() {
     this.isPickedUp = true
+    this.sparkleTimer?.remove(false)
+    this.sparkleTimer = null
     this.scene.tweens.killTweensOf(this.container)
 
     const px = this.scene.add.particles(this.container.x, this.container.y, 'pixel', {
@@ -95,6 +109,7 @@ export class Package {
   }
 
   destroy() {
+    this.sparkleTimer?.remove(false)
     this.container.destroy()
   }
 }

@@ -147,10 +147,10 @@ for (let row = 0; row < MAP_ROWS; row++) {
 
 const legendStart = MAP_ROWS + 5
 const legendRows = [
-  ['Tile/Object', 'Walkable', 'Speed', 'Notes'],
+  ['Tile/Object', 'Air passable', 'Speed', 'Notes'],
   ...Object.keys(tileStyles).map((tile) => [
     tile,
-    TILE_RULES[tile]?.walkable ? 'yes' : 'no',
+    TILE_RULES[tile]?.airPassable ? 'yes' : 'no',
     TILE_RULES[tile]?.speedMultiplier ?? '',
     'Edit map cells using this exact tile name.',
   ]),

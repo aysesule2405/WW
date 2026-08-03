@@ -19,6 +19,7 @@ export type DeliveryGameAPI = {
   inspectNearHouse: () => void
   talkNearNpc: () => void
   resumeFromInspection: () => void
+  setZoom: (zoom: number) => void
   destroy: () => void
 }
 
@@ -41,6 +42,9 @@ export function createDeliveryGame(
     width:  VIEWPORT_W,
     height: VIEWPORT_H,
     backgroundColor: '#3A6820',
+    pixelArt: true,
+    antialias: false,
+    roundPixels: true,
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -61,6 +65,7 @@ export function createDeliveryGame(
     inspectNearHouse:     () => getScene()?.inspectNearHouse(),
     talkNearNpc:          () => getScene()?.talkNearNpc(),
     resumeFromInspection: () => getScene()?.resumeFromInspection(),
+    setZoom:              (zoom) => getScene()?.setCameraZoom(zoom),
     destroy:              () => game.destroy(true, false),
   }
 }

@@ -20,16 +20,17 @@ type EndResult = {
 
 const SHELL_BG = `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url('/assets/backgrounds/delivery-on-the-wind/game-bg.png') center/cover no-repeat`
 const INTRO_VIDEO = '/assets/animation/delivery-animation.mp4'
+const ZOOM_LEVELS = [0.75, 1, 1.25, 1.5] as const
 
 const STEPS = [
   { heading: 'Objective', items: ['Help Kiki deliver all 4 packages to the correct houses within 2 minutes.'] },
   {
     heading: 'Controls',
     items: [
-      'Arrow Keys to move Kiki.',
+      'Arrow Keys to fly Kiki.',
       'Step onto a glowing package to pick it up.',
-      'Walk near a house and press Inspect House to see its sign.',
-      'Step onto the matching house to deliver.',
+      'Fly near a house and press Inspect House to see its sign.',
+      'Reach the matching house’s glowing delivery ring to deliver.',
     ],
   },
   {
@@ -44,6 +45,7 @@ const STEPS = [
     items: [
       'Delivering to the wrong house costs 5 seconds.',
       'You can only carry one package at a time.',
+      'Kiki can fly over water, but must go around trees, buildings, cliffs, and large obstacles.',
       'Use Inspect Package and Inspect House to match the signs — they must match exactly.',
     ],
   },
@@ -70,7 +72,7 @@ function getKikiOpinion(result: EndResult) {
     return "Today got away from me before the first package found its door. Next time I'll read the house signs sooner and trust the main paths."
   }
   if (result.deliveries < 3) {
-    return "I found part of the route, but the grove still had a few tricks left. I should plan the bridge crossing before I pick up the next parcel."
+    return "I found part of the route, but the grove still had a few tricks left. Next time I should use the open water and turn earlier around the trees."
   }
   return "So close. Three deliveries is a strong run, but the last doorstep needs a cleaner route and a little less hesitation."
 }
@@ -82,13 +84,14 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   const apiRef = useRef<DeliveryGameAPI | null>(null)
 
   const [screen, setScreen]           = useState<Screen>('map-select')
-  const [selectedMapId, setSelectedMapId] = useState('village')
+  const [selectedMapId, setSelectedMapId] = useState('meadow')
   const [hoveredMapId, setHoveredMapId]   = useState<string | null>(null)
   const [result, setResult]           = useState<EndResult | null>(null)
   const [sessionId, setSessionId]     = useState(0)
   const [hud, setHud]                 = useState<HUDState | null>(null)
   const [inspecting, setInspecting]   = useState<InspectData | null>(null)
   const [talkingNpc, setTalkingNpc]   = useState<NpcTalkData | null>(null)
+  const [zoom, setZoom]               = useState(1)
 
   const selectedMap = MAP_REGISTRY.find(m => m.id === selectedMapId) ?? MAP_REGISTRY[0]
   const bg = selectedMap.bg
@@ -135,11 +138,25 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
     setHud(null)
     setInspecting(null)
     setTalkingNpc(null)
+    setZoom(1)
     setSessionId(v => v + 1)
     setScreen('intro')
   }
 
-  const startGame = () => setScreen('game')
+  const startGame = () => {
+    setZoom(1)
+    setScreen('game')
+  }
+
+  const changeZoom = (direction: -1 | 1) => {
+    setZoom(current => {
+      const currentIndex = ZOOM_LEVELS.findIndex(level => level === current)
+      const nextIndex = Math.max(0, Math.min(currentIndex + direction, ZOOM_LEVELS.length - 1))
+      const next = ZOOM_LEVELS[nextIndex]
+      apiRef.current?.setZoom(next)
+      return next
+    })
+  }
 
   // ── Map selection screen ──────────────────────────────────────────────────
   if (screen === 'map-select') {
@@ -229,7 +246,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
                   <div key={d.type} style={s.legendItem}>
                     <div style={s.legendImgWrap}>
                       <img
-                        src={`/assets/backgrounds/delivery-on-the-wind/package-${d.imageIndex}.png`}
+                        src={`/assets/backgrounds/delivery-on-the-wind/package-${d.imageIndex}-pixel.png`}
                         alt={d.label}
                         style={s.legendImg}
                       />
@@ -336,7 +353,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
 
             <div style={s.kikiReport}>
               <img
-                src="/assets/backgrounds/delivery-on-the-wind/kiki.png"
+                src="/assets/backgrounds/delivery-on-the-wind/kiki-pixel.png"
                 alt="Kiki"
                 style={s.kikiPortrait}
               />
@@ -367,7 +384,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
               {hud.heldType && hud.heldImageIndex !== null && (
                 <button style={s.inspectBtn} onClick={() => apiRef.current?.inspectHeldPackage()}>
                   <img
-                    src={`/assets/backgrounds/delivery-on-the-wind/package-${hud.heldImageIndex}.png`}
+                    src={`/assets/backgrounds/delivery-on-the-wind/package-${hud.heldImageIndex}-pixel.png`}
                     alt=""
                     style={s.inspectBtnImg}
                   />
@@ -393,7 +410,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
                   onClick={() => apiRef.current?.talkNearNpc()}
                 >
                   <img
-                    src={`/assets/npcs/${hud.nearNpcAssetKey}.png`}
+                    src={`/assets/npcs/${hud.nearNpcAssetKey}-pixel.png`}
                     alt=""
                     style={s.inspectBtnImg}
                   />
@@ -402,6 +419,29 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
               )}
             </div>
           )}
+          <div style={s.zoomControls} role="group" aria-label="Map zoom controls">
+            <button
+              type="button"
+              aria-label="Zoom out"
+              title="Zoom out"
+              disabled={zoom === ZOOM_LEVELS[0]}
+              style={{ ...s.zoomBtn, ...(zoom === ZOOM_LEVELS[0] ? s.zoomBtnDisabled : {}) }}
+              onClick={() => changeZoom(-1)}
+            >
+              −
+            </button>
+            <output style={s.zoomValue} aria-live="polite">{Math.round(zoom * 100)}%</output>
+            <button
+              type="button"
+              aria-label="Zoom in"
+              title="Zoom in"
+              disabled={zoom === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+              style={{ ...s.zoomBtn, ...(zoom === ZOOM_LEVELS[ZOOM_LEVELS.length - 1] ? s.zoomBtnDisabled : {}) }}
+              onClick={() => changeZoom(1)}
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
 
@@ -416,7 +456,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
 function InspectModal({ data, onClose }: { data: InspectData; onClose: () => void }) {
   const isPackage = data.kind === 'package'
   const imgSrc = isPackage
-    ? `/assets/backgrounds/delivery-on-the-wind/package-${data.imageIndex}.png`
+    ? `/assets/backgrounds/delivery-on-the-wind/package-${data.imageIndex}-pixel.png`
     : `/assets/backgrounds/delivery-on-the-wind/house-${data.imageIndex}.png`
 
   return (
@@ -452,7 +492,7 @@ function NpcTalkModal({ data, onClose }: { data: NpcTalkData; onClose: () => voi
           <button style={m.closeBtn} onClick={onClose}>Close</button>
         </div>
         <div style={m.npcPortraitWrap}>
-          <img src={`/assets/npcs/${data.assetKey}.png`} alt={data.name} style={m.npcPortrait} />
+          <img src={`/assets/npcs/${data.assetKey}-pixel.png`} alt={data.name} style={m.npcPortrait} />
         </div>
         <p style={m.npcRole}>{data.role}</p>
         {data.heldLabel && (
@@ -805,6 +845,48 @@ const s: Record<string, React.CSSProperties> = {
   inspectHouseBtn: { borderColor: 'rgba(200,160,80,0.5)', color: '#F0D890' },
   talkNpcBtn:      { borderColor: 'rgba(154,162,83,0.58)', color: '#DDE5B6' },
   inspectBtnImg:   { width: 28, height: 28, objectFit: 'contain', borderRadius: 4 },
+  zoomControls: {
+    position: 'absolute',
+    left: 18,
+    bottom: 18,
+    zIndex: 11,
+    display: 'grid',
+    gridTemplateColumns: '38px 58px 38px',
+    alignItems: 'stretch',
+    overflow: 'hidden',
+    borderRadius: 12,
+    border: '1.5px solid rgba(240,234,210,0.46)',
+    background: 'rgba(10,18,8,0.86)',
+    boxShadow: '0 5px 18px rgba(0,0,0,0.46)',
+    backdropFilter: 'blur(8px)',
+  },
+  zoomBtn: {
+    minWidth: 38,
+    minHeight: 38,
+    padding: 0,
+    border: 'none',
+    background: 'rgba(233,223,194,0.10)',
+    color: '#fff7e0',
+    fontFamily: numberFontFamily,
+    fontSize: 24,
+    lineHeight: 1,
+    cursor: 'pointer',
+  },
+  zoomBtnDisabled: {
+    color: 'rgba(233,223,194,0.28)',
+    cursor: 'not-allowed',
+    background: 'rgba(233,223,194,0.035)',
+  },
+  zoomValue: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#dce7b8',
+    fontFamily: numberFontFamily,
+    fontSize: 13,
+    borderLeft: '1px solid rgba(240,234,210,0.18)',
+    borderRight: '1px solid rgba(240,234,210,0.18)',
+  },
 }
 
 const m: Record<string, React.CSSProperties> = {
