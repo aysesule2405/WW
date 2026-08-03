@@ -253,7 +253,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   const [talkBoostTotal, setTalkBoostTotal] = useState(0);
   const [dailyNeed, setDailyNeed] = useState<NeedType>(() => pickNeed());
   const [needMatchCount, setNeedMatchCount] = useState(0);
-  const [needMissStreak, setNeedMissStreak] = useState(0);
+  const [, setNeedMissStreak] = useState(0);
   const [regressionSeconds, setRegressionSeconds] = useState(REGRESSION_TIMEOUT);
   const [corruptionScore, setCorruptionScore] = useState(0);
   const [needFlash, setNeedFlash] = useState(false);
