@@ -7,6 +7,7 @@ import { audioManager } from '../lib/AudioManager';
 import GameShell from './game/GameShell';
 import GameDescriptionPanel from '../games/spirit-sapling/GameDescriptionPanel';
 import TalkToSaplingPanel from '../games/spirit-sapling/TalkToSaplingPanel';
+import GentleHarvestGame, { type HarvestResult } from '../games/spirit-sapling/GentleHarvestGame';
 import { useGameMusic } from '../hooks/useGameMusic';
 
 const bodyFontFamily    = uiFontFamily
@@ -29,6 +30,7 @@ type Guardian = {
   fruitBasket: string;
   sacredTreeName: string;
   harvestName: string;
+  fruitKind: 'apple' | 'peach' | 'pear' | 'persimmon';
   synergy: 'water' | 'sun' | 'talk' | 'spirit' | 'any';
   synergyColor: string;
   talkPanelDisabled?: boolean;
@@ -45,6 +47,7 @@ const BASE_GUARDIANS: Guardian[] = [
     fruitBasket: '/assets/backgrounds/spirit-sapling/baskets/basket-of-peach.png',
     sacredTreeName: 'Peach Tree',
     harvestName: 'peaches',
+    fruitKind: 'peach',
     synergy: 'water',
     synergyColor: '#6BC8EB',
   },
@@ -58,6 +61,7 @@ const BASE_GUARDIANS: Guardian[] = [
     fruitBasket: '/assets/backgrounds/spirit-sapling/baskets/basket-of-persimmon.png',
     sacredTreeName: 'Persimmon Tree',
     harvestName: 'persimmons',
+    fruitKind: 'persimmon',
     synergy: 'sun',
     synergyColor: '#FFD444',
   },
@@ -71,6 +75,7 @@ const BASE_GUARDIANS: Guardian[] = [
     fruitBasket: '/assets/backgrounds/spirit-sapling/baskets/basket-of-pear.png',
     sacredTreeName: 'Pear Tree',
     harvestName: 'pears',
+    fruitKind: 'pear',
     synergy: 'spirit',
     synergyColor: '#ECBC58',
   },
@@ -84,6 +89,7 @@ const BASE_GUARDIANS: Guardian[] = [
     fruitBasket: '/assets/backgrounds/spirit-sapling/baskets/basket-of-apple.png',
     sacredTreeName: 'Apple Tree',
     harvestName: 'apples',
+    fruitKind: 'apple',
     synergy: 'talk',
     synergyColor: '#8CD778',
   },
@@ -101,6 +107,7 @@ const UNLOCKABLE_GUARDIAN_DEFS: Guardian[] = [
     fruitBasket: '/assets/backgrounds/spirit-sapling/baskets/basket-of-apple.png',
     sacredTreeName: 'World Tree',
     harvestName: 'wild fruits',
+    fruitKind: 'apple',
     synergy: 'any',
     synergyColor: '#C8A0E8',
   },
@@ -115,6 +122,7 @@ const UNLOCKABLE_GUARDIAN_DEFS: Guardian[] = [
     fruitBasket: '/assets/backgrounds/spirit-sapling/baskets/basket-of-pear.png',
     sacredTreeName: 'Moon Pear Tree',
     harvestName: 'moonpears',
+    fruitKind: 'pear',
     synergy: 'spirit',
     synergyColor: '#9EC8D8',
     talkPanelDisabled: true,
@@ -163,14 +171,14 @@ const basketButtonImage = '/assets/backgrounds/spirit-sapling/baskets/empty-bask
 
 const dropletOffsets = [12, 20, 28, 36, 44, 52, 60, 68, 76, 84];
 
-type GameScreen = 'description' | 'selection' | 'game' | 'results';
+type GameScreen = 'description' | 'selection' | 'game' | 'harvest' | 'results';
 type SaplingEffect = 'water' | 'sun' | 'talk' | null;
 type SaplingAction = Exclude<SaplingEffect, null> | 'harvest';
 type NeedType = 'water' | 'sun' | 'talk' | 'spirit';
 
 const ALL_NEEDS: NeedType[] = ['water', 'sun', 'talk', 'spirit'];
-const REGRESSION_TIMEOUT = 45;
-const REGRESSION_WARN = 12;
+const REGRESSION_TIMEOUT = 60;
+const REGRESSION_WARN = 10;
 
 const NEED_CONFIG: Record<NeedType, { label: string; wiltLabel: string; color: string; border: string; glow: string }> = {
   water:  { label: 'Thirsty',     wiltLabel: 'Parched!',   color: '#6BC8EB', border: 'rgba(100,200,235,0.55)', glow: 'rgba(100,200,235,0.28)' },
@@ -253,7 +261,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   const [talkBoostTotal, setTalkBoostTotal] = useState(0);
   const [dailyNeed, setDailyNeed] = useState<NeedType>(() => pickNeed());
   const [needMatchCount, setNeedMatchCount] = useState(0);
-  const [, setNeedMissStreak] = useState(0);
+  const [careMessage, setCareMessage] = useState('Pause, notice the sapling, then choose the care it is asking for.');
   const [regressionSeconds, setRegressionSeconds] = useState(REGRESSION_TIMEOUT);
   const [corruptionScore, setCorruptionScore] = useState(0);
   const [needFlash, setNeedFlash] = useState(false);
@@ -263,6 +271,8 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   const [eventsSurvived, setEventsSurvived] = useState(0);
   const [eventFlash, setEventFlash] = useState<'success' | 'fail' | null>(null);
   const [synergyBoostCount, setSynergyBoostCount] = useState(0);
+  const [harvestResult, setHarvestResult] = useState<HarvestResult | null>(null);
+  const [isPageVisible, setIsPageVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
   const [saplingProgress, setSaplingProgress] = useState(() => loadSaplingProgress());
   const availableGuardians = useMemo(
     () => [
@@ -278,7 +288,6 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   const effectTimerRef = useRef<number | null>(null);
   const stageTransitionTimerRef = useRef<number | null>(null);
   const growthDelayTimerRef = useRef<number | null>(null);
-  const activeActionTimerRef = useRef<number | null>(null);
   const growthImageReadyRef = useRef<Record<string, boolean>>({});
   const regressionTickRef = useRef<number | null>(null);
   const stageIndexRef = useRef(0);
@@ -291,6 +300,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   const atFinalStageRef = useRef(false);
   const hasCollectedFruitRef = useRef(false);
   const activeEventRef = useRef<ActiveEvent>(null);
+  const milestoneEventTriggeredRef = useRef(false);
 
   const selectedGuardian = useMemo(
     () => availableGuardians.find((g) => g.id === selectedGuardianId) ?? BASE_GUARDIANS[0],
@@ -320,6 +330,8 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   const canCollectFruit = atFinalStage && !hasCollectedFruit && previousStageIndex === null && !isTalking;
   const currentStageSrc = growthStages[stageIndex];
   const isCurrentStageLoaded = Boolean(growthImageReady[currentStageSrc]);
+  const interactionOverlayPaused = showTalkPanel || isTalking || !isPageVisible;
+  const gameplayPaused = interactionOverlayPaused || activeAction !== null;
 
   // Keep refs in sync so stable callbacks can read current values
   useEffect(() => { stageIndexRef.current = stageIndex; }, [stageIndex]);
@@ -329,6 +341,12 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   useEffect(() => { hasCollectedFruitRef.current = hasCollectedFruit; }, [hasCollectedFruit]);
   useEffect(() => { activeEventRef.current = activeEvent; }, [activeEvent]);
   useEffect(() => { selectedGuardianRef.current = selectedGuardian; }, [selectedGuardian]);
+
+  useEffect(() => {
+    const handleVisibility = () => setIsPageVisible(!document.hidden);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   const regressionStage = useCallback(() => {
     const current = stageIndexRef.current;
@@ -356,25 +374,24 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     setIsWilting(false);
   }, []);
 
-  const checkNeedMatch = useCallback((action: NeedType) => {
+  const checkNeedMatch = useCallback((action: NeedType): boolean => {
     const current = dailyNeedRef.current;
     if (action === current) {
       setNeedMatchCount(c => c + 1);
-      setNeedMissStreak(0);
       setNeedFlash(true);
       // Synergy boost: guardian's synergy matches the action (or is 'any' — The Wanderer)
       const guardianSynergy = selectedGuardianRef.current?.synergy;
       if (guardianSynergy === 'any' || guardianSynergy === action) setSynergyBoostCount(c => c + 1);
       if (needFlashTimerRef.current) window.clearTimeout(needFlashTimerRef.current);
       needFlashTimerRef.current = window.setTimeout(() => setNeedFlash(false), 1200);
-      window.setTimeout(() => setDailyNeed(pickNeed(current)), 3500);
-    } else {
-      setNeedMissStreak(c => {
-        const next = c + 1;
-        if (next >= 3) setCorruptionScore(s => Math.min(100, s + 3));
-        return next;
-      });
+      const nextNeed = pickNeed(current);
+      dailyNeedRef.current = nextNeed;
+      setDailyNeed(nextNeed);
+      setCareMessage('You noticed what the sapling was asking for. Its leaves open with trust.');
+      return true;
     }
+    setCareMessage(`That care was gentle, but the sapling is still ${NEED_CONFIG[current].label.toLowerCase()}. Look again.`);
+    return false;
   }, []);
 
   const applyEventPenalty = useCallback((type: EventType) => {
@@ -444,14 +461,15 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     };
   }, [growthStageAssets]);
 
-  // Regression timer — ticks every second; if player neglects the sapling it loses a stage
+  // Attention timer — pauses during care and never removes earned growth.
   useEffect(() => {
-    if (screen !== 'game' || atFinalStage || hasCollectedFruit) {
+    if (screen !== 'game' || atFinalStage || hasCollectedFruit || gameplayPaused) {
       if (regressionTickRef.current) { window.clearInterval(regressionTickRef.current); regressionTickRef.current = null; }
       return;
     }
     if (regressionSeconds <= 0) {
-      regressionStage();
+      setCorruptionScore((score) => Math.min(100, score + 4));
+      setCareMessage('The sapling waited through the quiet. Look closely and reconnect—its growth is still safe.');
       setRegressionSeconds(REGRESSION_TIMEOUT);
       return;
     }
@@ -462,24 +480,48 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     return () => {
       if (regressionTickRef.current) { window.clearInterval(regressionTickRef.current); regressionTickRef.current = null; }
     };
-  }, [screen, atFinalStage, hasCollectedFruit, regressionSeconds, regressionStage]);
+  }, [screen, atFinalStage, hasCollectedFruit, gameplayPaused, regressionSeconds, regressionStage]);
 
-  // Schedule first random event shortly after game begins
+  // Guarantee one guardian-aligned forest trial at the midpoint of every run.
   useEffect(() => {
-    if (screen !== 'game') {
+    if (
+      screen !== 'game'
+      || stageIndex !== 2
+      || interactionOverlayPaused
+      || atFinalStage
+      || hasCollectedFruit
+      || milestoneEventTriggeredRef.current
+      || activeEventRef.current
+    ) {
       if (eventSpawnTimerRef.current) { window.clearTimeout(eventSpawnTimerRef.current); eventSpawnTimerRef.current = null; }
       return;
     }
-    scheduleNextEventSpawn(22000, 38000);
+
+    const trialByGuardian: Record<GuardianId, EventType> = {
+      deer: 'drought',
+      fox: 'frost',
+      kodama: 'whisper',
+      mononoke: 'blight',
+      wanderer: 'whisper',
+      silent: 'whisper',
+    };
+    eventSpawnTimerRef.current = window.setTimeout(() => {
+      const type = trialByGuardian[selectedGuardianRef.current.id];
+      const event: ActiveEvent = { type, secondsLeft: EVENT_CONFIG[type].duration };
+      milestoneEventTriggeredRef.current = true;
+      activeEventRef.current = event;
+      setActiveEvent(event);
+      eventSpawnTimerRef.current = null;
+    }, 1000);
+
     return () => {
       if (eventSpawnTimerRef.current) { window.clearTimeout(eventSpawnTimerRef.current); eventSpawnTimerRef.current = null; }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen]);
+  }, [screen, stageIndex, interactionOverlayPaused, atFinalStage, hasCollectedFruit]);
 
   // Event countdown — ticks every second while an event is active
   useEffect(() => {
-    if (!activeEvent || screen !== 'game') {
+    if (!activeEvent || screen !== 'game' || gameplayPaused) {
       if (eventTickRef.current) { window.clearInterval(eventTickRef.current); eventTickRef.current = null; }
       return;
     }
@@ -502,7 +544,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     return () => {
       if (eventTickRef.current) { window.clearInterval(eventTickRef.current); eventTickRef.current = null; }
     };
-  }, [screen, activeEvent?.secondsLeft, activeEvent?.type, applyEventPenalty, scheduleNextEventSpawn]);
+  }, [screen, activeEvent, gameplayPaused, applyEventPenalty, scheduleNextEventSpawn]);
 
   const advanceGrowth = () => {
     if (atFinalStage) return;
@@ -554,9 +596,6 @@ export default function SpiritSaplingGame({ onExit }: Props) {
       if (growthDelayTimerRef.current) {
         window.clearTimeout(growthDelayTimerRef.current);
       }
-      if (activeActionTimerRef.current) {
-        window.clearTimeout(activeActionTimerRef.current);
-      }
       if (regressionTickRef.current) {
         window.clearInterval(regressionTickRef.current);
       }
@@ -575,12 +614,13 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     };
   }, []);
 
-  const scheduleGrowthAdvance = (delayMs: number) => {
+  const scheduleCareResolution = (delayMs: number, shouldGrow: boolean) => {
     if (growthDelayTimerRef.current) {
       window.clearTimeout(growthDelayTimerRef.current);
     }
     growthDelayTimerRef.current = window.setTimeout(() => {
-      advanceGrowth();
+      if (shouldGrow) advanceGrowth();
+      setActiveAction(null);
       growthDelayTimerRef.current = null;
     }, delayMs);
   };
@@ -599,13 +639,16 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     if (action === 'water') waterCountRef.current += 1;
     else sunCountRef.current += 1;
 
-    checkNeedMatch(action as NeedType);
+    const matchedNeed = checkNeedMatch(action as NeedType);
     resetRegressionTimer();
+    const counteredEvent = (activeEvent?.type === 'drought' && action === 'water')
+      || (activeEvent?.type === 'frost' && action === 'sun');
     if (activeEvent?.type === 'drought' && action === 'water') resolveEvent('drought', true);
     if (activeEvent?.type === 'frost'   && action === 'sun')   resolveEvent('frost',   true);
 
-    const effectDuration = action === 'water' ? 4500 : 3500;
-    const growthDelay = effectDuration;
+    const effectDuration = matchedNeed || counteredEvent
+      ? action === 'water' ? 2200 : 1800
+      : 1200;
 
     if (action === 'water') audioManager.playWater(0.22);
     else audioManager.playSun(0.18);
@@ -613,28 +656,22 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     spendEnergy();
     setActiveAction(action);
     triggerEffect(action, effectDuration);
-    scheduleGrowthAdvance(growthDelay);
-    if (activeActionTimerRef.current) {
-      window.clearTimeout(activeActionTimerRef.current);
-    }
-    activeActionTimerRef.current = window.setTimeout(() => {
-      setActiveAction(null);
-      activeActionTimerRef.current = null;
-    }, 2000);
+    scheduleCareResolution(effectDuration, matchedNeed || counteredEvent);
   };
 
   const handleHearGuardian = async () => {
     if (isTalking || isStorm || energyDepleted) return;
     spendEnergy();
     talkCountRef.current += 1;
-    checkNeedMatch('spirit');
+    const matchedNeed = checkNeedMatch('spirit');
     resetRegressionTimer();
-    if (activeEvent?.type === 'whisper') resolveEvent('whisper', true);
+    const counteredEvent = activeEvent?.type === 'whisper';
+    if (counteredEvent) resolveEvent('whisper', true);
     setActiveAction('talk');
     triggerEffect('talk', 3600);
     audioManager.playSoftChime(0.12);
     await speakGuardian();
-    advanceGrowth();
+    if (matchedNeed || counteredEvent) advanceGrowth();
     setActiveAction(null);
   };
 
@@ -652,54 +689,71 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     if (growthBoost > 0) {
       setTalkBoostTotal((prev) => prev + growthBoost);
       talkCountRef.current += 1;
-      checkNeedMatch('talk');
+      const matchedNeed = checkNeedMatch('talk');
       resetRegressionTimer();
-      if (activeEvent?.type === 'blight') resolveEvent('blight', true);
+      const counteredEvent = activeEvent?.type === 'blight';
+      if (counteredEvent) resolveEvent('blight', true);
+      if (matchedNeed || counteredEvent) advanceGrowth();
       // Positive words restore 1 orb — kind energy feeds the grove
       setDailyEnergy(restoreDailyEnergy(1));
     }
   };
 
-  const handleCollectFruit = async () => {
+  const handleCollectFruit = () => {
     if (!canCollectFruit) return;
+
+    setActiveAction('harvest');
+    setHarvestedGuardianId(selectedGuardianId);
+    setActiveEvent(null);
+    activeEventRef.current = null;
+    setScreen('harvest');
+  };
+
+  const handleHarvestComplete = (result: HarvestResult) => {
+    const guardian = selectedGuardianRef.current;
 
     const harmonyBonus = waterCountRef.current > 0 && sunCountRef.current > 0 && talkCountRef.current > 0;
     const needSynergyBonus = needMatchCount * 15 + synergyBoostCount * 10;
     const eventBonus = eventsSurvived * 50;
     const corruptionPenalty = Math.floor(corruptionScore * 0.5);
-    const score = Math.max(0, 50 + 10 + (harmonyBonus ? 20 : 0) + talkBoostTotal * 5 + needSynergyBonus + eventBonus - corruptionPenalty);
+    const harvestPoints = result.collected * 10 + result.patienceBonus;
+    const score = Math.max(0, 50 + harvestPoints + (harmonyBonus ? 20 : 0) + talkBoostTotal * 5 + needSynergyBonus + eventBonus - corruptionPenalty);
 
-    setActiveAction('harvest');
-    setHarvestedGuardianId(selectedGuardianId);
+    setHarvestResult(result);
+    setHarvestedGuardianId(guardian.id);
     setHarvestHarmonyBonus(harmonyBonus);
     setHarvestScore(score);
 
     // Persist progress to localStorage and check for new guardian unlocks
     const updated = updateProgressAfterHarvest(
-      selectedGuardianId,
+      guardian.id,
       eventsSurvived,
       talkCountRef.current > 0,
     );
     setSaplingProgress(updated);
 
-    await submitSession('spirit-sapling', {
+    void submitSession('spirit-sapling', {
       completed: true,
       won: true,
       score,
-      guardianId: selectedGuardianId,
+      guardianId: guardian.id,
       growthStageReached: 'full',
       waterActions: waterCountRef.current,
       sunActions:   sunCountRef.current,
       talkActions:  talkCountRef.current,
       harmonyBonus,
       saplingsGrown: 1,
-      fruitsCollected: 1,
+      fruitsCollected: result.collected,
+      hastyAttempts: result.hastyAttempts,
+      patienceBonus: result.patienceBonus,
+      needMatchCount,
+      synergyBoostCount,
+      eventsSurvived,
+      corruptionScore,
     });
-    window.setTimeout(() => {
-      setHasCollectedFruit(true);
-      setScreen('results');
-      setActiveAction(null);
-    }, 220);
+    setHasCollectedFruit(true);
+    setScreen('results');
+    setActiveAction(null);
   };
 
   const guardianLines: Record<GuardianId, string[]> = {
@@ -880,7 +934,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     setTalkBoostTotal(0);
     setDailyNeed(pickNeed());
     setNeedMatchCount(0);
-    setNeedMissStreak(0);
+    setCareMessage('Pause, notice the sapling, then choose the care it is asking for.');
     setRegressionSeconds(REGRESSION_TIMEOUT);
     setCorruptionScore(0);
     setNeedFlash(false);
@@ -890,6 +944,8 @@ export default function SpiritSaplingGame({ onExit }: Props) {
     setEventsSurvived(0);
     setEventFlash(null);
     setSynergyBoostCount(0);
+    setHarvestResult(null);
+    milestoneEventTriggeredRef.current = false;
     activeEventRef.current = null;
     if (eventSpawnTimerRef.current) { window.clearTimeout(eventSpawnTimerRef.current); eventSpawnTimerRef.current = null; }
     if (eventFlashTimerRef.current) { window.clearTimeout(eventFlashTimerRef.current); eventFlashTimerRef.current = null; }
@@ -909,16 +965,18 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   const isHearSynergyActive  = !atFinalStage && !hasCollectedFruit && dailyNeed === 'spirit' && (_synergyAny || selectedGuardian.synergy === 'spirit');
   const isWaterSynergyActive = !atFinalStage && !hasCollectedFruit && dailyNeed === 'water'  && (_synergyAny || selectedGuardian.synergy === 'water');
   const isSunSynergyActive   = !atFinalStage && !hasCollectedFruit && dailyNeed === 'sun'    && (_synergyAny || selectedGuardian.synergy === 'sun');
+  const canOpenTalk = !isTalking && activeAction === null && !atFinalStage && !hasCollectedFruit && !isStorm && !selectedGuardian.talkPanelDisabled;
 
   const SHELL_BG = "linear-gradient(rgba(20,20,20,0.2),rgba(20,20,20,0.2)), url('/assets/backgrounds/spirit-sapling/game-bg.png') center/cover no-repeat";
   const actionButtons = (
-    <div style={styles.buttonRow}>
+    <div className="ww-sapling-actions" style={styles.buttonRow}>
       <button
+        className="ww-sapling-action"
         type="button"
         style={{
           ...styles.iconButton,
           ...styles.talkSaplingButton,
-          opacity: (isTalking || selectedGuardian.talkPanelDisabled || energyDepleted) ? 0.38 : 1,
+          opacity: canOpenTalk ? 1 : 0.38,
           border: isTalkSynergyActive ? `1px solid ${selectedGuardian.synergyColor}` : undefined,
           borderTop: isTalkSynergyActive ? `2px solid ${selectedGuardian.synergyColor}` : undefined,
           boxShadow: isTalkSynergyActive
@@ -926,20 +984,27 @@ export default function SpiritSaplingGame({ onExit }: Props) {
             : undefined,
         }}
         onClick={() => {
-          if (selectedGuardian.talkPanelDisabled || energyDepleted) return;
-          spendEnergy();
+          if (!canOpenTalk) return;
+          if (!energyDepleted) spendEnergy();
           setShowTalkPanel(true);
           resetRegressionTimer();
         }}
-        disabled={isTalking || isStorm || selectedGuardian.talkPanelDisabled || energyDepleted}
+        disabled={!canOpenTalk}
       >
-        <img src={selectedGuardian.talkButton} alt={`Talk to ${selectedGuardian.name}`} style={styles.buttonArt} />
-        <span style={styles.actionLabel}>Talk to Spirit</span>
-        <span style={styles.actionHint}>
-          {selectedGuardian.talkPanelDisabled ? 'Silence is strength' : isTalkSynergyActive ? '✦ Synergy active' : 'Kind words help it grow'}
+        <img className="ww-sapling-action-art" src={selectedGuardian.talkButton} alt={`Talk to ${selectedGuardian.name}`} style={styles.buttonArt} />
+        <span className="ww-sapling-action-label" style={styles.actionLabel}>Talk to Spirit</span>
+        <span className="ww-sapling-action-hint" style={styles.actionHint}>
+          {selectedGuardian.talkPanelDisabled
+            ? 'Silence is strength'
+            : energyDepleted
+              ? 'A quiet visit costs no orb'
+              : isTalkSynergyActive
+                ? '✦ Synergy active'
+                : 'Kind words help it grow'}
         </span>
       </button>
       <button
+        className="ww-sapling-action"
         type="button"
         style={{
           ...styles.iconButton,
@@ -957,11 +1022,12 @@ export default function SpiritSaplingGame({ onExit }: Props) {
         onClick={handleHearGuardian}
         disabled={!canUseNurtureAction}
       >
-        <img src={selectedGuardian.hearButton} alt={`Hear ${selectedGuardian.name}`} style={styles.buttonArt} />
-        <span style={styles.actionLabel}>Hear {selectedGuardian.name}</span>
-        <span style={styles.actionHint}>{isHearSynergyActive ? '✦ Synergy active' : 'Guardian speaks'}</span>
+        <img className="ww-sapling-action-art" src={selectedGuardian.hearButton} alt={`Hear ${selectedGuardian.name}`} style={styles.buttonArt} />
+        <span className="ww-sapling-action-label" style={styles.actionLabel}>Hear {selectedGuardian.name}</span>
+        <span className="ww-sapling-action-hint" style={styles.actionHint}>{isHearSynergyActive ? '✦ Synergy active' : 'Guardian speaks'}</span>
       </button>
       <button
+        className="ww-sapling-action"
         type="button"
         style={{
           ...styles.iconButton,
@@ -979,11 +1045,12 @@ export default function SpiritSaplingGame({ onExit }: Props) {
         onClick={() => handleSunOrWaterAction('water')}
         disabled={!canUseNurtureAction}
       >
-        <img src="/assets/backgrounds/spirit-sapling/buttons/water-bucket-button.png" alt="Water bucket" style={styles.buttonArt} />
-        <span style={styles.actionLabel}>Water</span>
-        <span style={styles.actionHint}>{isWaterSynergyActive ? '✦ Synergy active' : 'Rain blessing'}</span>
+        <img className="ww-sapling-action-art" src="/assets/backgrounds/spirit-sapling/buttons/water-bucket-button.png" alt="Water bucket" style={styles.buttonArt} />
+        <span className="ww-sapling-action-label" style={styles.actionLabel}>Water</span>
+        <span className="ww-sapling-action-hint" style={styles.actionHint}>{isWaterSynergyActive ? '✦ Synergy active' : 'Rain blessing'}</span>
       </button>
       <button
+        className="ww-sapling-action"
         type="button"
         style={{
           ...styles.iconButton,
@@ -1001,9 +1068,9 @@ export default function SpiritSaplingGame({ onExit }: Props) {
         onClick={() => handleSunOrWaterAction('sun')}
         disabled={!canUseNurtureAction}
       >
-        <img src="/assets/backgrounds/spirit-sapling/buttons/sun-light-button.png" alt="Sun light" style={styles.buttonArt} />
-        <span style={styles.actionLabel}>Sun</span>
-        <span style={styles.actionHint}>{isSunSynergyActive ? '✦ Synergy active' : 'Warm leaves'}</span>
+        <img className="ww-sapling-action-art" src="/assets/backgrounds/spirit-sapling/buttons/sun-light-button.png" alt="Sun light" style={styles.buttonArt} />
+        <span className="ww-sapling-action-label" style={styles.actionLabel}>Sun</span>
+        <span className="ww-sapling-action-hint" style={styles.actionHint}>{isSunSynergyActive ? '✦ Synergy active' : 'Warm leaves'}</span>
       </button>
     </div>
   );
@@ -1019,12 +1086,12 @@ export default function SpiritSaplingGame({ onExit }: Props) {
   if (screen === 'selection') {
     return (
       <GameShell title="Spirit Sapling" onExit={onExit} background={SHELL_BG} accentColor="#F0EAD2">
-        <div style={styles.selectionWrap}>
-          <div style={styles.selectionCard}>
+        <div className="ww-sapling-selection-wrap" style={styles.selectionWrap}>
+          <div className="ww-sapling-selection-card" style={styles.selectionCard}>
             <h3 style={styles.selectionTitle}>Choose Your Guardian</h3>
             <p style={styles.selectionSubtitle}>Pick the spirit companion that will guide your sapling.</p>
 
-            <div style={{
+            <div className="ww-sapling-guardian-grid" style={{
               ...styles.guardianGrid,
               gridTemplateColumns: availableGuardians.length > 4 ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)',
             }}>
@@ -1062,7 +1129,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
             {LOCKED_GUARDIANS.some(g => !saplingProgress.unlockedGuardians.includes(g.id)) && (
             <div style={styles.lockedSection}>
               <p style={styles.lockedSectionLabel}>Locked Guardians</p>
-              <div style={styles.lockedGrid}>
+              <div className="ww-sapling-locked-grid" style={styles.lockedGrid}>
                 {LOCKED_GUARDIANS.filter(locked => !saplingProgress.unlockedGuardians.includes(locked.id)).map((locked) => {
                   const progress = locked.unlockProgress(saplingProgress);
                   const pct = Math.min(100, Math.round((progress / locked.unlockTotal) * 100));
@@ -1089,7 +1156,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
             </div>
             )}
 
-            <div style={styles.selectionActions}>
+            <div className="ww-sapling-selection-actions" style={styles.selectionActions}>
               <button type="button" style={styles.ghostAction} onClick={() => setScreen('description')}>
                 ← Back
               </button>
@@ -1099,6 +1166,27 @@ export default function SpiritSaplingGame({ onExit }: Props) {
             </div>
           </div>
         </div>
+      </GameShell>
+    );
+  }
+
+  if (screen === 'harvest' && harvestedGuardian) {
+    return (
+      <GameShell
+        title="Spirit Sapling"
+        onExit={onExit}
+        background="linear-gradient(rgba(10,24,16,0.16),rgba(10,24,16,0.16)), url('/assets/backgrounds/spirit-sapling/gentle-harvest-clearing.png') center/cover no-repeat"
+        accentColor="#F0EAD2"
+      >
+        <GentleHarvestGame
+          guardianName={harvestedGuardian.name}
+          guardianImage={harvestedGuardian.image}
+          guardianImageFilter={harvestedGuardian.imageFilter}
+          fruitKind={harvestedGuardian.fruitKind}
+          fruitName={harvestedGuardian.harvestName}
+          basketImage={basketButtonImage}
+          onComplete={handleHarvestComplete}
+        />
       </GameShell>
     );
   }
@@ -1122,10 +1210,20 @@ export default function SpiritSaplingGame({ onExit }: Props) {
                   <span style={styles.scoreDetail}>Fully grown</span>
                   <span style={styles.scoreDetail}>+50</span>
                 </div>
-                <div style={styles.scoreRow}>
-                  <span style={styles.scoreDetail}>Harvest gathered</span>
-                  <span style={styles.scoreDetail}>+10</span>
-                </div>
+                {harvestResult && (
+                  <>
+                    <div style={styles.scoreRow}>
+                      <span style={styles.scoreDetail}>Fruit gathered ×{harvestResult.collected}</span>
+                      <span style={styles.scoreDetail}>+{harvestResult.collected * 10}</span>
+                    </div>
+                    {harvestResult.patienceBonus > 0 && (
+                      <div style={styles.scoreRow}>
+                        <span style={styles.scoreDetail}>Gentle hands bonus</span>
+                        <span style={styles.scoreDetail}>+{harvestResult.patienceBonus}</span>
+                      </div>
+                    )}
+                  </>
+                )}
                 {harvestHarmonyBonus && (
                   <div style={styles.scoreRow}>
                     <span style={styles.scoreDetail}>Harmony bonus ✨</span>
@@ -1220,9 +1318,112 @@ export default function SpiritSaplingGame({ onExit }: Props) {
           onEnergyEvaluated={handleSaplingEnergyEvaluated}
         />
       )}
-      <div style={styles.gameLayout}>
-        <div style={styles.saplingPanel}>
-          <div style={{
+      <div className="ww-sapling-game-layout" style={styles.gameLayout}>
+        <div className="ww-sapling-game-panel" style={styles.saplingPanel}>
+          <div className="ww-sapling-hud" style={styles.saplingHud}>
+            <div className="ww-sapling-stage-pill" style={styles.stagePill}>
+              Stage {stageIndex + 1} / {growthStages.length}
+            </div>
+
+            {!atFinalStage && !hasCollectedFruit ? (
+              <div className="ww-sapling-need" style={{
+                ...styles.needIndicator,
+                borderColor: needFlash
+                  ? 'rgba(120,220,100,0.72)'
+                  : isWilting
+                  ? 'rgba(235,100,60,0.72)'
+                  : NEED_CONFIG[dailyNeed].border,
+                boxShadow: needFlash
+                  ? '0 0 14px rgba(120,220,100,0.5)'
+                  : isWilting
+                  ? '0 0 14px rgba(235,100,60,0.4)'
+                  : `0 0 8px ${NEED_CONFIG[dailyNeed].glow}`,
+                animation: needFlash
+                  ? 'ww-need-flash 1.2s ease-out'
+                  : isWilting
+                  ? 'ww-wilt-pulse 1.2s ease-in-out infinite'
+                  : 'none',
+              }}>
+                <span style={{
+                  color: needFlash ? '#90EE90' : isWilting ? '#EB6440' : NEED_CONFIG[dailyNeed].color,
+                  fontFamily: bodyFontFamily,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  letterSpacing: 0.4,
+                }}>
+                  {needFlash
+                    ? 'Need met! ✓'
+                    : isWilting
+                    ? `${NEED_CONFIG[dailyNeed].wiltLabel} — ${regressionSeconds}s`
+                    : `${NEED_CONFIG[dailyNeed].label} · ${regressionSeconds}s`}
+                </span>
+              </div>
+            ) : <div />}
+
+            <div className="ww-sapling-energy" style={styles.energyPanel}>
+              <div style={styles.energyOrbRow}>
+                {Array.from({ length: DAILY_ENERGY_TOTAL }, (_, i) => {
+                  const filled = i < dailyEnergy;
+                  const isLow = dailyEnergy <= 3 && dailyEnergy > 0;
+                  return (
+                    <div key={i} style={{
+                      ...styles.energyOrb,
+                      background: filled
+                        ? isLow
+                          ? 'radial-gradient(circle at 35% 35%, #FFD0A0, #E06020)'
+                          : 'radial-gradient(circle at 35% 35%, #D8F0B8, #70C040)'
+                        : 'rgba(30,30,30,0.55)',
+                      boxShadow: filled
+                        ? isLow
+                          ? '0 0 5px rgba(220,100,30,0.6)'
+                          : '0 0 5px rgba(110,200,60,0.55)'
+                        : 'none',
+                      opacity: filled ? 1 : 0.28,
+                      animation: filled && isLow ? 'ww-wilt-pulse 1.4s ease-in-out infinite' : 'none',
+                    }} />
+                  );
+                })}
+              </div>
+              <div style={styles.energyTextWrap}>
+                <p style={{
+                  ...styles.energyLabel,
+                  color: energyDepleted ? '#D06040' : dailyEnergy <= 3 ? '#E09050' : '#D8EFC4',
+                }}>
+                  Spirit Energy {dailyEnergy}/{DAILY_ENERGY_TOTAL}
+                </p>
+                <p className="ww-sapling-energy-hint" style={styles.energyHint}>
+                  {energyDepleted
+                    ? 'Quiet visits remain available'
+                    : dailyEnergy <= 3
+                    ? 'Running low — use wisely'
+                    : 'Daily allowance'}
+                </p>
+              </div>
+            </div>
+
+            <aside className="ww-sapling-guardian" style={styles.guardianRail}>
+              <div
+                style={{
+                  ...styles.guardianRailButton,
+                  border: `2px solid ${selectedGuardian.synergyColor}aa`,
+                  background: 'rgba(100, 72, 38, 0.62)',
+                  boxShadow: `0 0 18px ${selectedGuardian.synergyColor}33, 0 4px 14px rgba(0,0,0,0.35)`,
+                  cursor: 'default',
+                }}
+                aria-label={`${selectedGuardian.name}, your bound guardian for this sapling`}
+              >
+                <img src={selectedGuardian.image} alt={selectedGuardian.name} style={{ ...styles.guardianRailImage, filter: selectedGuardian.imageFilter }} />
+                <div style={styles.guardianRailMeta}>
+                  <span style={styles.guardianRailName}>{selectedGuardian.name}</span>
+                  <span style={{ ...styles.guardianSynergyBadge, color: selectedGuardian.synergyColor, borderColor: `${selectedGuardian.synergyColor}88` }}>
+                    bound guide
+                  </span>
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          <div className="ww-sapling-frame" style={{
             ...styles.saplingFrame,
             border: isWilting
               ? '1px solid rgba(235,100,60,0.58)'
@@ -1397,88 +1598,15 @@ export default function SpiritSaplingGame({ onExit }: Props) {
                 <span>{spokenLine}</span>
               </div>
             ) : null}
-            <div style={styles.stagePill}>
-              Stage {stageIndex + 1} / {growthStages.length}
-            </div>
-            {!atFinalStage && !hasCollectedFruit ? (
-              <div style={{
-                ...styles.needIndicator,
-                borderColor: needFlash
-                  ? 'rgba(120,220,100,0.72)'
-                  : isWilting
-                  ? 'rgba(235,100,60,0.72)'
-                  : NEED_CONFIG[dailyNeed].border,
-                boxShadow: needFlash
-                  ? '0 0 14px rgba(120,220,100,0.5)'
-                  : isWilting
-                  ? '0 0 14px rgba(235,100,60,0.4)'
-                  : `0 0 8px ${NEED_CONFIG[dailyNeed].glow}`,
-                animation: needFlash
-                  ? 'ww-need-flash 1.2s ease-out'
-                  : isWilting
-                  ? 'ww-wilt-pulse 1.2s ease-in-out infinite'
-                  : 'none',
-              }}>
-                <span style={{
-                  color: needFlash ? '#90EE90' : isWilting ? '#EB6440' : NEED_CONFIG[dailyNeed].color,
-                  fontFamily: bodyFontFamily,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: 0.4,
-                }}>
-                  {needFlash
-                    ? 'Need met! ✓'
-                    : isWilting
-                    ? `${NEED_CONFIG[dailyNeed].wiltLabel} — ${regressionSeconds}s`
-                    : `${NEED_CONFIG[dailyNeed].label} · ${regressionSeconds}s`}
-                </span>
-              </div>
-            ) : null}
-            <div style={styles.energyPanel}>
-              <div style={styles.energyOrbRow}>
-                {Array.from({ length: DAILY_ENERGY_TOTAL }, (_, i) => {
-                  const filled = i < dailyEnergy;
-                  const isLow = dailyEnergy <= 3 && dailyEnergy > 0;
-                  return (
-                    <div key={i} style={{
-                      ...styles.energyOrb,
-                      background: filled
-                        ? isLow
-                          ? 'radial-gradient(circle at 35% 35%, #FFD0A0, #E06020)'
-                          : 'radial-gradient(circle at 35% 35%, #D8F0B8, #70C040)'
-                        : 'rgba(30,30,30,0.55)',
-                      boxShadow: filled
-                        ? isLow
-                          ? '0 0 5px rgba(220,100,30,0.6)'
-                          : '0 0 5px rgba(110,200,60,0.55)'
-                        : 'none',
-                      opacity: filled ? 1 : 0.28,
-                      animation: filled && isLow ? 'ww-wilt-pulse 1.4s ease-in-out infinite' : 'none',
-                    }} />
-                  );
-                })}
-              </div>
-              <div style={styles.energyTextWrap}>
-                <p style={{
-                  ...styles.energyLabel,
-                  color: energyDepleted ? '#D06040' : dailyEnergy <= 3 ? '#E09050' : '#D8EFC4',
-                }}>
-                  Spirit Energy {dailyEnergy}/{DAILY_ENERGY_TOTAL}
-                </p>
-                <p style={styles.energyHint}>
-                  {energyDepleted
-                    ? 'The grove rests. Return tomorrow.'
-                    : dailyEnergy <= 3
-                    ? 'Running low — use wisely'
-                    : 'Daily allowance'}
-                </p>
-              </div>
-            </div>
+          </div>
+
+          <div className="ww-sapling-controls" style={styles.controlsTray}>
             {!canCollectFruit ? actionButtons : null}
             {canCollectFruit ? (
-              <div style={styles.harvestRow}>
+              <div className="ww-sapling-harvest-row" style={styles.harvestRow}>
                 <button
                   type="button"
+                  className="ww-sapling-harvest-button"
                   style={{
                     ...styles.collectButton,
                     boxShadow: activeAction === 'harvest'
@@ -1489,48 +1617,13 @@ export default function SpiritSaplingGame({ onExit }: Props) {
                   onClick={handleCollectFruit}
                 >
                   <img src={basketButtonImage} alt="Collect fruit basket" style={styles.collectButtonArt} />
-                  <span style={styles.collectLabel}>Collect Fruits</span>
+                  <span style={styles.collectLabel}>Begin Gentle Harvest</span>
                 </button>
               </div>
             ) : null}
-            <aside style={styles.guardianRail}>
-              {availableGuardians.map((guardian) => {
-                const active = guardian.id === selectedGuardianId;
-                const isSynergyMatch = (guardian.synergy === 'any' || guardian.synergy === dailyNeed) && !atFinalStage && !hasCollectedFruit;
-                return (
-                  <button
-                    key={guardian.id}
-                    type="button"
-                    onClick={() => setSelectedGuardianId(guardian.id)}
-                    style={{
-                      ...styles.guardianRailButton,
-                      border: active
-                        ? `2px solid rgba(242,204,143,0.85)`
-                        : isSynergyMatch
-                        ? `1px solid ${guardian.synergyColor}`
-                        : '1px solid rgba(255,255,255,0.2)',
-                      background: active ? 'rgba(100, 72, 38, 0.62)' : 'rgba(14, 22, 12, 0.58)',
-                      boxShadow: active
-                        ? '0 0 18px rgba(242,204,143,0.3), 0 4px 14px rgba(0,0,0,0.35)'
-                        : isSynergyMatch
-                        ? `0 0 12px ${guardian.synergyColor}55, 0 4px 14px rgba(0,0,0,0.32)`
-                        : '0 4px 14px rgba(0,0,0,0.32)',
-                    }}
-                  >
-                    <img src={guardian.image} alt={guardian.name} style={{ ...styles.guardianRailImage, filter: guardian.imageFilter }} />
-                    <span style={styles.guardianRailName}>{guardian.name}</span>
-                    {isSynergyMatch ? (
-                      <span style={{ ...styles.guardianSynergyBadge, color: guardian.synergyColor, borderColor: `${guardian.synergyColor}88` }}>
-                        ✦ synergy
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </aside>
           </div>
 
-          <p style={{
+          <p className="ww-sapling-status" style={{
             ...styles.statusText,
             color: corruptionStage >= 3 ? CORRUPTION_TEXT_COLOR[corruptionStage] : 'rgba(240,234,210,0.62)',
             transition: 'color 1.2s ease',
@@ -1543,7 +1636,7 @@ export default function SpiritSaplingGame({ onExit }: Props) {
               ? 'The grove is corrupted. Nurture urgently before it is too late.'
               : corruptionStage >= 2
               ? 'Blight spreads through the grove. Counter it with care.'
-              : 'Use any nurturing action to guide the sapling into its next stage.'}
+              : careMessage}
           </p>
         </div>
       </div>
@@ -1660,18 +1753,20 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
   },
   gameLayout: {
-    maxWidth: 1920,
+    maxWidth: 1480,
     margin: '0 auto',
     width: '100%',
     flex: 1,
+    minHeight: 0,
     padding: '10px 18px 14px',
     boxSizing: 'border-box',
-    display: 'grid',
-    gridTemplateColumns: '1fr',
-    gap: 14,
-    alignItems: 'stretch',
+    display: 'flex',
+    flexDirection: 'column',
+    overflowY: 'auto',
   },
   saplingPanel: {
+    width: '100%',
+    boxSizing: 'border-box',
     borderRadius: 22,
     background: 'linear-gradient(180deg, rgba(22, 36, 18, 0.52) 0%, rgba(10, 20, 10, 0.58) 100%)',
     border: '1px solid rgba(130, 190, 100, 0.2)',
@@ -1681,13 +1776,23 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column' as React.CSSProperties['flexDirection'],
     gap: 8,
   },
+  saplingHud: {
+    display: 'grid',
+    gridTemplateColumns: 'auto minmax(150px, 1fr) minmax(220px, auto) minmax(180px, auto)',
+    alignItems: 'center',
+    gap: 10,
+    minWidth: 0,
+  },
   saplingFrame: {
     position: 'relative',
     borderRadius: 16,
     overflow: 'hidden',
     background: 'linear-gradient(180deg, rgba(8,16,10,0.38) 0%, rgba(4,10,6,0.54) 100%)',
-    minHeight: 'min(58vh, 580px)',
-    flex: 1,
+    width: 'min(100%, 110vh, 1320px)',
+    minHeight: 0,
+    maxHeight: 'none',
+    aspectRatio: '16 / 9',
+    margin: '0 auto',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1855,12 +1960,9 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: 0.3,
   },
   needIndicator: {
-    position: 'absolute',
-    top: 14,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    zIndex: 7,
+    position: 'relative',
     display: 'flex',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
     padding: '5px 16px',
@@ -1872,9 +1974,7 @@ const styles: Record<string, React.CSSProperties> = {
     transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
   },
   stagePill: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
+    position: 'relative',
     padding: '5px 13px',
     borderRadius: 999,
     background: 'rgba(8, 18, 8, 0.76)',
@@ -1885,8 +1985,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     letterSpacing: 0.9,
     textTransform: 'uppercase' as React.CSSProperties['textTransform'],
-    zIndex: 7,
     backdropFilter: 'blur(8px)',
+    whiteSpace: 'nowrap',
   },
   subtitleBubble: {
     position: 'absolute',
@@ -1943,34 +2043,28 @@ const styles: Record<string, React.CSSProperties> = {
     animation: 'sun-glow-pulse 1600ms ease-out forwards',
   },
   buttonRow: {
-    position: 'absolute',
-    left: 14,
-    top: 76,
-    zIndex: 8,
-    display: 'flex',
-    flexDirection: 'column' as React.CSSProperties['flexDirection'],
-    width: 158,
-    gap: 8,
+    position: 'relative',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+    width: '100%',
+    gap: 10,
+  },
+  controlsTray: {
+    width: '100%',
   },
   harvestRow: {
-    position: 'absolute',
-    left: '50%',
-    bottom: 24,
-    transform: 'translateX(-50%)',
-    zIndex: 9,
+    position: 'relative',
     display: 'flex',
     justifyContent: 'center',
     pointerEvents: 'auto',
   },
   energyPanel: {
-    position: 'absolute',
-    right: 12,
-    top: 12,
-    zIndex: 7,
+    position: 'relative',
     display: 'flex',
-    flexDirection: 'column' as React.CSSProperties['flexDirection'],
-    alignItems: 'flex-end',
-    gap: 6,
+    flexDirection: 'row' as React.CSSProperties['flexDirection'],
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
     padding: '8px 12px 9px',
     borderRadius: 12,
     border: '1px solid rgba(180,220,140,0.22)',
@@ -2016,14 +2110,20 @@ const styles: Record<string, React.CSSProperties> = {
     borderTop: '2px solid rgba(180,220,150,0.48)',
     background: 'linear-gradient(170deg, rgba(26,50,22,0.93), rgba(12,28,14,0.97))',
     borderRadius: 14,
-    padding: '10px 8px 8px',
+    padding: '9px 12px 9px 9px',
     width: '100%',
+    minWidth: 0,
+    minHeight: 82,
+    boxSizing: 'border-box',
     transition: 'transform 160ms ease, box-shadow 160ms ease, opacity 180ms ease',
     cursor: 'pointer',
     display: 'grid',
-    justifyItems: 'center',
-    alignContent: 'start',
-    gap: 5,
+    gridTemplateColumns: '58px minmax(0, 1fr)',
+    gridTemplateRows: 'auto auto',
+    justifyItems: 'start',
+    alignItems: 'center',
+    columnGap: 9,
+    rowGap: 3,
     backdropFilter: 'blur(10px)',
     boxShadow: '0 8px 22px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.06)',
   },
@@ -2049,8 +2149,9 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(170deg, rgba(54,62,16,0.93), rgba(30,40,8,0.97))',
   },
   buttonArt: {
-    width: '100%',
+    width: 58,
     height: 58,
+    gridRow: '1 / 3',
     objectFit: 'contain' as React.CSSProperties['objectFit'],
     display: 'block',
     filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.38))',
@@ -2060,7 +2161,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: headingFontFamily,
     fontSize: 15,
     lineHeight: 1,
-    textAlign: 'center' as React.CSSProperties['textAlign'],
+    textAlign: 'left' as React.CSSProperties['textAlign'],
     letterSpacing: 0.3,
   },
   actionHint: {
@@ -2069,28 +2170,28 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     lineHeight: 1.1,
     letterSpacing: 0.15,
-    textAlign: 'center' as React.CSSProperties['textAlign'],
+    textAlign: 'left' as React.CSSProperties['textAlign'],
   },
   collectButton: {
     border: '1px solid rgba(242,204,143,0.45)',
     borderTop: '2px solid rgba(242,204,143,0.7)',
     background: 'linear-gradient(160deg, rgba(52,70,28,0.92), rgba(28,40,14,0.96))',
     borderRadius: 18,
-    padding: '14px 16px 12px',
-    width: 170,
-    minHeight: 130,
+    padding: '8px 18px 8px 10px',
+    width: 'min(100%, 320px)',
+    minHeight: 76,
     transition: 'transform 180ms ease, box-shadow 180ms ease',
     cursor: 'pointer',
     display: 'flex',
-    flexDirection: 'column' as React.CSSProperties['flexDirection'],
+    flexDirection: 'row' as React.CSSProperties['flexDirection'],
     alignItems: 'center',
     gap: 8,
     backdropFilter: 'blur(12px)',
     boxShadow: '0 8px 28px rgba(0,0,0,0.4)',
   },
   collectButtonArt: {
-    width: 86,
-    height: 86,
+    width: 64,
+    height: 64,
     objectFit: 'contain' as React.CSSProperties['objectFit'],
     filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))',
   },
@@ -2119,22 +2220,20 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'center' as React.CSSProperties['textAlign'],
   },
   guardianRail: {
-    position: 'absolute',
-    right: 14,
-    top: 76,
-    zIndex: 8,
+    position: 'relative',
     display: 'flex',
-    flexDirection: 'column' as React.CSSProperties['flexDirection'],
-    gap: 8,
-    width: 132,
+    width: '100%',
+    minWidth: 0,
   },
   guardianRailButton: {
     borderRadius: 14,
-    padding: '7px 5px 6px',
+    padding: '6px 10px 6px 6px',
     cursor: 'pointer',
     width: '100%',
+    minWidth: 0,
+    overflow: 'hidden',
     display: 'flex',
-    flexDirection: 'column' as React.CSSProperties['flexDirection'],
+    flexDirection: 'row' as React.CSSProperties['flexDirection'],
     alignItems: 'center',
     gap: 4,
     boxSizing: 'border-box' as React.CSSProperties['boxSizing'],
@@ -2146,18 +2245,25 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: bodyFontFamily,
     fontSize: 10,
     letterSpacing: 0.6,
-    textAlign: 'center' as React.CSSProperties['textAlign'],
+    textAlign: 'left' as React.CSSProperties['textAlign'],
     lineHeight: 1,
     textTransform: 'uppercase' as React.CSSProperties['textTransform'],
   },
   guardianRailImage: {
-    width: '82%',
-    maxWidth: 126,
-    maxHeight: '84%',
+    width: 52,
+    height: 52,
     aspectRatio: '1 / 1',
     objectFit: 'contain',
     display: 'block',
-    margin: '0 auto',
+    margin: 0,
+    flexShrink: 0,
+  },
+  guardianRailMeta: {
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 5,
   },
   celebrationWrap: {
     flex: 1,

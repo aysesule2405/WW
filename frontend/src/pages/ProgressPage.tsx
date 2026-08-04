@@ -298,9 +298,9 @@ function DetailPanel({ card, onClose }: { card: GameCard; onClose: () => void })
   const displayedSessions = showAll ? sessions.slice(0, 15) : sessions.slice(0, 5)
 
   return (
-    <div style={sp.detailPanel}>
+    <div className="ww-progress-detail" style={sp.detailPanel}>
       {/* Header row */}
-      <div style={sp.detailHeader}>
+      <div className="ww-progress-detail-header" style={sp.detailHeader}>
         <div style={sp.detailHeaderLeft}>
           <span style={{ fontSize: 28, lineHeight: 1 }}>{icon}</span>
           <div>
@@ -450,12 +450,12 @@ export default function ProgressPage() {
   const selectedCard = selectedSlug ? cards.find((c) => c.slug === selectedSlug) ?? null : null
 
   return (
-    <div style={sp.page}>
+    <div className="ww-responsive-page ww-progress-page" style={sp.page}>
       <h2 style={sp.pageTitle}>Your Progress</h2>
       <p style={sp.pageSub}>Private history visible only to you.</p>
 
       {/* Overview stat strip */}
-      <div style={sp.overviewStrip}>
+      <div className="ww-progress-overview" style={sp.overviewStrip}>
         <div style={sp.overviewTile}>
           <span style={sp.overviewIcon}>🎮</span>
           <span style={sp.overviewNum}>{totalSessions || '—'}</span>
@@ -488,7 +488,7 @@ export default function ProgressPage() {
       ) : (
         <>
           {/* 2×2 game selector grid */}
-          <div style={sp.selectorGrid}>
+          <div className="ww-progress-selector" style={sp.selectorGrid}>
             {cards.map((card) => {
               const isSelected = selectedSlug === card.slug
               const plays = card.summary?.totalSessions ?? card.recentScores.length

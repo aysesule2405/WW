@@ -18,6 +18,7 @@ export interface CreateSessionInput {
   completionTime?: number | null
   shortestTime?: number | null
   deliveriesCompleted?: number | null
+  mapId?: string | null
   guardianId?: string | null
   growthStageReached?: string | null
   waterActions?: number | null
@@ -31,6 +32,12 @@ export interface CreateSessionInput {
   saplingsGrown?: number | null
   fruitsCollected?: number | null
   shortestGrowthTimeSeconds?: number | null
+  hastyAttempts?: number | null
+  patienceBonus?: number | null
+  needMatchCount?: number | null
+  synergyBoostCount?: number | null
+  eventsSurvived?: number | null
+  corruptionScore?: number | null
   // Spirit Drift run stats
   realmId?:        string | null
   raresCaught?:    number | null
@@ -38,6 +45,9 @@ export interface CreateSessionInput {
   cursedCaught?:   number | null
   maxComboStreak?: number | null
   timingBonuses?:  number | null
+  // Half Moon run configuration
+  difficulty?: string | null
+  aiMode?: string | null
 }
 
 const sessionsService = {
@@ -77,19 +87,36 @@ const sessionsService = {
           userId: userOid,
           gameId: gameOid,
           score,
-          durationMs: rest.completionTimeSeconds ? rest.completionTimeSeconds * 1000 : null,
+          durationMs: typeof rest.completionTimeSeconds === 'number'
+            ? rest.completionTimeSeconds * 1000
+            : null,
           metadata: {
             source: 'session',
+            sessionId: session._id.toString(),
             gameSlug,
             completed: rest.completed,
             won: rest.won ?? null,
             levelReached: rest.levelReached ?? null,
             guardianId: rest.guardianId ?? null,
+            mapId: rest.mapId ?? null,
+            realmId: rest.realmId ?? null,
+            difficulty: rest.difficulty ?? null,
+            aiMode: rest.aiMode ?? null,
             totalCardPoints: rest.totalCardPoints ?? null,
             moonScore: rest.moonScore ?? null,
             finalPlayerScore: rest.finalPlayerScore ?? null,
             fruitsCollected: rest.fruitsCollected ?? null,
             saplingsGrown: rest.saplingsGrown ?? null,
+            hastyAttempts: rest.hastyAttempts ?? null,
+            needMatchCount: rest.needMatchCount ?? null,
+            synergyBoostCount: rest.synergyBoostCount ?? null,
+            eventsSurvived: rest.eventsSurvived ?? null,
+            corruptionScore: rest.corruptionScore ?? null,
+            raresCaught: rest.raresCaught ?? null,
+            fleetingCaught: rest.fleetingCaught ?? null,
+            cursedCaught: rest.cursedCaught ?? null,
+            maxComboStreak: rest.maxComboStreak ?? null,
+            timingBonuses: rest.timingBonuses ?? null,
           },
         })
 
@@ -116,6 +143,16 @@ const sessionsService = {
       guardianId: rest.guardianId ?? null,
       won: rest.won ?? null,
       harmonyBonus: rest.harmonyBonus ?? null,
+      mapId:         rest.mapId ?? null,
+      fruitsCollected: rest.fruitsCollected ?? null,
+      hastyAttempts: rest.hastyAttempts ?? null,
+      patienceBonus: rest.patienceBonus ?? null,
+      needMatchCount: rest.needMatchCount ?? null,
+      synergyBoostCount: rest.synergyBoostCount ?? null,
+      eventsSurvived: rest.eventsSurvived ?? null,
+      corruptionScore: rest.corruptionScore ?? null,
+      difficulty: rest.difficulty ?? null,
+      aiMode: rest.aiMode ?? null,
       realmId:        rest.realmId        ?? null,
       raresCaught:    rest.raresCaught    ?? null,
       fleetingCaught: rest.fleetingCaught ?? null,
@@ -147,6 +184,7 @@ const sessionsService = {
       completionTime:        r.completionTime ?? null,
       shortestTime:          r.shortestTime ?? null,
       deliveriesCompleted:   r.deliveriesCompleted ?? null,
+      mapId:                 r.mapId ?? null,
       guardianId:            r.guardianId ?? null,
       growthStageReached:    r.growthStageReached ?? null,
       totalCardPoints:       r.totalCardPoints ?? null,
@@ -154,6 +192,21 @@ const sessionsService = {
       winner:                r.winner ?? null,
       finalPlayerScore:      r.finalPlayerScore ?? null,
       harmonyBonus:          r.harmonyBonus ?? null,
+      fruitsCollected:       r.fruitsCollected ?? null,
+      hastyAttempts:         r.hastyAttempts ?? null,
+      patienceBonus:         r.patienceBonus ?? null,
+      needMatchCount:        r.needMatchCount ?? null,
+      synergyBoostCount:     r.synergyBoostCount ?? null,
+      eventsSurvived:        r.eventsSurvived ?? null,
+      corruptionScore:       r.corruptionScore ?? null,
+      realmId:               r.realmId ?? null,
+      raresCaught:           r.raresCaught ?? null,
+      fleetingCaught:        r.fleetingCaught ?? null,
+      cursedCaught:          r.cursedCaught ?? null,
+      maxComboStreak:        r.maxComboStreak ?? null,
+      timingBonuses:         r.timingBonuses ?? null,
+      difficulty:            r.difficulty ?? null,
+      aiMode:                r.aiMode ?? null,
       date:                  r.date ?? r.createdAt,
       createdAt:             r.createdAt,
     }))

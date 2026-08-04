@@ -134,7 +134,7 @@ function PodiumBlock({ row, pos, isSelf }: { row: Row; pos: 0 | 1 | 2; isSelf: b
   const ringColor = isSelf ? 'var(--accent)' : PODIUM_RING_COLORS[pos]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: pos === 0 ? '0 0 140px' : '0 0 110px' }}>
+    <div className="ww-podium-block" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: pos === 0 ? '0 0 140px' : '0 0 110px' }}>
       {/* Avatar + medal */}
       <div style={{ position: 'relative' }}>
         <PlayerAvatar
@@ -178,7 +178,7 @@ function Podium({ board, selfUsername }: { board: Board; selfUsername: string | 
   return (
     <div style={sl.podiumWrap}>
       {/* order: 2nd, 1st, 3rd */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 8 }}>
+      <div className="ww-podium-row" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 8 }}>
         <PodiumBlock row={second} pos={1} isSelf={selfUsername !== null && second.username === selfUsername} />
         <PodiumBlock row={first}  pos={0} isSelf={selfUsername !== null && first.username === selfUsername} />
         <PodiumBlock row={third}  pos={2} isSelf={selfUsername !== null && third.username === selfUsername} />
@@ -203,7 +203,7 @@ function LeaderboardRow({ row, board, maxValue, isSelf }: {
   const valueLabel = board.kind === 'time' ? formatTime(row.value) : `${row.value} pts`
 
   return (
-    <div style={{ ...sl.lbRow, ...(isSelf ? sl.lbRowSelf : {}) }}>
+    <div className="ww-leaderboard-row" style={{ ...sl.lbRow, ...(isSelf ? sl.lbRowSelf : {}) }}>
       {/* Rank */}
       <div style={sl.lbRank}>
         {row.rank <= 3
@@ -290,12 +290,12 @@ export default function LeaderboardPage() {
     : Math.max(...activeBoard.rows.map((r) => r.value), 1)
 
   return (
-    <div style={sl.page}>
+    <div className="ww-responsive-page ww-leaderboard-page" style={sl.page}>
       <h2 style={sl.pageTitle}>Grove Leaderboard</h2>
       <p style={sl.pageSub}>Honoring the dedicated spirits of the Whispering Grove.</p>
 
       {/* Tab bar */}
-      <div style={sl.tabBar}>
+      <div className="ww-scroll-tabs" style={sl.tabBar}>
         {boards.map((b) => {
           const isActive = b.slug === activeSlug
           return (
@@ -315,7 +315,7 @@ export default function LeaderboardPage() {
       </div>
 
       {/* Panel */}
-      <div style={sl.panel}>
+      <div className="ww-leaderboard-panel" style={sl.panel}>
         {activeBoard.loading ? (
           <p style={sl.empty}>Loading…</p>
         ) : activeBoard.rows.length === 0 ? (
@@ -341,7 +341,7 @@ export default function LeaderboardPage() {
             <Podium board={activeBoard} selfUsername={selfUsername} />
 
             {/* Search */}
-            <div style={sl.searchRow}>
+            <div className="ww-leaderboard-search" style={sl.searchRow}>
               <div style={sl.searchWrap}>
                 <span style={sl.searchIcon}>🔍</span>
                 <input

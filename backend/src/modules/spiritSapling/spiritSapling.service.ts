@@ -155,17 +155,18 @@ const POSITIVE_WORDS = [
   'hope', 'strong', 'thank', 'care', 'sun', 'light', 'happy', 'believe',
 ]
 
-const NEGATIVE_WORDS = [
-  'hate', 'ugly', 'bad', 'stupid', 'die', 'kill', 'hurt', 'weak', 'worthless',
-  'awful', 'terrible', 'annoying', 'useless', 'sad', 'angry',
+const HARMFUL_PHRASES = [
+  'i hate you', 'you are ugly', 'you are stupid', 'you should die', 'i will kill you',
+  'i will hurt you', 'you are worthless', 'you are useless',
 ]
 
 function localSaplingTone(message: string): SaplingChatResult {
   const text = message.toLowerCase()
-  const positiveHits = POSITIVE_WORDS.filter(word => text.includes(word)).length
-  const negativeHits = NEGATIVE_WORDS.filter(word => text.includes(word)).length
+  const words = new Set(text.match(/[a-z']+/g) ?? [])
+  const positiveHits = POSITIVE_WORDS.filter(word => words.has(word)).length
+  const harmfulHits = HARMFUL_PHRASES.filter(phrase => text.includes(phrase)).length
 
-  if (negativeHits > positiveHits) {
+  if (harmfulHits > 0 && positiveHits === 0) {
     return {
       reply: 'My leaves curl a little at those words. Could we try speaking with gentler roots?',
       sentiment: 'negative',
@@ -254,6 +255,7 @@ Respond ONLY with valid JSON, no markdown, no explanation:
 Rules:
 - positive messages must set growthBoost to 1
 - negative and neutral messages must set growthBoost to 0
+- Classify how the player treats the sapling, not whether the player feels happy. Sadness, fear, or anger shared without cruelty is not negative.
 - never repeat harmful wording back to the player
 - if negative, gently invite the player to try kinder words
 - always stay warm, safe, and forest-like`

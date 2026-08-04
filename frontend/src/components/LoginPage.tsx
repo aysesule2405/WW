@@ -38,11 +38,11 @@ export default function LoginPage({ onGoToRegister, onGoToLanding }: Props) {
   };
 
   return (
-    <div style={pageStyle}>
+    <div className="ww-auth-page" style={pageStyle}>
       {onGoToLanding && (
         <button style={s.backBtn} onClick={onGoToLanding}>← Back to Grove</button>
       )}
-      <div style={s.card}>
+      <div className="ww-auth-card" style={s.card}>
         {/* Logo */}
         <div style={s.logoRow}>
           <img src="/assets/grove-logo.png" alt="Whisperwind Grove" style={s.logoImg} />

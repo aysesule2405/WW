@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { bodyFontFamily, headingFontFamily, readableFontFamily } from '../theme/typography'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -12,6 +12,7 @@ type Notif = {
   description: string
   icon: string
   rarity: Rarity
+  leaving: boolean
 }
 
 // ─── Rarity palette ───────────────────────────────────────────────────────────
@@ -35,7 +36,7 @@ function Card({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   const color  = RARITY_COLOR[rarity] ?? RARITY_COLOR.common
 
   return (
-    <div style={{
+    <div className="ww-achievement-toast" style={{
       position: 'relative',
       display: 'flex',
       alignItems: 'flex-start',
@@ -49,7 +50,9 @@ function Card({ notif, onClose }: { notif: Notif; onClose: () => void }) {
       color: '#FFF6DF',
       pointerEvents: 'auto',
       overflow: 'hidden',
-      animation: 'achievement-toast-in 360ms cubic-bezier(0.16,1,0.3,1) both',
+      animation: notif.leaving
+        ? 'achievement-toast-out 520ms cubic-bezier(0.4,0,1,1) both'
+        : 'achievement-toast-in 360ms cubic-bezier(0.16,1,0.3,1) both',
     }}>
       {/* Top accent stripe */}
       <div style={{
@@ -135,8 +138,9 @@ function Card({ notif, onClose }: { notif: Notif; onClose: () => void }) {
 export default function AchievementToast() {
   const [toasts, setToasts] = useState<Notif[]>([])
   const nextId = useRef(0)
+  const timers = useRef<number[]>([])
 
-  const dismiss = (id: number) => setToasts((p) => p.filter((t) => t.id !== id))
+  const dismiss = useCallback((id: number) => setToasts((p) => p.filter((t) => t.id !== id)), [])
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -150,18 +154,27 @@ export default function AchievementToast() {
         description: a.description ?? '',
         icon:        a.icon        ?? '🏅',
         rarity:      a.rarity      ?? 'common',
+        leaving:     false,
       }
       setToasts((p) => [...p.slice(-4), notif])
-      setTimeout(() => dismiss(id), AUTO_DISMISS_MS)
+      timers.current.push(window.setTimeout(() => {
+        setToasts((current) => current.map((toast) => toast.id === id ? { ...toast, leaving: true } : toast))
+      }, AUTO_DISMISS_MS - 520))
+      timers.current.push(window.setTimeout(() => dismiss(id), AUTO_DISMISS_MS))
     }
     window.addEventListener('ww-achievement', handler)
-    return () => window.removeEventListener('ww-achievement', handler)
-  }, [])
+    return () => {
+      window.removeEventListener('ww-achievement', handler)
+      timers.current.forEach((timer) => window.clearTimeout(timer))
+      timers.current = []
+    }
+  }, [dismiss])
 
   if (toasts.length === 0) return null
 
   return (
     <div
+      className="ww-achievement-toast-stack"
       aria-live="polite"
       style={{
         position: 'fixed',

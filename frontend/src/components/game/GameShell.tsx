@@ -11,14 +11,14 @@ type Props = {
 
 export default function GameShell({ title, onExit, background, accentColor = '#F0EAD2', children }: Props) {
   return (
-    <div style={{ ...s.shell, background }}>
-      <header style={s.topBar}>
-        <button style={{ ...s.backBtn, color: accentColor, borderColor: `${accentColor}30` }} onClick={onExit}>
+    <div className="ww-game-shell" style={{ ...s.shell, background }}>
+      <header className="ww-game-shell-header" style={s.topBar}>
+        <button className="ww-game-shell-back" style={{ ...s.backBtn, color: accentColor, borderColor: `${accentColor}30` }} onClick={onExit}>
           ← Grove
         </button>
-        <span style={{ ...s.title, color: accentColor }}>{title}</span>
+        <span className="ww-game-shell-title" style={{ ...s.title, color: accentColor }}>{title}</span>
       </header>
-      <main style={s.content}>
+      <main className="ww-game-shell-content" style={s.content}>
         {children}
       </main>
     </div>

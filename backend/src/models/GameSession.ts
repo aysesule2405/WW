@@ -15,6 +15,7 @@ export interface IGameSession extends Document {
   completionTime?: number | null
   shortestTime?: number | null
   deliveriesCompleted?: number | null
+  mapId?: string | null
   guardianId?: string | null
   growthStageReached?: string | null
   waterActions?: number | null
@@ -29,6 +30,22 @@ export interface IGameSession extends Document {
   saplingsGrown?: number | null
   fruitsCollected?: number | null
   shortestGrowthTimeSeconds?: number | null
+  hastyAttempts?: number | null
+  patienceBonus?: number | null
+  needMatchCount?: number | null
+  synergyBoostCount?: number | null
+  eventsSurvived?: number | null
+  corruptionScore?: number | null
+  // Spirit Drift
+  realmId?: string | null
+  raresCaught?: number | null
+  fleetingCaught?: number | null
+  cursedCaught?: number | null
+  maxComboStreak?: number | null
+  timingBonuses?: number | null
+  // Half Moon
+  difficulty?: string | null
+  aiMode?: string | null
   date?: Date
   createdAt: Date
 }
@@ -48,6 +65,7 @@ const GameSessionSchema = new Schema<IGameSession>(
     completionTime:        { type: Number, default: null },
     shortestTime:          { type: Number, default: null },
     deliveriesCompleted:   { type: Number, default: null },
+    mapId:                 { type: String, default: null },
     guardianId:            { type: String, default: null },
     growthStageReached:    { type: String, default: null },
     waterActions:          { type: Number, default: null },
@@ -61,6 +79,20 @@ const GameSessionSchema = new Schema<IGameSession>(
     saplingsGrown:         { type: Number, default: null },
     fruitsCollected:       { type: Number, default: null },
     shortestGrowthTimeSeconds: { type: Number, default: null },
+    hastyAttempts:         { type: Number, default: null },
+    patienceBonus:         { type: Number, default: null },
+    needMatchCount:        { type: Number, default: null },
+    synergyBoostCount:     { type: Number, default: null },
+    eventsSurvived:        { type: Number, default: null },
+    corruptionScore:       { type: Number, default: null },
+    realmId:               { type: String, default: null },
+    raresCaught:           { type: Number, default: null },
+    fleetingCaught:        { type: Number, default: null },
+    cursedCaught:          { type: Number, default: null },
+    maxComboStreak:        { type: Number, default: null },
+    timingBonuses:         { type: Number, default: null },
+    difficulty:            { type: String, default: null },
+    aiMode:                { type: String, default: null },
     date:                  { type: Date, default: Date.now },
   },
   { timestamps: { createdAt: true, updatedAt: false } }

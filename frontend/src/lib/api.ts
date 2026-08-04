@@ -128,6 +128,7 @@ export async function submitSession(
     score?: number | null
     completionTimeSeconds?: number | null
     deliveriesCompleted?: number | null
+    mapId?: string | null
     guardianId?: string | null
     growthStageReached?: string | null
     waterActions?: number | null
@@ -141,6 +142,12 @@ export async function submitSession(
     saplingsGrown?: number | null
     fruitsCollected?: number | null
     shortestGrowthTimeSeconds?: number | null
+    hastyAttempts?: number | null
+    patienceBonus?: number | null
+    needMatchCount?: number | null
+    synergyBoostCount?: number | null
+    eventsSurvived?: number | null
+    corruptionScore?: number | null
     levelReached?: number | null
     finalPlayerScore?: number | null
     completionTime?: number | null
@@ -152,6 +159,8 @@ export async function submitSession(
     cursedCaught?:   number | null
     maxComboStreak?: number | null
     timingBonuses?:  number | null
+    difficulty?: string | null
+    aiMode?: string | null
   }
 ) {
   try {

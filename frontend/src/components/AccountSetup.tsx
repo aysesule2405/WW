@@ -83,8 +83,8 @@ const AccountSetup: React.FC<Props> = ({ onClose }) => {
   };
 
   return (
-    <div style={styles.overlay} role="dialog" aria-modal="true">
-      <div style={styles.panel}>
+    <div className="ww-game-modal-backdrop" style={styles.overlay} role="dialog" aria-modal="true">
+      <div className="ww-game-modal-card ww-account-setup-panel" style={styles.panel}>
         <div style={styles.header}>
           <h3 style={styles.title}>Account Setup</h3>
           <button onClick={onClose} style={styles.btnGhost} aria-label="Close account setup">
@@ -125,7 +125,7 @@ const AccountSetup: React.FC<Props> = ({ onClose }) => {
           </div>
         </div>
 
-        <div style={styles.actions}>
+        <div className="ww-account-setup-actions" style={styles.actions}>
           <button onClick={onClose} style={styles.btnGhost}>Cancel</button>
           <button onClick={handleSave} style={styles.btnPrimary}>Save account</button>
         </div>

@@ -128,14 +128,14 @@ export default function ProfilePage() {
   if (loading) return <div style={s.loading}>Loading profile…</div>
 
   return (
-    <div style={s.page}>
+    <div className="ww-responsive-page ww-profile-page" style={s.page}>
       <header style={s.header}>
         <h2 style={s.pageTitle}>Your Profile</h2>
         <p style={s.pageSub}>Personalize how the grove remembers you.</p>
       </header>
 
-      <div style={s.layout}>
-        <aside style={s.previewCard}>
+      <div className="ww-profile-layout" style={s.layout}>
+        <aside className="ww-profile-preview" style={s.previewCard}>
           <div style={s.profileHero}>
             <AvatarPreview
               config={avatarConfig}
@@ -197,9 +197,9 @@ export default function ProfilePage() {
           </div>
         </aside>
 
-        <section style={s.card}>
+        <section className="ww-profile-form" style={s.card}>
           {/* Profile Photo */}
-          <div style={s.avatarSection}>
+          <div className="ww-profile-photo-row" style={s.avatarSection}>
             <div style={s.avatarSectionCopy}>
               <AvatarPreview
                 config={avatarConfig}
@@ -286,10 +286,10 @@ export default function ProfilePage() {
         </section>
 
         {/* ── Avatar creator – third column ── */}
-        <section style={s.avatarCard}>
+        <section className="ww-profile-avatar-card" style={s.avatarCard}>
           <div style={s.builderHeader}>
             <h3 style={s.builderTitle}>Design Your Grove Avatar</h3>
-            <p style={s.builderDesc}>Build a fully custom SVG avatar for your profile.</p>
+            <p style={s.builderDesc}>Shape an expressive, anime-inspired vector portrait that follows you across the grove.</p>
           </div>
           <AvatarCreator value={richAvatar} onChange={setRichAvatar} />
         </section>

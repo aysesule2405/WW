@@ -59,9 +59,9 @@ export default function Sidebar({ active, onChange, username, onLogout }: Props)
   }, [username])
 
   return (
-    <aside style={s.sidebar}>
+    <aside className="ww-sidebar" style={s.sidebar}>
       {/* Logo */}
-      <div style={s.logoArea}>
+      <div className="ww-sidebar-logo" style={s.logoArea}>
         <img
           src="/assets/grove-logo.png"
           alt="logo"
@@ -75,36 +75,44 @@ export default function Sidebar({ active, onChange, username, onLogout }: Props)
       </div>
 
       {/* Nav */}
-      <nav style={s.nav}>
+      <nav className="ww-sidebar-nav" style={s.nav} aria-label="Main navigation">
         {NAV_ITEMS.map((item) => {
           const isActive = active === item.id
           return (
             <button
               key={item.id}
+              type="button"
+              className="ww-sidebar-nav-button"
               style={{
                 ...s.navBtn,
                 background: isActive ? 'var(--sidebar-active-bg)' : 'transparent',
                 boxShadow: isActive ? 'inset 3px 0 0 var(--sidebar-pip)' : 'none',
               }}
               onClick={() => onChange(item.id)}
+              aria-current={isActive ? 'page' : undefined}
             >
-              <span style={s.navIcon}>{item.icon}</span>
-              <span style={{
+              <span className="ww-sidebar-nav-icon" style={s.navIcon}>{item.icon}</span>
+              <span className="ww-sidebar-nav-label" style={{
                 ...s.navLabel,
                 color: isActive ? 'var(--sidebar-highlight)' : 'var(--sidebar-muted)',
               }}>
                 {item.label}
               </span>
-              {isActive && <div style={s.activePip} />}
+              {isActive && <div className="ww-sidebar-active-pip" style={s.activePip} />}
             </button>
           )
         })}
       </nav>
 
-      <div style={s.spacer} />
+      <button type="button" className="ww-sidebar-mobile-signout" onClick={onLogout} aria-label="Sign out">
+        <span aria-hidden="true">↪</span>
+        <span>Sign out</span>
+      </button>
+
+      <div className="ww-sidebar-spacer" style={s.spacer} />
 
       {/* Theme toggle */}
-      <div style={s.themeRow}>
+      <div className="ww-sidebar-theme" style={s.themeRow}>
         <button style={s.themeBtn} onClick={toggleTheme} title="Toggle light / dark">
           <span style={s.themeTrack}>
             <span style={{
@@ -119,7 +127,7 @@ export default function Sidebar({ active, onChange, username, onLogout }: Props)
       </div>
 
       {/* User footer */}
-      <div style={s.footer}>
+      <div className="ww-sidebar-footer" style={s.footer}>
         <button style={s.userRow} onClick={() => onChange('profile')} title="Edit profile">
           {avatarPref === 'rich' && richAvatar ? (
             <div style={{ ...s.avatar, overflow: 'hidden', padding: 0, lineHeight: 0 } as CSSProperties}>

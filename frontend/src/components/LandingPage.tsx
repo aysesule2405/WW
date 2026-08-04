@@ -145,16 +145,16 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
   };
 
   return (
-    <div style={s.page}>
+    <div className="ww-landing-page" style={s.page}>
 
       {/* ── Fixed Nav ─────────────────────────────────────────────────────── */}
-      <nav style={s.nav}>
-        <div style={s.navInner}>
+      <nav className="ww-landing-nav" style={s.nav}>
+        <div className="ww-landing-nav-inner" style={s.navInner}>
           <div style={s.navLogo}>
             <img src="/assets/grove-logo.png" alt="Whisperwind Grove logo" style={s.navLogoImg} />
             <span style={s.navTitle}>Whisperwind Grove</span>
           </div>
-          <div style={s.navActions}>
+          <div className="ww-landing-nav-actions" style={s.navActions}>
             <button style={s.navSignIn} onClick={onSignIn}>Sign In</button>
             <button style={s.navJoin}   onClick={onCreateAccount}>Create Account</button>
           </div>
@@ -162,7 +162,7 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
       </nav>
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section style={s.hero}>
+      <section className="ww-landing-hero" style={s.hero}>
         {/* Ray of light */}
         <img src="/assets/animation/ray-of-light-animation.gif" alt="" style={s.rayOverlay} aria-hidden="true" />
 
@@ -206,7 +206,7 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
 
 
 
-        <div style={s.heroContent}>
+        <div className="ww-landing-hero-content" style={s.heroContent}>
           <span style={s.heroBadge}>A cozy micro-game grove</span>
 
           <h1 style={s.heroTitle}>
@@ -237,7 +237,7 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
 
       {/* ── Pillars ───────────────────────────────────────────────────────── */}
       <section style={s.pillarsSection}>
-        <div style={s.sectionInner}>
+        <div className="ww-landing-section-inner" style={s.sectionInner}>
           <span style={s.sectionTag}>What is the Grove?</span>
           <h2 style={s.sectionTitle}>A place made for quiet moments</h2>
           <p style={s.sectionBody}>
@@ -260,7 +260,7 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
 
       {/* ── Games ─────────────────────────────────────────────────────────── */}
       <section style={s.gamesSection}>
-        <div style={s.sectionInner}>
+        <div className="ww-landing-section-inner" style={s.sectionInner}>
           <span style={s.sectionTagLight}>Worlds to explore</span>
           <h2 style={s.sectionTitleLight}>Four playable worlds, one grove</h2>
           <p style={s.sectionBodyLight}>
@@ -268,7 +268,7 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
             personal best, and achievement unlocks.
           </p>
 
-          <div style={s.gamesGrid}>
+          <div className="ww-landing-games-grid" style={s.gamesGrid}>
             {games.map((game, i) => {
               const copy = LANDING_GAME_COPY[game.id] ?? {
                 tag: game.available ? 'Playable now' : 'Growing',
@@ -306,7 +306,7 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
 
       {/* ── Guardians ─────────────────────────────────────────────────────── */}
       <section style={s.guardiansSection}>
-        <div style={s.sectionInner}>
+        <div className="ww-landing-section-inner" style={s.sectionInner}>
           <span style={s.sectionTag}>The spirit world</span>
           <h2 style={s.sectionTitle}>Meet the Grove Guardians</h2>
           <p style={s.sectionBody}>
@@ -315,7 +315,7 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
             their greeting before entering the grove.
           </p>
 
-          <div style={s.guardiansGrid}>
+          <div className="ww-landing-guardians-grid" style={s.guardiansGrid}>
             {GUARDIANS.map((g) => {
               const active = activeGuardianId === g.id;
               const playing = playingGuardianId === g.id;
@@ -356,8 +356,8 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
 
       {/* ── Coming Soon ───────────────────────────────────────────────────── */}
       <section style={s.comingSection}>
-        <div style={s.sectionInner}>
-          <div style={s.comingHeader}>
+        <div className="ww-landing-section-inner" style={s.sectionInner}>
+          <div className="ww-landing-coming-header" style={s.comingHeader}>
             <div>
               <span style={s.sectionTagDark}>What is growing next</span>
               <h2 style={s.comingHeading}>Future enhancements</h2>
@@ -373,7 +373,7 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
             />
           </div>
 
-          <div style={s.comingGrid}>
+          <div className="ww-landing-coming-grid" style={s.comingGrid}>
             {COMING_SOON.map((f) => (
               <div key={f.title} style={s.comingCard}>
                 <span style={s.comingIcon}>{f.icon}</span>
@@ -409,7 +409,7 @@ export default function LandingPage({ onSignIn, onCreateAccount }: Props) {
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
       <footer style={s.footer}>
-        <div style={s.footerInner}>
+        <div className="ww-landing-footer-inner" style={s.footerInner}>
           <div style={s.footerLogo}>
             <img src="/assets/grove-logo.png" alt="" style={s.navLogoImg} />
             <span style={s.footerLogoText}>Whisperwind Grove</span>

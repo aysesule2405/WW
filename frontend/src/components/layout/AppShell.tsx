@@ -77,7 +77,7 @@ export default function AppShell({ onSelect, onLogout }: Props) {
   }, [])
 
   return (
-    <div style={{
+    <div className="ww-app-shell" style={{
       display: 'flex',
       minHeight: '100vh',
       position: 'relative',
@@ -98,7 +98,7 @@ export default function AppShell({ onSelect, onLogout }: Props) {
         username={user?.username ?? ''}
         onLogout={onLogout}
       />
-      <main style={{ flex: 1, overflowY: 'auto', minWidth: 0, position: 'relative', zIndex: 1, zoom: ({ sm: 0.9, md: 1.0, lg: 1.12 } as const)[settings.textSize ?? 'md'] }}>
+      <main className="ww-app-main" style={{ flex: 1, overflowY: 'auto', minWidth: 0, position: 'relative', zIndex: 1, zoom: ({ sm: 0.9, md: 1.0, lg: 1.12 } as const)[settings.textSize ?? 'md'] }}>
         {section === 'games'       && <GameSelectionScreen onSelect={onSelect} onLogout={onLogout} />}
         {section === 'community'   && <CommunityPage />}
         {section === 'progress'    && <ProgressPage />}
@@ -110,5 +110,4 @@ export default function AppShell({ onSelect, onLogout }: Props) {
     </div>
   )
 }
-
 

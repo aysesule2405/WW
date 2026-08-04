@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useGameMusic } from '../hooks/useGameMusic';
 import { createGame } from '../game/createGame';
 import { uiFontFamily, titleFontFamily, numberFontFamily } from '../theme/typography';
-import { getScoreLeaderboard, getMyBest, submitScore, submitSession } from '../lib/api';
+import { getScoreLeaderboard, getMyBest, submitSession } from '../lib/api';
 import GameShell from './game/GameShell';
 
 type Props = { onExit: () => void };
@@ -151,25 +151,19 @@ export default function SpiritDriftGame({ onExit }: Props) {
         const { score, raresCaught, fleetingCaught, cursedCaught, maxComboStreak, timingBonuses } = result;
         apiRef.current?.destroy();
         apiRef.current = null;
-        await Promise.all([
-          submitScore('spirit-drift', {
-            score,
-            metadata: { completed: true, won: true },
-          }),
-          submitSession('spirit-drift', {
-            completed: true,
-            won: true,
-            score,
-            completionTimeSeconds: 60,
-            completionTime: 60,
-            realmId:        realm.id,
-            raresCaught,
-            fleetingCaught,
-            cursedCaught,
-            maxComboStreak,
-            timingBonuses,
-          }),
-        ]);
+        await submitSession('spirit-drift', {
+          completed: true,
+          won: true,
+          score,
+          completionTimeSeconds: 60,
+          completionTime: 60,
+          realmId:        realm.id,
+          raresCaught,
+          fleetingCaught,
+          cursedCaught,
+          maxComboStreak,
+          timingBonuses,
+        });
         const [lb, me] = await Promise.all([
           getScoreLeaderboard('spirit-drift', 10),
           getMyBest('spirit-drift'),
@@ -186,7 +180,7 @@ export default function SpiritDriftGame({ onExit }: Props) {
       apiRef.current?.destroy();
       apiRef.current = null;
     };
-  }, [screen, finalScore, sessionId]);
+  }, [screen, finalScore, sessionId, realm.id]);
 
   const startGame = (r: Realm) => {
     setRealm(r);
@@ -204,8 +198,8 @@ export default function SpiritDriftGame({ onExit }: Props) {
   if (screen === 'rules') {
     return (
       <GameShell title="Spirit Drift" onExit={onExit} background={SHELL_BG} accentColor="#aeddd9">
-        <div style={s.scrollArea}>
-          <div style={s.rulesCard}>
+        <div className="ww-game-scroll" style={s.scrollArea}>
+          <div className="ww-game-info-card" style={s.rulesCard}>
             <div style={s.rulesHeader}>
               <h3 style={s.rulesTitle}>How to Play</h3>
               <p style={s.rulesSubtitle}>
@@ -262,7 +256,7 @@ export default function SpiritDriftGame({ onExit }: Props) {
   if (screen === 'realm-select') {
     return (
       <GameShell title="Spirit Drift" onExit={onExit} background={SHELL_BG} accentColor="#aeddd9">
-        <div style={s.scrollArea}>
+        <div className="ww-game-scroll" style={s.scrollArea}>
           <div style={s.realmSelectWrap}>
             <div style={s.realmHeader}>
               <h3 style={s.realmTitle}>Choose Your Realm</h3>
@@ -318,8 +312,8 @@ export default function SpiritDriftGame({ onExit }: Props) {
     const isNewBest = personalBest ? finalScore > personalBest.score : true
     return (
       <GameShell title="Spirit Drift" onExit={onExit} background={realm.bg} accentColor={realm.accent}>
-        <div style={s.scrollArea}>
-          <div style={s.resultsCard}>
+        <div className="ww-game-scroll" style={s.scrollArea}>
+          <div className="ww-game-info-card" style={s.resultsCard}>
             <div style={{ ...s.resultsIcon, color: realm.accent }}>✦</div>
             <h3 style={s.resultsTitle}>Round Complete</h3>
             <p style={{ ...s.rulesSubtitle, marginTop: -8 }}>{realm.name}</p>
@@ -365,7 +359,8 @@ export default function SpiritDriftGame({ onExit }: Props) {
   // ── Game canvas ───────────────────────────────────────────────────────────
   return (
     <GameShell title="Spirit Drift" onExit={onExit} background={realm.bg} accentColor={realm.accent}>
-      <div key={sessionId} ref={containerRef} style={s.gameWrap} />
+      <p className="ww-game-orientation-hint">Rotate your phone for a larger play area.</p>
+      <div className="ww-phaser-game-wrap ww-drift-game-wrap" key={sessionId} ref={containerRef} style={s.gameWrap} />
     </GameShell>
   );
 }

@@ -6,6 +6,7 @@ import { getAchievements } from '../lib/api'
 
 type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
 type Category = 'drift' | 'sapling' | 'delivery' | 'halfmoon' | 'grove' | 'secret'
+type StatusFilter = 'all' | 'earned' | 'locked'
 
 type Achievement = {
   code: string
@@ -47,12 +48,14 @@ const CHALLENGES: Challenge[] = [
     title: 'Wind Sprint',
     description: 'Beat your personal best in Spirit Drift this week.',
     icon: '🌀', game: 'Spirit Drift', rarity: 'common', goalLabel: 'New personal best',
+    future: true,
   },
   {
     code: 'ch_delivery_speed',
     title: 'Express Delivery',
     description: 'Complete a Delivery on the Wind run in under 50 seconds.',
     icon: '⚡', game: 'Delivery on the Wind', rarity: 'rare', goalLabel: 'Under 50 seconds',
+    future: true,
   },
   {
     code: 'ch_delivery_all_maps',
@@ -66,6 +69,7 @@ const CHALLENGES: Challenge[] = [
     title: 'Harmony Streak',
     description: 'Earn the harmony bonus in 3 consecutive Spirit Sapling sessions.',
     icon: '🌸', game: 'Spirit Sapling', rarity: 'epic', goalLabel: '3-session harmony streak',
+    future: true,
   },
   {
     code: 'ch_sapling_hidden',
@@ -86,12 +90,14 @@ const CHALLENGES: Challenge[] = [
     title: 'Lunar Dominance',
     description: 'Win 3 Half Moon games in a row.',
     icon: '👑', game: 'Rise of the Half Moon', rarity: 'rare', goalLabel: '3-win streak',
+    future: true,
   },
   {
     code: 'ch_grove_variety',
     title: 'Grove Explorer',
     description: 'Play all 4 grove games at least once today.',
     icon: '🗺️', game: 'All Games', rarity: 'rare', goalLabel: 'All 4 games today',
+    future: true,
   },
 ]
 
@@ -261,7 +267,8 @@ function CategoryPill({
   active: boolean
   onClick: () => void
 }) {
-  const items = tab.key === 'all' ? achievements : achievements.filter((a) => a.category === tab.key)
+  const items = (tab.key === 'all' ? achievements : achievements.filter((a) => a.category === tab.key))
+    .filter((a) => !a.future)
   const earned = items.filter((a) => a.earned).length
   const total  = items.length
   return (
@@ -284,6 +291,7 @@ export default function AchievementsPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'achievements' | 'challenges'>('achievements')
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [showKonami, setShowKonami] = useState(false)
 
   useKonami(() => setShowKonami(true))
@@ -294,14 +302,24 @@ export default function AchievementsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const earnedCount = achievements.filter((a) => a.earned).length
-  const totalCount  = achievements.length
+  const availableAchievements = achievements.filter((a) => !a.future)
+  const earnedCount = availableAchievements.filter((a) => a.earned).length
+  const totalCount  = availableAchievements.length
+  const lockedCount = Math.max(0, totalCount - earnedCount)
+  const futureCount = achievements.filter((a) => a.future).length
   const pct = totalCount === 0 ? 0 : Math.round((earnedCount / totalCount) * 100)
+  const latestEarned = [...availableAchievements]
+    .filter((a) => a.earned && a.awardedAt)
+    .sort((a, b) => new Date(b.awardedAt ?? 0).getTime() - new Date(a.awardedAt ?? 0).getTime())[0]
 
   const filtered = useMemo(() => {
-    if (activeCategory === 'all') return achievements
-    return achievements.filter((a) => (a.category ?? 'grove') === activeCategory)
-  }, [achievements, activeCategory])
+    const categoryItems = activeCategory === 'all'
+      ? achievements
+      : achievements.filter((a) => (a.category ?? 'grove') === activeCategory)
+    if (statusFilter === 'earned') return categoryItems.filter((a) => a.earned && !a.future)
+    if (statusFilter === 'locked') return categoryItems.filter((a) => !a.earned && !a.future)
+    return categoryItems
+  }, [achievements, activeCategory, statusFilter])
 
   // Sort: earned first (by date desc), then locked non-secret, then locked secret, then future
   const sorted = useMemo(() => [...filtered].sort((a, b) => {
@@ -318,11 +336,11 @@ export default function AchievementsPage() {
   }), [filtered])
 
   return (
-    <div style={s.page}>
+    <div className="ww-responsive-page ww-achievements-page" style={s.page}>
       {showKonami && <KonamiToast onDone={() => setShowKonami(false)} />}
 
       {/* ── Header ── */}
-      <div style={s.header}>
+      <div className="ww-responsive-page-header" style={s.header}>
         <div>
           <h2 style={s.pageTitle}>Achievements</h2>
           <p style={s.pageSub}>Milestones and challenges across the grove.</p>
@@ -335,23 +353,41 @@ export default function AchievementsPage() {
       </div>
 
       {/* ── Overall progress ── */}
-      <div style={s.overallProgress}>
-        <div style={s.overallProgressRow}>
-          <span style={s.overallLabel}>Grove completion</span>
-          <span style={{ ...s.overallLabel, color: 'var(--accent-dark)', fontWeight: 700 }}>{pct}%</span>
+      <div className="ww-achievement-overview" style={s.overviewCard}>
+        <div style={s.overallProgress}>
+          <div style={s.overallProgressRow}>
+            <span style={s.overallLabel}>Available achievement completion</span>
+            <span style={{ ...s.overallLabel, color: 'var(--accent-dark)', fontWeight: 700 }}>{pct}%</span>
+          </div>
+          <ProgressBar value={earnedCount} max={totalCount} />
+          <p style={s.progressNote}>Coming-soon achievements are excluded, so reaching 100% is always possible.</p>
         </div>
-        <ProgressBar value={earnedCount} max={totalCount} />
+        <div className="ww-achievement-summary" style={s.summaryGrid}>
+          <div style={s.summaryItem}><strong>{earnedCount}</strong><span>Earned</span></div>
+          <div style={s.summaryItem}><strong>{lockedCount}</strong><span>Ready to pursue</span></div>
+          <div style={s.summaryItem}><strong>{futureCount}</strong><span>Growing soon</span></div>
+        </div>
+        {latestEarned && (
+          <div className="ww-achievement-latest" style={s.latestUnlock}>
+            <span style={s.latestIcon}>{latestEarned.icon ?? '🏆'}</span>
+            <div>
+              <span style={s.latestLabel}>Latest unlock</span>
+              <strong style={s.latestTitle}>{latestEarned.title}</strong>
+            </div>
+            <span style={s.latestDate}>{formatDate(latestEarned.awardedAt)}</span>
+          </div>
+        )}
       </div>
 
       {/* ── Page tabs ── */}
-      <div style={s.pageTabs}>
+      <div className="ww-scroll-tabs" style={s.pageTabs}>
         {(['achievements', 'challenges'] as const).map((tab) => (
           <button
             key={tab}
             style={{ ...s.pageTab, ...(activeTab === tab ? s.pageTabActive : {}) }}
             onClick={() => setActiveTab(tab)}
           >
-            {tab === 'achievements' ? '🏆 Achievements' : '⚔️ Challenges'}
+            {tab === 'achievements' ? '🏆 Achievements' : '⚔️ Challenge roadmap'}
           </button>
         ))}
       </div>
@@ -359,7 +395,7 @@ export default function AchievementsPage() {
       {activeTab === 'achievements' ? (
         <>
           {/* ── Category filter ── */}
-          <div style={s.catBar}>
+          <div className="ww-scroll-tabs" style={s.catBar}>
             {CATEGORY_TABS.map((tab) => (
               <CategoryPill
                 key={tab.key}
@@ -371,12 +407,29 @@ export default function AchievementsPage() {
             ))}
           </div>
 
+          <div className="ww-achievement-toolbar" style={s.statusBar}>
+            <span style={s.statusLabel}>{sorted.length} shown</span>
+            <div style={s.statusPills}>
+              {(['all', 'earned', 'locked'] as StatusFilter[]).map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  style={{ ...s.statusPill, ...(statusFilter === status ? s.statusPillActive : {}) }}
+                  onClick={() => setStatusFilter(status)}
+                  aria-pressed={statusFilter === status}
+                >
+                  {status === 'all' ? 'All' : status === 'earned' ? '✓ Earned' : '○ Locked'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {loading ? (
             <p style={s.hint}>Loading achievements…</p>
           ) : sorted.length === 0 ? (
             <p style={s.hint}>Nothing here yet.</p>
           ) : (
-            <div style={s.grid}>
+            <div className="ww-achievement-grid" style={s.grid}>
               {sorted.map((a) => <AchievementCard key={a.code} a={a} />)}
             </div>
           )}
@@ -387,13 +440,13 @@ export default function AchievementsPage() {
           <div style={s.challengeNote}>
             <span style={{ fontSize: 18 }}>⚔️</span>
             <div>
-              <p style={s.challengeNoteTitle}>Weekly Challenges</p>
+              <p style={s.challengeNoteTitle}>Challenge roadmap</p>
               <p style={s.challengeNoteDesc}>
-                Time-limited challenges rotate each week. Some require upcoming game features — watch this space.
+                These planned rotations are shown as previews. They will become active once weekly progress and expiry are stored server-side.
               </p>
             </div>
           </div>
-          <div style={s.grid}>
+          <div className="ww-achievement-grid" style={s.grid}>
             {CHALLENGES.map((ch) => <ChallengeCard key={ch.code} ch={ch} />)}
           </div>
         </>
@@ -448,6 +501,29 @@ const s: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
   },
   progressFill: { height: '100%', borderRadius: 999, transition: 'width 600ms ease' },
+  overviewCard: {
+    display: 'flex', flexDirection: 'column', gap: 14,
+    padding: '16px 18px', borderRadius: 16,
+    background: 'var(--bg-surface)', border: '1px solid var(--border)',
+    boxShadow: 'var(--shadow-sm)',
+  },
+  progressNote: { margin: 0, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 },
+  summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 },
+  summaryItem: {
+    display: 'flex', flexDirection: 'column', gap: 2,
+    padding: '10px 12px', borderRadius: 11,
+    background: 'var(--bg-badge)', border: '1px solid var(--border-muted)',
+    color: 'var(--text-muted)', fontSize: 11,
+  },
+  latestUnlock: {
+    display: 'grid', gridTemplateColumns: '38px minmax(0, 1fr) auto', alignItems: 'center', gap: 10,
+    padding: '10px 12px', borderRadius: 12,
+    background: 'var(--bg-accent-soft)', border: '1px solid var(--border-focus)',
+  },
+  latestIcon: { fontSize: 24, lineHeight: 1 },
+  latestLabel: { display: 'block', color: 'var(--text-muted)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 },
+  latestTitle: { display: 'block', color: 'var(--text-h)', fontFamily: headingFontFamily, fontSize: 16 },
+  latestDate: { color: 'var(--text-muted)', fontSize: 11 },
 
   // Page tabs
   pageTabs: { display: 'flex', gap: 8, borderBottom: '2px solid var(--border-muted)', paddingBottom: 0 },
@@ -487,6 +563,19 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 999, padding: '1px 7px',
   },
   catBadgeActive: { background: 'var(--accent)', color: 'var(--bg-surface)' },
+  statusBar: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+    padding: '8px 10px', borderRadius: 12,
+    background: 'var(--bg-surface)', border: '1px solid var(--border-muted)',
+  },
+  statusLabel: { fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 },
+  statusPills: { display: 'flex', gap: 6, flexWrap: 'wrap' },
+  statusPill: {
+    padding: '5px 10px', borderRadius: 999, border: '1px solid var(--border)',
+    background: 'var(--bg-badge)', color: 'var(--text-muted)',
+    fontFamily: bodyFontFamily, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+  },
+  statusPillActive: { background: 'var(--bg-accent-soft)', borderColor: 'var(--border-focus)', color: 'var(--accent-dark)' },
 
   // Cards
   grid: {
@@ -501,7 +590,7 @@ const s: Record<string, React.CSSProperties> = {
     transition: 'box-shadow 200ms, border-color 200ms',
   },
   cardEarned: { opacity: 1 },
-  cardLocked: { opacity: 0.6, filter: 'grayscale(0.4)' },
+  cardLocked: { opacity: 0.82 },
   cardIcon: {
     width: 48, height: 48, borderRadius: 14,
     display: 'flex', alignItems: 'center', justifyContent: 'center',

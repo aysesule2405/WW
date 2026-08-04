@@ -42,6 +42,18 @@ type ProgressGame = {
   bestCompletionTimeSeconds?: number | null
 }
 
+type LeaderboardApiEntry = {
+  rank: number
+  userId: string
+  username?: string
+  avatarUrl?: string | null
+  avatarConfig?: AvatarConfig | null
+  richAvatarConfig?: string | null
+  avatarPreference?: 'photo' | 'rich' | null
+  score?: number
+  bestTimeSeconds?: number
+}
+
 const LEADER_GAMES = [
   { slug: 'spirit-drift',         icon: '🌊', label: 'Drift'    },
   { slug: 'delivery-on-the-wind', icon: '📦', label: 'Delivery' },
@@ -183,7 +195,6 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
 
   // Fetch all 4 leaderboards on mount
   useEffect(() => {
-    setLeaderLoading(true)
     Promise.allSettled([
       getScoreLeaderboard('spirit-drift', 5).then((r) => ({ slug: 'spirit-drift', isTime: false, raw: r.leaderboard ?? [] })),
       getDeliveryLeaderboard().then((r) => ({ slug: 'delivery-on-the-wind', isTime: true, raw: r.leaderboard ?? [] })),
@@ -194,7 +205,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
       results.forEach((result) => {
         if (result.status !== 'fulfilled') return
         const { slug, isTime, raw } = result.value
-        map[slug] = raw.map((e: any) => ({
+        map[slug] = (raw as LeaderboardApiEntry[]).map((e) => ({
           rank: e.rank,
           userId: String(e.userId),
           username: e.username ?? 'Unknown',
@@ -215,7 +226,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
   useEffect(() => {
     if (!user) return
     getProgressSummary()
-      .then((res) => setProgressSummary((res as any).games ?? []))
+      .then((res) => setProgressSummary((res as { games?: ProgressGame[] }).games ?? []))
       .catch(() => {})
   }, [user])
 
@@ -286,6 +297,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
 
   return (
     <div
+      className="ww-dashboard-page"
       style={{
         minHeight: '100vh',
         padding: 24,
@@ -304,10 +316,10 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
       onMouseLeave={() => setParallax({ x: 0, y: 0 })}
     >
 
-      <div style={{ ...s.shell, position: 'relative', zIndex: 1 }}>
+      <div className="ww-dashboard-shell" style={{ ...s.shell, position: 'relative', zIndex: 1 }}>
 
         {/* ── Welcome bar ── */}
-        <div style={{ ...s.welcomeBar, background: 'var(--bg-surface)' }}>
+        <div className="ww-dashboard-welcome" style={{ ...s.welcomeBar, background: 'var(--bg-surface)' }}>
           <div style={s.welcomeLeft}>
             <div className="ww-avatar-ring">
               <MiniAvatar
@@ -330,7 +342,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
               </p>
             </div>
           </div>
-          <div style={s.statsRow}>
+          <div className="ww-dashboard-stats" style={s.statsRow}>
             <div style={{ ...s.statChip, background: 'var(--bg-accent-soft)', border: '1px solid var(--border)' }}>
               <span style={{ ...s.statNum, color: 'var(--text-h)' }}>{playableCount}</span>
               <span style={{ ...s.statLbl, color: 'var(--text-muted)' }}>Playable</span>
@@ -343,7 +355,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
         </div>
 
         {/* ── Hero + side panels ── */}
-        <div style={s.heroGrid}>
+        <div className="ww-dashboard-hero-grid" style={s.heroGrid}>
           <section
             style={{
               ...s.heroCard,
@@ -361,7 +373,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
             </div>
           </section>
 
-          <aside style={s.sideStack}>
+          <aside className="ww-dashboard-side-stack" style={s.sideStack}>
             {/* ── Your Best Scores ── */}
             <section style={{ ...s.panel, background: 'var(--bg-surface)' }}>
               <h3 style={{ ...s.panelTitle, color: 'var(--text-h)' }}>Your Best Scores</h3>
@@ -369,9 +381,11 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
                 const prog = progressBySlug[g.id]
                 const myScore = prog?.highScore ?? null
                 const topScore = topScores[g.id] ?? null
-                const barPct = (myScore != null && topScore) ? Math.max(6, (myScore / topScore) * 100) : 0
                 const isDelivery = g.id === 'delivery-on-the-wind'
                 const myTime = isDelivery ? prog?.bestCompletionTimeSeconds ?? null : null
+                const barPct = isDelivery
+                  ? (myTime != null ? Math.min(100, Math.max(6, ((120 - myTime) / 90) * 100)) : 0)
+                  : ((myScore != null && topScore) ? Math.max(6, (myScore / topScore) * 100) : 0)
                 const displayVal = isDelivery
                   ? (myTime != null ? fmtTime(myTime) : '—')
                   : (myScore != null ? `${myScore} pts` : '—')
@@ -390,19 +404,22 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
                         {displayVal}
                       </span>
                     </div>
-                    {!isDelivery && (
-                      <div style={s.scoreBarTrack}>
-                        <div className="ww-bar-in" style={{
-                          ...s.scoreBarFill,
-                          width: `${barPct}%`,
-                          background: barPct >= 100
-                            ? 'linear-gradient(90deg, #f9c846, #e6a817)'
-                            : barPct > 60
-                            ? 'linear-gradient(90deg, var(--accent), var(--accent-dark))'
-                            : 'var(--chart-fill)',
-                        }} />
-                      </div>
-                    )}
+                    <div
+                      style={s.scoreBarTrack}
+                      title={isDelivery ? 'Speed progress toward a sub-30-second route' : 'Progress toward the current top score'}
+                    >
+                      <div className="ww-bar-in" style={{
+                        ...s.scoreBarFill,
+                        width: `${barPct}%`,
+                        background: isDelivery
+                          ? 'linear-gradient(90deg, #64E1D2, #6FD08C)'
+                          : barPct >= 100
+                          ? 'linear-gradient(90deg, #f9c846, #e6a817)'
+                          : barPct > 60
+                          ? 'linear-gradient(90deg, var(--accent), var(--accent-dark))'
+                          : 'var(--chart-fill)',
+                      }} />
+                    </div>
                   </div>
                 )
               })}
@@ -476,7 +493,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
         </div>
 
         {/* ── Filter bar ── */}
-        <div style={{ ...s.filterBar, background: 'var(--bg-surface)' }}>
+        <div className="ww-dashboard-filter-bar" style={{ ...s.filterBar, background: 'var(--bg-surface)' }}>
           <div style={s.filterGroup}>
             {(['all', 'playable', 'coming-soon'] as FilterKey[]).map((f) => (
               <button
@@ -500,7 +517,7 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
         </div>
 
         {/* ── Game grid ── */}
-        <div style={s.grid}>
+        <div className="ww-dashboard-game-grid" style={s.grid}>
           {visibleGames.length > 0 ? (
             visibleGames.map((g, i) => (
               <GameCard

@@ -3,7 +3,7 @@ import { createHalfMoonGame } from './systems/createHalfMoonGame'
 import type { HalfMoonAPI, ScoreState } from './systems/createHalfMoonGame'
 import { WILD_CARDS } from './data/halfMoonConfig'
 import type { Difficulty, AIMode, WildCardType } from './data/halfMoonConfig'
-import { getScoreLeaderboard, getMyBest, getRecentScores, submitScore, submitSession } from '../../lib/api'
+import { getScoreLeaderboard, getMyBest, getRecentScores, submitSession } from '../../lib/api'
 import { uiFontFamily, titleFontFamily, numberFontFamily } from '../../theme/typography'
 import { GAME_BG_HTML } from './assets'
 import GameShell from '../../components/game/GameShell'
@@ -139,27 +139,23 @@ export default function HalfMoonGame({ onExit }: Props) {
     completionTimeSeconds: number
   }) => {
     setScoreLoading(true)
-    await Promise.all([
-      submitScore(GAME_SLUG, {
-        score: playerScore,
-        metadata: { level: levelReached, won, aiScore: moonScore, completed },
-      }),
-      submitSession(GAME_SLUG, {
-        completed,
-        score: playerScore,
-        completionTimeSeconds,
-        completionTime: completionTimeSeconds,
-        totalCardPoints: cardPoints,
-        moonScore,
-        winner,
-        won,
-        levelReached,
-        finalPlayerScore: playerScore,
-      }),
-    ])
+    await submitSession(GAME_SLUG, {
+      completed,
+      score: playerScore,
+      completionTimeSeconds,
+      completionTime: completionTimeSeconds,
+      totalCardPoints: cardPoints,
+      moonScore,
+      winner,
+      won,
+      levelReached,
+      finalPlayerScore: playerScore,
+      difficulty,
+      aiMode,
+    })
     await refreshScorePanels()
     setScoreLoading(false)
-  }, [refreshScorePanels])
+  }, [aiMode, difficulty, refreshScorePanels])
 
   // Fetch personal best once on mount
   useEffect(() => {
@@ -291,12 +287,12 @@ export default function HalfMoonGame({ onExit }: Props) {
             Personal Best: <strong style={{ color: '#FFF8C0' }}>{highScore.score}</strong>
           </div>
         )}
-        <div style={s.centre}>
-          <div style={s.rulesCard}>
+        <div className="ww-game-scroll" style={s.centre}>
+          <div className="ww-game-info-card" style={s.rulesCard}>
             <h2 style={s.rulesTitle}>Rise of the Half Moon</h2>
             <p style={s.rulesSub}>A moon-phase card placement game. Win all 3 levels to complete the ritual — one loss ends your run.</p>
 
-            <div style={s.rulesGrid}>
+            <div className="ww-halfmoon-rules-grid" style={s.rulesGrid}>
               <RuleBlock title="The Deck"          body="8 lunar phases — New Moon (1) to Waning Crescent (8). Four copies each. Draw 3 to start." />
               <RuleBlock title="Same Match +1"     body="Place a card adjacent to the same moon phase." />
               <RuleBlock title="Complementary +2"  body="1+5, 2+6, 3+7, or 4+8 adjacent — opposite phases of the cycle." />
@@ -351,8 +347,8 @@ export default function HalfMoonGame({ onExit }: Props) {
     const resultAccent = isVictory ? SCOREBOARD_ACCENT : RESULT_MUTED_ACCENT
     return (
       <GameShell title="Rise of the Half Moon" onExit={onExit} background={SHELL_BG} accentColor="#D6D3A9">
-          <div style={s.centre}>
-          <div style={{ ...s.endCard, borderColor: isVictory ? 'rgba(99,232,231,0.6)' : 'rgba(214,211,169,0.42)' }}>
+          <div className="ww-game-scroll" style={s.centre}>
+          <div className="ww-game-info-card" style={{ ...s.endCard, borderColor: isVictory ? 'rgba(99,232,231,0.6)' : 'rgba(214,211,169,0.42)' }}>
             <div style={s.endMoon}>{isVictory ? '◯' : '☾'}</div>
             <h2 style={{ ...s.endTitle, color: resultAccent }}>
               {isVictory ? 'The Ritual is Complete' : 'The Half Moon Prevails'}
@@ -424,8 +420,8 @@ export default function HalfMoonGame({ onExit }: Props) {
     const wonText = `You won the ${ordinalLevel(levelResult.level)} level`
     return (
     <GameShell title="Rise of the Half Moon" onExit={onExit} background={SHELL_BG} accentColor="#D6D3A9">
-      <div style={s.centre}>
-          <div style={{ ...s.endCard, borderColor: 'rgba(200,168,75,0.5)' }}>
+      <div className="ww-game-scroll" style={s.centre}>
+          <div className="ww-game-info-card" style={{ ...s.endCard, borderColor: 'rgba(200,168,75,0.5)' }}>
             <div style={s.endMoon}>◯</div>
             <h2 style={{ ...s.endTitle, color: '#FFF8C0' }}>
               {wonText}
@@ -459,8 +455,9 @@ export default function HalfMoonGame({ onExit }: Props) {
   return (
     <GameShell title="Rise of the Half Moon" onExit={onExit} background={SHELL_BG} accentColor="#D6D3A9">
 
-      <div style={s.gameArea}>
-        <div key={sessionId} ref={containerRef} style={s.gameWrap} />
+      <div className="ww-phaser-game-area ww-halfmoon-game-area" style={s.gameArea}>
+        <p className="ww-game-orientation-hint">Rotate your phone for a larger play area.</p>
+        <div className="ww-phaser-game-wrap ww-halfmoon-game-wrap" key={sessionId} ref={containerRef} style={s.gameWrap} />
 
         {eventMsg && (
           <div style={{ ...s.toast, color: eventMsg.color }}>{eventMsg.msg}</div>
@@ -492,8 +489,8 @@ export default function HalfMoonGame({ onExit }: Props) {
       </div>
 
       {wildPrompt && wilds.length > 0 && (
-        <div style={s.wildModal}>
-          <div style={s.wildModalCard}>
+        <div className="ww-game-modal-backdrop" style={s.wildModal}>
+          <div className="ww-game-modal-card" style={s.wildModalCard}>
             <h3 style={s.wildModalTitle}>Wild Card Earned!</h3>
             <p style={s.wildModalSub}>3-level win streak — choose a power to activate now or save it.</p>
             {wilds.slice(-1).map((w) => (

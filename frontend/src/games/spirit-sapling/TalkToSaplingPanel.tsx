@@ -136,13 +136,11 @@ export default function TalkToSaplingPanel({ guardianName, onClose, onEnergyEval
     rec.interimResults = true
     rec.onstart = () => setRecordState('recording')
     rec.onresult = (e: SpeechRecognitionEventLike) => {
-      let interim = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript
-        if (e.results[i].isFinal) setTranscript(p => p + t)
-        else interim = t
+      let fullTranscript = ''
+      for (let i = 0; i < e.results.length; i++) {
+        fullTranscript += e.results[i][0].transcript
       }
-      if (interim) setTranscript(p => p + interim)
+      setTranscript(fullTranscript)
     }
     rec.onerror = (e: SpeechRecognitionErrorEventLike) => {
       setMicError(e.error === 'not-allowed'
@@ -210,11 +208,11 @@ export default function TalkToSaplingPanel({ guardianName, onClose, onEnergyEval
   }
 
   return (
-    <div style={s.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={s.panel}>
+    <div className="ww-sapling-talk-overlay" style={s.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="ww-sapling-talk-panel" style={s.panel}>
 
         {/* Header */}
-        <div style={s.header}>
+        <div className="ww-sapling-talk-header" style={s.header}>
           <div style={s.headerLeft}>
             <span style={s.saplingIcon}>🌱</span>
             <div>
@@ -271,7 +269,7 @@ export default function TalkToSaplingPanel({ guardianName, onClose, onEnergyEval
                           : s.energyTagNeutral),
                     }}
                   >
-                    {energyTagText(msg.sentiment, msg.energyDeltaSeconds ?? 0)}
+                    {energyTagText(msg.sentiment)}
                   </span>
                 )}
               </div>
@@ -292,7 +290,7 @@ export default function TalkToSaplingPanel({ guardianName, onClose, onEnergyEval
         </div>
 
         {/* Input area */}
-        <div style={s.inputArea}>
+          <div className="ww-sapling-talk-input" style={s.inputArea}>
           {/* Mode toggle */}
           {hasSpeechRecognition && (
             <div style={s.modeToggle}>
@@ -353,7 +351,7 @@ export default function TalkToSaplingPanel({ guardianName, onClose, onEnergyEval
   )
 }
 
-function energyTagText(sentiment: SaplingSentiment, _delta: number): string {
+function energyTagText(sentiment: SaplingSentiment): string {
   if (sentiment === 'positive') return '✦ orb restored'
   if (sentiment === 'negative') return 'grove darkened'
   return 'unchanged'

@@ -1032,6 +1032,48 @@ button:focus-visible {
   to   { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
 }
 
+@keyframes achievement-toast-out {
+  from { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateX(24px) translateY(8px) scale(0.96); }
+}
+
+@keyframes ww-avatar-pulse {
+  0% { transform: scale(0.985); filter: saturate(0.92); }
+  55% { transform: scale(1.018); filter: saturate(1.1); }
+  100% { transform: scale(1); filter: saturate(1); }
+}
+
+@keyframes ww-dice-spin {
+  0% { transform: rotate(0deg) scale(1); }
+  45% { transform: rotate(190deg) scale(1.2); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.ww-avatar-preview-pulse {
+  animation: ww-avatar-pulse 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.ww-dice-spinning {
+  animation: ww-dice-spin 460ms ease-in-out;
+}
+
+.ww-avatar-option,
+.ww-avatar-randomize,
+.ww-avatar-presets button {
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.ww-avatar-option:hover,
+.ww-avatar-presets button:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-focus) !important;
+}
+
+.ww-avatar-randomize:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md) !important;
+}
+
 [data-reduce-motion='true'] *,
 [data-reduce-motion='true'] *::before,
 [data-reduce-motion='true'] *::after {
@@ -1216,9 +1258,9 @@ button:focus-visible {
 }
 
 @keyframes ww-need-flash {
-  0%   { transform: translateX(-50%) scale(1);    background: rgba(6,14,6,0.80); }
-  25%  { transform: translateX(-50%) scale(1.07); background: rgba(28,72,24,0.88); }
-  100% { transform: translateX(-50%) scale(1);    background: rgba(6,14,6,0.80); }
+  0%   { transform: scale(1);    background: rgba(6,14,6,0.80); }
+  25%  { transform: scale(1.04); background: rgba(28,72,24,0.88); }
+  100% { transform: scale(1);    background: rgba(6,14,6,0.80); }
 }
 
 @keyframes ww-wilt-pulse {
@@ -1246,6 +1288,24 @@ button:focus-visible {
 @keyframes ww-corruption-pulse {
   0%, 100% { opacity: 0.55; }
   50%       { opacity: 0.85; }
+}
+
+@keyframes ww-harvest-ripen {
+  0%, 100% { transform: translateY(0) rotate(-2deg) scale(0.96); }
+  50%      { transform: translateY(4px) rotate(2deg) scale(0.98); }
+}
+
+@keyframes ww-harvest-ready {
+  0%, 100% { transform: translateY(0) rotate(-2deg) scale(1); }
+  50%      { transform: translateY(-9px) rotate(2deg) scale(1.07); }
+}
+
+@keyframes ww-harvest-shake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20%      { transform: translateX(-8px) rotate(-5deg); }
+  40%      { transform: translateX(7px) rotate(5deg); }
+  60%      { transform: translateX(-5px) rotate(-3deg); }
+  80%      { transform: translateX(4px) rotate(2deg); }
 }
 
 /* Medal bounce classes */
@@ -1279,4 +1339,913 @@ button:focus-visible {
 /* Spirit Drift realm grid — single column on narrow screens */
 @media (max-width: 520px) {
   .sd-realm-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── Responsive public pages ─────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .ww-landing-hero > img:not(:first-child) {
+    display: none !important;
+  }
+
+  .ww-landing-nav-inner {
+    min-height: 56px !important;
+    padding: 7px 14px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .ww-landing-nav-inner img {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .ww-landing-nav-actions {
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .ww-landing-nav-actions button {
+    padding: 7px 10px !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+  }
+
+  .ww-landing-hero {
+    min-height: 100svh !important;
+    padding-top: 56px !important;
+  }
+
+  .ww-landing-hero-content {
+    gap: 15px !important;
+    padding: 28px 18px 44px !important;
+  }
+
+  .ww-landing-section-inner {
+    padding-inline: 16px !important;
+  }
+
+  .ww-landing-games-grid,
+  .ww-landing-guardians-grid,
+  .ww-landing-coming-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ww-landing-coming-header {
+    grid-template-columns: minmax(0, 1fr) !important;
+    flex-direction: column !important;
+  }
+
+  .ww-landing-coming-header img {
+    width: min(260px, 80vw) !important;
+    max-height: 220px;
+    object-fit: contain;
+    align-self: center;
+  }
+
+  .ww-landing-footer-inner {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+  }
+
+  .ww-auth-page {
+    width: 100% !important;
+    min-height: 100dvh !important;
+    padding: 66px 14px 22px !important;
+    align-items: flex-start !important;
+  }
+
+  .ww-auth-card {
+    width: 100% !important;
+    padding: 26px 20px 22px !important;
+    border-radius: 18px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .ww-landing-nav-inner > div:first-child span {
+    display: none;
+  }
+}
+
+/* ── Responsive game surfaces ────────────────────────────────────────────── */
+.ww-phaser-game-wrap canvas {
+  display: block;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  touch-action: none;
+}
+
+.ww-game-modal-backdrop {
+  box-sizing: border-box;
+  padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ww-game-modal-card {
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+.ww-game-orientation-hint {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .ww-game-scroll {
+    width: 100%;
+    min-width: 0;
+    padding: 14px 10px 24px !important;
+    box-sizing: border-box;
+    overflow-y: auto !important;
+    align-items: flex-start !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ww-game-info-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 22px 16px !important;
+    border-radius: 16px !important;
+    box-sizing: border-box;
+  }
+
+  .ww-delivery-map-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ww-community-composer-top,
+  .ww-halfmoon-rules-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ww-phaser-game-area {
+    min-width: 0;
+    width: 100%;
+    padding: 6px !important;
+    box-sizing: border-box;
+    align-items: center !important;
+  }
+
+  .ww-phaser-game-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: auto !important;
+    border-radius: 10px !important;
+  }
+
+  .ww-drift-game-wrap {
+    height: auto !important;
+    max-height: calc(100dvh - 64px) !important;
+    aspect-ratio: 16 / 9;
+  }
+
+  .ww-delivery-hud {
+    right: 7px !important;
+    bottom: 7px !important;
+    gap: 4px !important;
+    transform: scale(0.76);
+    transform-origin: right bottom;
+  }
+
+  .ww-delivery-zoom {
+    left: 7px !important;
+    bottom: 7px !important;
+    transform: scale(0.76);
+    transform-origin: left bottom;
+  }
+
+  .ww-game-modal-card {
+    width: 100% !important;
+    padding: 20px 16px !important;
+    gap: 14px !important;
+    border-radius: 16px !important;
+  }
+
+  .ww-delivery-magnifier {
+    width: min(160px, 48vw) !important;
+    height: min(160px, 48vw) !important;
+  }
+
+  .ww-delivery-magnifier img {
+    width: 88% !important;
+    height: 88% !important;
+  }
+
+  .ww-account-setup-panel input:not([type="file"]) {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .ww-account-setup-actions {
+    width: 100%;
+  }
+
+  .ww-account-setup-actions button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 720px) and (orientation: portrait) {
+  .ww-game-orientation-hint {
+    display: block;
+    margin: 20px auto 8px;
+    padding: 6px 11px;
+    border: 1px solid rgba(240, 234, 210, 0.24);
+    border-radius: 999px;
+    background: rgba(5, 14, 20, 0.54);
+    color: rgba(240, 234, 210, 0.72);
+    font: 600 11px/1.2 var(--font-body, system-ui);
+    text-align: center;
+    z-index: 3;
+  }
+
+  .ww-phaser-game-area {
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: 0;
+  }
+
+  .ww-phaser-game-area .ww-game-orientation-hint {
+    margin-top: clamp(18px, 7vh, 56px);
+  }
+
+  .ww-phaser-game-wrap,
+  .ww-drift-game-wrap {
+    margin: 0 auto !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .ww-delivery-legend-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ww-delivery-intro-card video {
+    max-height: 38dvh !important;
+    object-fit: cover;
+  }
+
+  .ww-game-modal-backdrop {
+    padding: 10px;
+    align-items: flex-start !important;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .ww-game-shell-header {
+    height: 44px !important;
+  }
+
+  .ww-game-scroll {
+    padding-block: 8px 16px !important;
+  }
+
+  .ww-game-info-card {
+    padding: 16px !important;
+  }
+
+  .ww-phaser-game-wrap {
+    max-height: calc(100dvh - 50px) !important;
+  }
+}
+
+/* Spirit Sapling responsive game layout */
+@media (max-width: 1050px) {
+  .ww-sapling-hud {
+    grid-template-columns: auto minmax(150px, 1fr) minmax(210px, auto) !important;
+  }
+
+  .ww-sapling-guardian {
+    grid-column: 1 / -1;
+    max-width: 260px;
+    justify-self: end;
+  }
+
+  .ww-sapling-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .ww-game-shell-header {
+    height: 52px !important;
+    padding: 0 10px !important;
+    gap: 10px;
+  }
+
+  .ww-game-shell-back {
+    padding: 7px 11px !important;
+    font-size: 13px !important;
+  }
+
+  .ww-game-shell-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 18px !important;
+  }
+
+  .ww-sapling-talk-overlay {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+
+  .ww-sapling-talk-panel {
+    width: 100% !important;
+    max-height: 100dvh !important;
+    min-height: 100dvh;
+    border-radius: 0 !important;
+  }
+
+  .ww-sapling-talk-header {
+    padding: 14px 14px 10px !important;
+  }
+
+  .ww-sapling-talk-input {
+    padding: 10px 12px max(12px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .ww-sapling-description-wrap {
+    align-items: flex-start !important;
+    padding: 8px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ww-sapling-description-card {
+    width: 100% !important;
+    max-height: none !important;
+    padding: 20px 14px !important;
+    box-sizing: border-box;
+  }
+
+  .ww-sapling-mechanic-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ww-sapling-how-row {
+    flex-wrap: wrap !important;
+  }
+
+  .ww-sapling-selection-wrap {
+    align-items: flex-start !important;
+    padding: 8px !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ww-sapling-selection-card {
+    width: 100% !important;
+    padding: 16px 12px !important;
+    box-sizing: border-box;
+  }
+
+  .ww-sapling-guardian-grid,
+  .ww-sapling-locked-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .ww-sapling-selection-actions {
+    position: sticky;
+    bottom: 0;
+    padding: 10px 0 2px;
+    background: linear-gradient(180deg, transparent, rgba(45,30,22,0.96) 35%);
+  }
+
+  .ww-sapling-game-layout {
+    padding: 8px !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ww-sapling-game-panel {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden;
+    padding: 8px !important;
+    border-radius: 16px !important;
+    gap: 8px !important;
+  }
+
+  .ww-sapling-hud {
+    width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 7px !important;
+  }
+
+  .ww-sapling-stage-pill,
+  .ww-sapling-need {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .ww-sapling-hud > * {
+    min-width: 0 !important;
+    max-width: 100%;
+  }
+
+  .ww-sapling-energy,
+  .ww-sapling-guardian {
+    grid-column: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box;
+    justify-self: stretch !important;
+  }
+
+  .ww-sapling-energy {
+    padding: 7px 8px !important;
+  }
+
+  .ww-sapling-energy-hint {
+    display: none;
+  }
+
+  .ww-sapling-frame {
+    width: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    aspect-ratio: 16 / 9 !important;
+    border-radius: 12px !important;
+  }
+
+  .ww-sapling-actions {
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 7px !important;
+  }
+
+  .ww-sapling-action {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden;
+    min-height: 72px !important;
+    padding: 7px !important;
+    grid-template-columns: 48px minmax(0, 1fr) !important;
+    column-gap: 7px !important;
+    border-radius: 12px !important;
+  }
+
+  .ww-sapling-action-art {
+    width: 48px !important;
+    height: 48px !important;
+  }
+
+  .ww-sapling-action-label {
+    font-size: 14px !important;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .ww-sapling-action-hint {
+    font-size: 10px !important;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .ww-sapling-status {
+    margin: 0 !important;
+    padding: 2px 4px 3px;
+    font-size: 12px !important;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .ww-sapling-harvest-button {
+    min-height: 68px !important;
+  }
+
+  .ww-harvest-page {
+    border-radius: 14px !important;
+  }
+
+  .ww-harvest-header {
+    gap: 8px !important;
+    padding: 14px 12px 0 !important;
+  }
+
+  .ww-harvest-progress {
+    min-width: 64px !important;
+    padding: 6px 8px !important;
+  }
+
+  .ww-harvest-grove {
+    inset: 96px 0 42px !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 96px;
+    align-items: start;
+    justify-items: center;
+    padding: 10px 8px 120px;
+    box-sizing: border-box;
+  }
+
+  .ww-harvest-fruit {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: clamp(54px, 18vw, 72px) !important;
+    height: clamp(54px, 18vw, 72px) !important;
+  }
+
+  .ww-harvest-message {
+    left: 8px !important;
+    bottom: 8px !important;
+    max-width: calc(100% - 122px) !important;
+    padding: 6px 8px 6px 6px !important;
+  }
+
+  .ww-harvest-message img {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .ww-harvest-basket {
+    right: 2px !important;
+    bottom: -6px !important;
+    width: 118px !important;
+    height: 118px !important;
+  }
+
+  .ww-harvest-footer {
+    gap: 6px !important;
+    padding: 7px 9px !important;
+    font-size: 10px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .ww-sapling-energy,
+  .ww-sapling-guardian {
+    grid-column: 1 / -1 !important;
+  }
+
+  .ww-sapling-guardian img {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  .ww-sapling-action-hint {
+    display: none;
+  }
+
+  .ww-sapling-action {
+    min-height: 62px !important;
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+  }
+
+  .ww-sapling-action-art {
+    width: 42px !important;
+    height: 42px !important;
+  }
+}
+
+/* ── Responsive application shell ───────────────────────────────────────── */
+.ww-sidebar-mobile-signout {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  .ww-app-shell {
+    display: block !important;
+    min-height: 100dvh !important;
+  }
+
+  .ww-app-main {
+    width: 100%;
+    min-height: 100dvh;
+    padding-bottom: calc(74px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+  }
+
+  .ww-sidebar {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: calc(68px + env(safe-area-inset-bottom)) !important;
+    padding: 5px 5px env(safe-area-inset-bottom) !important;
+    border: 0 !important;
+    border-top: 1px solid var(--sidebar-border) !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    box-shadow: 0 -10px 30px rgba(15, 28, 18, 0.18);
+    z-index: 1000 !important;
+  }
+
+  .ww-sidebar-logo,
+  .ww-sidebar-spacer,
+  .ww-sidebar-theme,
+  .ww-sidebar-footer {
+    display: none !important;
+  }
+
+  .ww-sidebar-nav {
+    min-width: 0;
+    flex: 1;
+    flex-direction: row !important;
+    gap: 3px !important;
+    padding: 0 !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ww-sidebar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ww-sidebar-nav-button,
+  .ww-sidebar-mobile-signout {
+    width: auto !important;
+    min-width: 64px;
+    height: 58px;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px !important;
+    padding: 5px 7px !important;
+    border: 0;
+    border-radius: 10px !important;
+    background: transparent;
+    box-shadow: none !important;
+    color: var(--sidebar-muted);
+    font: 600 10px/1 var(--font-body, system-ui);
+    cursor: pointer;
+  }
+
+  .ww-sidebar-mobile-signout {
+    display: flex;
+  }
+
+  .ww-sidebar-nav-icon,
+  .ww-sidebar-mobile-signout > span:first-child {
+    font-size: 20px !important;
+    line-height: 1 !important;
+  }
+
+  .ww-sidebar-nav-label,
+  .ww-sidebar-mobile-signout > span:last-child {
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px !important;
+  }
+
+  .ww-sidebar-active-pip {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .ww-sidebar-nav-button,
+  .ww-sidebar-mobile-signout {
+    min-width: 60px;
+  }
+}
+
+/* ── Responsive dashboard pages ──────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .ww-dashboard-hero-grid,
+  .ww-community-layout,
+  .ww-profile-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ww-community-sidebar,
+  .ww-profile-preview {
+    position: static !important;
+    width: auto !important;
+  }
+}
+
+@media (max-width: 800px) {
+  .ww-responsive-page,
+  .ww-dashboard-page {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 18px 16px 26px !important;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .ww-dashboard-shell {
+    width: 100%;
+    min-width: 0;
+    gap: 14px !important;
+  }
+
+  .ww-dashboard-welcome,
+  .ww-responsive-page-header {
+    align-items: flex-start !important;
+  }
+
+  .ww-dashboard-stats {
+    width: 100%;
+  }
+
+  .ww-dashboard-stats > * {
+    flex: 1;
+  }
+
+  .ww-dashboard-hero-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ww-dashboard-side-stack {
+    min-width: 0;
+  }
+
+  .ww-dashboard-filter-bar {
+    align-items: flex-start !important;
+  }
+
+  .ww-dashboard-game-grid,
+  .ww-achievement-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ww-community-layout,
+  .ww-profile-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ww-progress-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .ww-progress-selector {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .ww-progress-detail {
+    padding: 16px !important;
+  }
+
+  .ww-profile-photo-row,
+  .ww-settings-data-row {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+  }
+
+  .ww-settings-volume-row {
+    align-items: flex-start !important;
+  }
+
+  .ww-settings-volume-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ww-settings-volume-controls > div {
+    flex: 1;
+    min-width: 0 !important;
+  }
+
+  .ww-scroll-tabs {
+    width: 100%;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ww-scroll-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ww-scroll-tabs > * {
+    flex: 0 0 auto;
+  }
+
+  .ww-leaderboard-panel {
+    padding: 16px !important;
+  }
+
+  .ww-leaderboard-search {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .ww-leaderboard-row {
+    grid-template-columns: 34px 30px minmax(0, 1fr) auto !important;
+    gap: 7px !important;
+    padding-inline: 4px !important;
+  }
+
+  .ww-achievement-toast-stack {
+    right: 12px !important;
+    bottom: calc(78px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .ww-avatar-studio {
+    width: 100%;
+  }
+
+  .ww-avatar-stage {
+    min-height: 270px !important;
+  }
+
+  .ww-avatar-controls {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .ww-dashboard-page,
+  .ww-responsive-page {
+    padding: 14px 12px 22px !important;
+  }
+
+  .ww-dashboard-welcome {
+    padding: 12px !important;
+  }
+
+  .ww-dashboard-game-grid {
+    gap: 12px !important;
+  }
+
+  .ww-progress-overview,
+  .ww-progress-selector,
+  .ww-settings-theme-grid,
+  .ww-settings-bg-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .ww-progress-detail-header {
+    flex-direction: column !important;
+  }
+
+  .ww-podium-row {
+    gap: 3px !important;
+    transform: scale(0.82);
+    transform-origin: center bottom;
+    margin: -12px -42px -1px;
+  }
+
+  .ww-leaderboard-row {
+    grid-template-columns: 30px 28px minmax(0, 1fr) auto !important;
+  }
+
+  .ww-leaderboard-row > div:last-child span:last-child {
+    display: none;
+  }
+
+  .ww-achievement-summary {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ww-achievement-latest {
+    grid-template-columns: 34px minmax(0, 1fr) !important;
+  }
+
+  .ww-achievement-latest > span:last-child {
+    display: none;
+  }
+
+  .ww-achievement-toolbar {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+  }
+
+  .ww-avatar-option-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .ww-avatar-tabs {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none;
+  }
+
+  .ww-avatar-tabs::-webkit-scrollbar,
+  .ww-avatar-presets::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ww-avatar-stage svg {
+    width: min(210px, 68vw);
+  }
+
+  .ww-settings-volume-controls {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+  }
 }

@@ -26,7 +26,7 @@ export type DeliveryGameAPI = {
 export function createDeliveryGame(
   parent: HTMLDivElement,
   options: DeliveryGameOptions = {},
-  mapId = 'village',
+  mapId = 'meadow',
 ): DeliveryGameAPI {
   const callbacks: SceneCallbacks = {
     onGameEnd:        options.onGameEnd        ?? (() => {}),

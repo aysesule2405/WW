@@ -75,8 +75,8 @@ export default function ProfileModal({ onClose, onSave }: Props) {
   if (loading) return <div style={overlayStyles.overlay}>Loading...</div>
 
   return (
-    <div style={overlayStyles.overlay}>
-      <div style={overlayStyles.card}>
+    <div className="ww-game-modal-backdrop" style={overlayStyles.overlay}>
+      <div className="ww-game-modal-card" style={overlayStyles.card}>
         <h3>Profile</h3>
         {profile.avatarUrl ? <img src={api.mediaUrl(profile.avatarUrl)} alt="avatar" style={{ width: 96, height: 96, borderRadius: 12 }} /> : <div style={{ width: 96, height: 96, borderRadius: 12, background: '#ddd' }} />}
         <div style={{ marginTop: 8 }}>

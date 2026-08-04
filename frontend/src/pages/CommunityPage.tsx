@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { bodyFontFamily, headingFontFamily } from '../theme/typography'
 import { AvatarSvg, DEFAULT_RICH_AVATAR, type RichAvatarConfig } from '../components/AvatarCreator'
 import {
@@ -200,16 +200,16 @@ export default function CommunityPage() {
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
   const [submittingReply, setSubmittingReply] = useState<string | null>(null)
 
-  const loadPosts = () => {
+  const loadPosts = useCallback(() => {
     setLoading(true)
     setError('')
     getCommunityPosts(activeTopic)
       .then((res) => setPosts(res.posts ?? []))
       .catch((err) => setError(err instanceof Error ? err.message : 'Could not load community posts'))
       .finally(() => setLoading(false))
-  }
+  }, [activeTopic])
 
-  useEffect(() => { loadPosts() }, [activeTopic])
+  useEffect(() => { loadPosts() }, [loadPosts])
 
   const stats = useMemo(() => {
     const replyCount = posts.reduce((total, p) => total + p.replies.length, 0)
@@ -282,9 +282,9 @@ export default function CommunityPage() {
   }
 
   return (
-    <div style={s.page}>
+    <div className="ww-responsive-page ww-community-page" style={s.page}>
       {/* ── Top bar ── */}
-      <div style={s.topBar}>
+      <div className="ww-responsive-page-header" style={s.topBar}>
         <div>
           <h2 style={s.pageTitle}>Community Grove</h2>
           <p style={s.pageSub}>Share routes, ask for help, and cheer on other players.</p>
@@ -300,7 +300,7 @@ export default function CommunityPage() {
       {/* ── Composer ── */}
       {showComposer && (
         <form style={s.composer} onSubmit={submitPost}>
-          <div style={s.composerTop}>
+          <div className="ww-community-composer-top" style={s.composerTop}>
             <select
               value={postTopic}
               onChange={(e) => setPostTopic(e.target.value as CommunityTopic)}
@@ -340,9 +340,9 @@ export default function CommunityPage() {
       )}
 
       {/* ── Two-column layout ── */}
-      <div style={s.layout}>
+      <div className="ww-community-layout" style={s.layout}>
         {/* ── Sidebar ── */}
-        <aside style={s.sidebar}>
+        <aside className="ww-community-sidebar" style={s.sidebar}>
           <div style={s.sideSection}>
             <p style={s.sideHeading}>Topics</p>
             {TOPICS.map((t) => {
@@ -463,9 +463,9 @@ export default function CommunityPage() {
                             : {
                                 ...s.postBody,
                                 overflow: 'hidden',
-                                display: '-webkit-box' as any,
+                                display: '-webkit-box',
                                 WebkitLineClamp: 3,
-                                WebkitBoxOrient: 'vertical' as any,
+                                WebkitBoxOrient: 'vertical',
                               }
                         }
                       >

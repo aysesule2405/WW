@@ -10,10 +10,16 @@ export const createSession = async (req: AuthRequest, res: Response) => {
     const gameSlug = String(req.params.gameSlug)
     const { completed, score, gameName, completionTimeSeconds, completionTime,
             shortestTime, levelReached, finalPlayerScore, deliveriesCompleted,
+            mapId,
             guardianId, growthStageReached, waterActions, sunActions,
             talkActions, harmonyBonus,
             totalCardPoints, moonScore, winner, won,
-            saplingsGrown, fruitsCollected, shortestGrowthTimeSeconds } = req.body ?? {}
+            saplingsGrown, fruitsCollected, shortestGrowthTimeSeconds,
+            hastyAttempts, patienceBonus, needMatchCount, synergyBoostCount,
+            eventsSurvived, corruptionScore,
+            realmId, raresCaught, fleetingCaught, cursedCaught,
+            maxComboStreak, timingBonuses,
+            difficulty, aiMode } = req.body ?? {}
 
     if (typeof completed !== 'boolean') {
       return res.status(400).json({ error: '"completed" boolean is required' })
@@ -30,6 +36,7 @@ export const createSession = async (req: AuthRequest, res: Response) => {
       shortestTime:          shortestTime ?? null,
       levelReached:          levelReached ?? null,
       deliveriesCompleted:   deliveriesCompleted ?? null,
+      mapId:                 mapId ?? null,
       guardianId:            guardianId ?? null,
       growthStageReached:    growthStageReached ?? null,
       waterActions:          waterActions ?? null,
@@ -44,6 +51,20 @@ export const createSession = async (req: AuthRequest, res: Response) => {
       saplingsGrown:         saplingsGrown ?? null,
       fruitsCollected:       fruitsCollected ?? null,
       shortestGrowthTimeSeconds: shortestGrowthTimeSeconds ?? null,
+      hastyAttempts:         hastyAttempts ?? null,
+      patienceBonus:         patienceBonus ?? null,
+      needMatchCount:        needMatchCount ?? null,
+      synergyBoostCount:     synergyBoostCount ?? null,
+      eventsSurvived:        eventsSurvived ?? null,
+      corruptionScore:       corruptionScore ?? null,
+      realmId:               realmId ?? null,
+      raresCaught:           raresCaught ?? null,
+      fleetingCaught:        fleetingCaught ?? null,
+      cursedCaught:          cursedCaught ?? null,
+      maxComboStreak:        maxComboStreak ?? null,
+      timingBonuses:         timingBonuses ?? null,
+      difficulty:            difficulty ?? null,
+      aiMode:                aiMode ?? null,
     })
     return res.status(201).json(result)
   } catch (err: any) {

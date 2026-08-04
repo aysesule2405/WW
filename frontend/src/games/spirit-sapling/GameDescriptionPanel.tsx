@@ -7,14 +7,14 @@ type Props = {
 
 const MECHANICS = [
   {
-    icon: '🔮',
-    title: '12 Spirit Orbs / Day',
-    body: 'Each action costs one orb. Kind words can restore one. Orbs refill the next day — spend them wisely.',
+    icon: '🌿',
+    title: 'Notice Before Acting',
+    body: 'Read the sapling’s changing need, then offer the care it is actually asking for.',
   },
   {
-    icon: '🌿',
-    title: 'Daily Need',
-    body: 'The sapling craves water, sunlight, conversation, or spirit energy. Match its need for a harmony boost.',
+    icon: '🔮',
+    title: 'Spirit Orbs',
+    body: 'Care actions use one orb. A quiet visit is always possible, and kind words can restore energy.',
   },
   {
     icon: '⚡',
@@ -23,33 +23,28 @@ const MECHANICS = [
   },
   {
     icon: '✦',
-    title: 'Guardian Synergy',
-    body: 'Each guardian amplifies one type of care. Matching their synergy to the daily need earns bonus growth.',
+    title: 'One Bound Guardian',
+    body: 'Your chosen guardian stays with this sapling for its whole journey and strengthens one kind of care.',
   },
   {
-    icon: '⏳',
-    title: 'Regression',
-    body: 'Neglect causes the sapling to wilt and lose a growth stage. Keep nurturing it — the countdown never stops.',
-  },
-  {
-    icon: '☠',
-    title: 'Corruption',
-    body: 'Harsh words, missed events, and neglect corrupt the grove through five darkening stages. Tend carefully.',
+    icon: '🧺',
+    title: 'Gentle Harvest',
+    body: 'At maturity, watch for ripeness and gather fruit patiently. Hurrying the branch reduces your care bonus.',
   },
 ]
 
 export default function GameDescriptionPanel({ onContinue }: Props) {
   return (
-    <div style={s.wrap}>
-      <div style={s.card}>
+    <div className="ww-sapling-description-wrap" style={s.wrap}>
+      <div className="ww-sapling-description-card" style={s.card}>
         <p style={s.overline}>Welcome to</p>
         <h2 style={s.title}>Spirit Sapling</h2>
         <p style={s.body}>
-          A grove-tending game of care and consequence. Choose a guardian, spend your daily spirit orbs wisely,
-          and grow your sapling to a sacred fruit tree before corruption takes hold.
+          A grove-tending game about attention, patience, and trust. Choose a guardian, learn what your sapling
+          is communicating, and grow together toward a sacred harvest.
         </p>
 
-        <div style={s.mechanicGrid}>
+        <div className="ww-sapling-mechanic-grid" style={s.mechanicGrid}>
           {MECHANICS.map(({ icon, title, body }) => (
             <div key={title} style={s.mechanicCard}>
               <span style={s.mechanicIcon}>{icon}</span>
@@ -69,7 +64,7 @@ export default function GameDescriptionPanel({ onContinue }: Props) {
           </p>
         </div>
 
-        <div style={s.howRow}>
+        <div className="ww-sapling-how-row" style={s.howRow}>
           <div style={s.howItem}>
             <span style={s.howNum}>1</span>
             <span style={s.howText}>Choose your guardian</span>

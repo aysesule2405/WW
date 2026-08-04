@@ -104,13 +104,16 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
         apiRef.current?.destroy()
         apiRef.current = null
         const won = outcome === 'win'
+        const routeDurationSeconds = Math.round(selectedMap.gameDurationMs / 1000)
+        const completionTimeSeconds = won ? routeDurationSeconds - timeRemaining : null
         await submitSession('delivery-on-the-wind', {
           completed: won,
           won,
           deliveriesCompleted: deliveries,
-          completionTimeSeconds: won ? 120 - timeRemaining : null,
-          completionTime: won ? 120 - timeRemaining : null,
-          shortestTime: won ? 120 - timeRemaining : null,
+          mapId: selectedMap.id,
+          completionTimeSeconds,
+          completionTime: completionTimeSeconds,
+          shortestTime: completionTimeSeconds,
         })
         setResult({ outcome, deliveries, timeRemaining })
         setScreen('results')
@@ -125,7 +128,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
       apiRef.current?.destroy()
       apiRef.current = null
     }
-  }, [screen, sessionId, selectedMapId])
+  }, [screen, sessionId, selectedMapId, selectedMap.gameDurationMs, selectedMap.id])
 
   const closeInspect = useCallback(() => {
     setInspecting(null)
@@ -162,14 +165,14 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   if (screen === 'map-select') {
     return (
       <GameShell title="Delivery on the Wind" onExit={onExit} background={SHELL_BG} accentColor="#e9dfc2">
-        <div style={s.scrollArea}>
-          <div style={s.mapSelectCard}>
+        <div className="ww-game-scroll" style={s.scrollArea}>
+          <div className="ww-game-info-card" style={s.mapSelectCard}>
             <div style={s.rulesHeader}>
               <h3 style={s.rulesTitle}>Choose Your Route</h3>
               <p style={s.rulesSub}>Select a delivery map to begin. More routes are on the way.</p>
             </div>
 
-            <div style={s.mapGrid}>
+            <div className="ww-delivery-map-grid" style={s.mapGrid}>
               {MAP_REGISTRY.map(map => {
                 const hovered = hoveredMapId === map.id
                 return (
@@ -219,8 +222,8 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
     const durationMin = Math.floor(selectedMap.gameDurationMs / 60_000)
     return (
       <GameShell title="Delivery on the Wind" onExit={onExit} background={bg} accentColor="#e9dfc2">
-        <div style={s.scrollArea}>
-          <div style={s.rulesCard}>
+        <div className="ww-game-scroll" style={s.scrollArea}>
+          <div className="ww-game-info-card" style={s.rulesCard}>
             <div style={s.rulesHeader}>
               <h3 style={s.rulesTitle}>Help Kiki Deliver!</h3>
               <p style={s.rulesSub}>Match each package to its house using the signs. You have {durationMin} minutes.</p>
@@ -241,7 +244,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
 
             <div style={s.legend}>
               <p style={s.legendTitle}>Package types</p>
-              <div style={s.legendGrid}>
+              <div className="ww-delivery-legend-grid" style={s.legendGrid}>
                 {DELIVERY_TYPES.map(d => (
                   <div key={d.type} style={s.legendItem}>
                     <div style={s.legendImgWrap}>
@@ -273,8 +276,8 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   if (screen === 'intro') {
     return (
       <GameShell title="Delivery on the Wind" onExit={onExit} background={bg} accentColor="#e9dfc2">
-        <div style={s.introArea}>
-          <div style={s.introCard}>
+        <div className="ww-game-scroll" style={s.introArea}>
+          <div className="ww-game-info-card ww-delivery-intro-card" style={s.introCard}>
             <video
               src={INTRO_VIDEO}
               style={s.introVideo}
@@ -306,8 +309,8 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
 
     return (
       <GameShell title="Delivery on the Wind" onExit={onExit} background={bg} accentColor="#e9dfc2">
-        <div style={s.scrollArea}>
-          <div style={{ ...s.resultsCard, borderColor: won ? 'rgba(154,162,83,0.45)' : 'rgba(203,91,64,0.4)' }}>
+        <div className="ww-game-scroll" style={s.scrollArea}>
+          <div className="ww-game-info-card" style={{ ...s.resultsCard, borderColor: won ? 'rgba(154,162,83,0.45)' : 'rgba(203,91,64,0.4)' }}>
             <div style={{ ...s.resultIcon, color: won ? '#c6cf79' : '#cb5b40' }}>
               {won ? '★' : '!'}
             </div>
@@ -377,10 +380,11 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
   // ── Game screen ───────────────────────────────────────────────────────────
   return (
     <GameShell title="Delivery on the Wind" onExit={onExit} background={bg} accentColor="#e9dfc2">
-      <div style={s.gameArea}>
-        <div key={sessionId} ref={containerRef} style={s.gameWrap}>
+      <div className="ww-phaser-game-area" style={s.gameArea}>
+        <p className="ww-game-orientation-hint">Rotate your phone for a larger play area.</p>
+        <div className="ww-phaser-game-wrap ww-delivery-game-wrap" key={sessionId} ref={containerRef} style={s.gameWrap}>
           {hud && (
-            <div style={s.hudOverlay}>
+            <div className="ww-delivery-hud" style={s.hudOverlay}>
               {hud.heldType && hud.heldImageIndex !== null && (
                 <button style={s.inspectBtn} onClick={() => apiRef.current?.inspectHeldPackage()}>
                   <img
@@ -419,7 +423,7 @@ export default function DeliveryOnTheWindGame({ onExit }: Props) {
               )}
             </div>
           )}
-          <div style={s.zoomControls} role="group" aria-label="Map zoom controls">
+          <div className="ww-delivery-zoom" style={s.zoomControls} role="group" aria-label="Map zoom controls">
             <button
               type="button"
               aria-label="Zoom out"
@@ -460,14 +464,14 @@ function InspectModal({ data, onClose }: { data: InspectData; onClose: () => voi
     : `/assets/backgrounds/delivery-on-the-wind/house-${data.imageIndex}.png`
 
   return (
-    <div style={m.backdrop} onClick={onClose}>
-      <div style={m.card} onClick={e => e.stopPropagation()}>
+    <div className="ww-game-modal-backdrop" style={m.backdrop} onClick={onClose}>
+      <div className="ww-game-modal-card" style={m.card} onClick={e => e.stopPropagation()}>
         <div style={m.header}>
           <h3 style={m.title}>{isPackage ? 'Package Inspection' : 'House Inspection'}</h3>
           <button style={m.closeBtn} onClick={onClose}>Close</button>
         </div>
         <div style={m.magnifierWrap}>
-          <div style={{ ...m.magnifierRing, borderColor: data.colorHex }}>
+          <div className="ww-delivery-magnifier" style={{ ...m.magnifierRing, borderColor: data.colorHex }}>
             <img src={imgSrc} alt={data.label} style={m.magnifierImg} />
           </div>
           <div style={{ ...m.handle, background: data.colorHex }} />
@@ -485,8 +489,8 @@ function InspectModal({ data, onClose }: { data: InspectData; onClose: () => voi
 
 function NpcTalkModal({ data, onClose }: { data: NpcTalkData; onClose: () => void }) {
   return (
-    <div style={m.backdrop} onClick={onClose}>
-      <div style={m.card} onClick={e => e.stopPropagation()}>
+    <div className="ww-game-modal-backdrop" style={m.backdrop} onClick={onClose}>
+      <div className="ww-game-modal-card" style={m.card} onClick={e => e.stopPropagation()}>
         <div style={m.header}>
           <h3 style={m.title}>{data.name}</h3>
           <button style={m.closeBtn} onClick={onClose}>Close</button>

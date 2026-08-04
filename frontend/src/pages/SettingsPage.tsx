@@ -34,7 +34,7 @@ function useToast() {
 
 function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
   return (
-    <section style={s.section}>
+    <section className="ww-settings-section" style={s.section}>
       <div style={s.sectionHeader}>
         <h3 style={s.sectionTitle}>{title}</h3>
         {desc && <p style={s.sectionDesc}>{desc}</p>}
@@ -81,12 +81,12 @@ function VolumeRow({
   const iconOn  = pct < 40 ? '🔉' : '🔊'
 
   return (
-    <div style={s.volumeRow}>
+    <div className="ww-settings-volume-row" style={s.volumeRow}>
       <div style={s.toggleInfo}>
         <p style={s.toggleLabel}>{label}</p>
         <p style={s.toggleDesc}>{desc}</p>
       </div>
-      <div style={s.volumeControls}>
+      <div className="ww-settings-volume-controls" style={s.volumeControls}>
         <button
           style={{ ...s.toggleBtn, ...(enabled ? s.toggleOn : s.toggleOff) }}
           onClick={onToggle}
@@ -225,7 +225,7 @@ export default function SettingsPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={s.page}>
+    <div className="ww-responsive-page ww-settings-page" style={s.page}>
       {/* Toast */}
       {toast && (
         <div style={{ ...s.toast, ...(toast.kind === 'error' ? s.toastError : s.toastOk) }}>
@@ -240,7 +240,7 @@ export default function SettingsPage() {
 
       {/* ── Appearance ───────────────────────────────────────────────────────── */}
       <Section title="Appearance" desc="Choose a color theme and light/dark mode for the dashboard and all pages.">
-        <div style={s.themeGrid}>
+        <div className="ww-settings-theme-grid" style={s.themeGrid}>
           {THEME_ORDER.map((t) => {
             const meta = THEME_META[t]
             const active = theme === t
@@ -287,7 +287,7 @@ export default function SettingsPage() {
 
       {/* ── Dashboard Background ─────────────────────────────────────────────── */}
       <Section title="Dashboard Background" desc="Choose the artwork behind the main game selection screen.">
-        <div style={s.bgGrid}>
+        <div className="ww-settings-bg-grid" style={s.bgGrid}>
           {Array.from({ length: BG_COUNT }, (_, i) => i + 1).map((num) => {
             const val = `/assets/backgrounds/dashboard-background/bg_selection_${num}.png`
             const active = dashBg === val
@@ -437,7 +437,7 @@ export default function SettingsPage() {
       {/* ── Data ─────────────────────────────────────────────────────────────── */}
       <Section title="Your Data" desc="Export a copy of your progress or reset all local preferences.">
         <div style={s.dataButtons}>
-          <div style={s.dataRow}>
+          <div className="ww-settings-data-row" style={s.dataRow}>
             <div style={s.toggleInfo}>
               <p style={s.toggleLabel}>Export My Data</p>
               <p style={s.toggleDesc}>
@@ -453,7 +453,7 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          <div style={{ ...s.dataRow, borderBottom: 'none' }}>
+          <div className="ww-settings-data-row" style={{ ...s.dataRow, borderBottom: 'none' }}>
             <div style={s.toggleInfo}>
               <p style={s.toggleLabel}>Reset All Settings</p>
               <p style={s.toggleDesc}>
