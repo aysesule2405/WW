@@ -35,6 +35,29 @@ export function getUsername(): string | null {
   }
 }
 
+export type AvatarConfig = { face: string; color: string; accessory: string }
+
+export type UserProfile = {
+  id: string
+  email: string
+  username: string
+  avatarUrl: string | null
+  status: string
+  favoriteSong: string
+  favoriteSteamGames: string
+  avatarConfig: AvatarConfig | null
+  richAvatarConfig: string | null
+  avatarPreference: 'photo' | 'rich' | null
+}
+
+export type UserProfileResponse =
+  | (UserProfile & { updated?: boolean; error?: never })
+  | { error: string }
+
+export function isProfileError(response: UserProfileResponse): response is { error: string } {
+  return 'error' in response
+}
+
 function authHeaders(): Record<string, string> {
   const token = getToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
@@ -80,9 +103,10 @@ export async function getMyProgress() {
   return res.json()
 }
 
-export async function getProfile() {
+export async function getProfile(): Promise<UserProfileResponse> {
   const res = await fetch(apiUrl('/users/profile'), {
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    cache: 'no-store',
   })
   return res.json()
 }
@@ -94,7 +118,7 @@ export async function updateProfile(profile: {
   favoriteSteamGames?: string
   avatarConfig?: { face: string; color: string; accessory: string }
   richAvatarConfig?: string
-}) {
+}): Promise<UserProfileResponse> {
   const res = await fetch(apiUrl('/users/profile'), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -103,7 +127,7 @@ export async function updateProfile(profile: {
   return res.json()
 }
 
-export async function uploadAvatar(avatarBase64: string) {
+export async function uploadAvatar(avatarBase64: string): Promise<UserProfileResponse> {
   const res = await fetch(apiUrl('/users/profile/avatar'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -227,7 +251,7 @@ export async function getProgressSummary() {
 
 export async function getScoreLeaderboard(gameSlug: string, limit = 25) {
   try {
-    const res = await fetch(apiUrl(`/games/${gameSlug}/leaderboard?limit=${limit}`))
+    const res = await fetch(apiUrl(`/games/${gameSlug}/leaderboard?limit=${limit}`), { cache: 'no-store' })
     if (!res.ok) return { leaderboard: [] }
     return res.json()
   } catch {
@@ -237,7 +261,7 @@ export async function getScoreLeaderboard(gameSlug: string, limit = 25) {
 
 export async function getDeliveryLeaderboard() {
   try {
-    const res = await fetch(apiUrl('/games/delivery-on-the-wind/leaderboard/fastest'))
+    const res = await fetch(apiUrl('/games/delivery-on-the-wind/leaderboard/fastest'), { cache: 'no-store' })
     if (!res.ok) return { leaderboard: [] }
     return res.json()
   } catch {
@@ -291,8 +315,6 @@ export async function getAchievementCatalog() {
 
 export type CommunityTopic = 'general' | 'delivery' | 'sapling' | 'half-moon' | 'spirit-drift'
 
-export type AvatarConfig = { face: string; color: string; accessory: string }
-
 export type CommunityPost = {
   id: string
   topic: CommunityTopic
@@ -314,6 +336,7 @@ export type CommunityPost = {
 export async function getCommunityPosts(topic = 'all') {
   const res = await fetch(apiUrl(`/community/posts?topic=${encodeURIComponent(topic)}`), {
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    cache: 'no-store',
   })
   if (!res.ok) throw new Error((await res.json()).error || 'Could not load community posts')
   return res.json() as Promise<{ posts: CommunityPost[] }>

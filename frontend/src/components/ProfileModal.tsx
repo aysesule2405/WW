@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import api from '../lib/api'
+import api, { isProfileError, type UserProfile } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
+import UserAvatar from './avatar/UserAvatar'
 
 type Props = {
   onClose: () => void
@@ -7,8 +9,9 @@ type Props = {
 }
 
 export default function ProfileModal({ onClose, onSave }: Props) {
+  const { setCurrentProfile } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [profile, setProfile] = useState<{ id?: number; email?: string; username?: string; avatarUrl?: string }>({})
+  const [profile, setProfile] = useState<Partial<UserProfile>>({})
   const [username, setUsername] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -20,9 +23,10 @@ export default function ProfileModal({ onClose, onSave }: Props) {
       try {
         const data = await api.getProfile()
         if (!mounted) return
-        if (data?.error) setMessage(data.error)
+        if (isProfileError(data)) setMessage(data.error)
         else {
           setProfile(data)
+          setCurrentProfile(data)
           setUsername(data.username || '')
         }
       } catch (err: unknown) {
@@ -33,15 +37,17 @@ export default function ProfileModal({ onClose, onSave }: Props) {
     })()
 
     return () => { mounted = false }
-  }, [])
+  }, [setCurrentProfile])
 
   const save = async () => {
     setSaving(true)
     setMessage(null)
     try {
       const data = await api.updateProfile({ username })
-      if (data?.error) setMessage(data.error)
+      if (isProfileError(data)) setMessage(data.error)
       else {
+        setProfile(data)
+        setCurrentProfile(data)
         setMessage('Profile updated')
         if (typeof onSave === 'function') onSave(data.avatarUrl || null)
       }
@@ -59,9 +65,10 @@ export default function ProfileModal({ onClose, onSave }: Props) {
       const result = reader.result as string
       try {
         const data = await api.uploadAvatar(result)
-        if (data?.error) setMessage(data.error)
+        if (isProfileError(data)) setMessage(data.error)
         else {
-          setProfile((p) => ({ ...p, avatarUrl: data.avatarUrl }))
+          setProfile(data)
+          setCurrentProfile(data)
           setMessage('Avatar uploaded')
           if (typeof onSave === 'function') onSave(data.avatarUrl || null)
         }
@@ -78,7 +85,7 @@ export default function ProfileModal({ onClose, onSave }: Props) {
     <div className="ww-game-modal-backdrop" style={overlayStyles.overlay}>
       <div className="ww-game-modal-card" style={overlayStyles.card}>
         <h3>Profile</h3>
-        {profile.avatarUrl ? <img src={api.mediaUrl(profile.avatarUrl)} alt="avatar" style={{ width: 96, height: 96, borderRadius: 12 }} /> : <div style={{ width: 96, height: 96, borderRadius: 12, background: '#ddd' }} />}
+        <UserAvatar identity={{ ...profile, username: profile.username ?? username }} size={96} alt="Profile avatar" />
         <div style={{ marginTop: 8 }}>
           <input type="file" accept="image/*" onChange={(e) => uploadFile(e.target.files ? e.target.files[0] : null)} />
         </div>

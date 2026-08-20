@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { bodyFontFamily, headingFontFamily } from '../theme/typography'
-import { AvatarSvg, DEFAULT_RICH_AVATAR, type RichAvatarConfig } from '../components/AvatarCreator'
+import UserAvatar from '../components/avatar/UserAvatar'
 import {
   createCommunityPost,
   createCommunityReply,
   getCommunityPosts,
   voteOnPost,
-  mediaUrl,
   type CommunityPost,
   type CommunityTopic,
 } from '../lib/api'
@@ -125,19 +124,6 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function initials(name: string) { return name.slice(0, 2).toUpperCase() }
-
-const AVATAR_PALETTE = ['#4a7c59', '#6b5c3e', '#5c6b9e', '#7a3c5c', '#3c6b7a', '#7a6b3c', '#3c5c7a']
-function avatarColor(name: string) { return AVATAR_PALETTE[name.charCodeAt(0) % AVATAR_PALETTE.length] }
-
-function parseRichAvatar(raw: string | null | undefined): RichAvatarConfig | null {
-  if (!raw) return null
-  try {
-    const parsed = { ...DEFAULT_RICH_AVATAR, ...JSON.parse(raw) }
-    return JSON.stringify(parsed) !== JSON.stringify(DEFAULT_RICH_AVATAR) ? parsed : null
-  } catch { return null }
-}
-
 function AvatarCircle({
   username, avatarUrl, avatarConfig, richAvatarConfig, avatarPreference, size = 32,
 }: {
@@ -148,37 +134,7 @@ function AvatarCircle({
   avatarPreference?: 'photo' | 'rich' | null
   size?: number
 }) {
-  const richAvatar = parseRichAvatar(richAvatarConfig)
-  const showRich = avatarPreference === 'rich' ? !!richAvatar : richAvatar && !avatarUrl
-
-  if (showRich && richAvatar) {
-    return (
-      <div style={{ width: size, height: size, minWidth: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, lineHeight: 0 }}>
-        <AvatarSvg config={richAvatar} size={size} />
-      </div>
-    )
-  }
-  if (avatarUrl) {
-    return (
-      <img
-        src={mediaUrl(avatarUrl)}
-        alt=""
-        style={{ width: size, height: size, minWidth: size, borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(0,0,0,0.08)' }}
-      />
-    )
-  }
-  if (avatarConfig) {
-    return (
-      <div style={{ width: size, height: size, minWidth: size, borderRadius: '50%', background: `radial-gradient(circle at 35% 25%, #fff5, transparent 34%), ${avatarConfig.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.44, flexShrink: 0, border: '1px solid rgba(0,0,0,0.08)' }}>
-        {avatarConfig.face}
-      </div>
-    )
-  }
-  return (
-    <div style={{ width: size, height: size, minWidth: size, borderRadius: '50%', background: avatarColor(username), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.375, fontWeight: 800, color: '#fff', flexShrink: 0, letterSpacing: '0.03em' }}>
-      {initials(username)}
-    </div>
-  )
+  return <UserAvatar identity={{ username, avatarUrl, avatarConfig, richAvatarConfig, avatarPreference }} size={size} />
 }
 
 function topicMeta(topic: CommunityTopic) {

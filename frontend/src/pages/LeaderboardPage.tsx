@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { bodyFontFamily, headingFontFamily, numberFontFamily } from '../theme/typography'
-import { getScoreLeaderboard, getDeliveryLeaderboard, mediaUrl, type AvatarConfig } from '../lib/api'
+import { getScoreLeaderboard, getDeliveryLeaderboard, type AvatarConfig } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
-import { AvatarSvg, DEFAULT_RICH_AVATAR, type RichAvatarConfig } from '../components/AvatarCreator'
+import UserAvatar from '../components/avatar/UserAvatar'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,6 +18,25 @@ type Row = {
   achievedAt: string
 }
 
+type LeaderboardApiRow = Omit<Row, 'value'> & {
+  score?: number
+  bestTimeSeconds?: number
+}
+
+function toLeaderboardRow(row: LeaderboardApiRow, value: number): Row {
+  return {
+    rank: row.rank,
+    userId: row.userId,
+    username: row.username,
+    avatarUrl: row.avatarUrl,
+    avatarConfig: row.avatarConfig,
+    richAvatarConfig: row.richAvatarConfig,
+    avatarPreference: row.avatarPreference,
+    value,
+    achievedAt: row.achievedAt,
+  }
+}
+
 type Board = {
   slug: string
   title: string
@@ -30,12 +49,6 @@ type Board = {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const MEDAL = ['🥇', '🥈', '🥉']
-const AVATAR_PALETTE = ['#4a7c59', '#6b5c3e', '#5c6b9e', '#7a3c5c', '#3c6b7a', '#7a6b3c', '#3c5c7a']
-
-function rowAvatarColor(name: string) {
-  return AVATAR_PALETTE[name.charCodeAt(0) % AVATAR_PALETTE.length]
-}
-
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
   const s = seconds % 60
@@ -48,14 +61,6 @@ function formatDate(iso: string): string {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-
-function parseRichAvatar(raw: string | null | undefined): RichAvatarConfig | null {
-  if (!raw) return null
-  try {
-    const parsed = { ...DEFAULT_RICH_AVATAR, ...JSON.parse(raw) }
-    return JSON.stringify(parsed) !== JSON.stringify(DEFAULT_RICH_AVATAR) ? parsed : null
-  } catch { return null }
-}
 
 function PlayerAvatar({
   username,
@@ -74,48 +79,12 @@ function PlayerAvatar({
   size?: number
   ringColor?: string
 }) {
-  const ring: React.CSSProperties = ringColor
-    ? { border: `2px solid ${ringColor}` }
-    : { border: '1px solid var(--border)' }
-
-  const richAvatar = parseRichAvatar(richAvatarConfig)
-  const showRich = avatarPreference === 'rich' ? !!richAvatar : richAvatar && !avatarUrl
-
-  if (showRich && richAvatar) {
-    return (
-      <div style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, lineHeight: 0, ...ring }}>
-        <AvatarSvg config={richAvatar} size={size} />
-      </div>
-    )
-  }
-  if (avatarUrl) {
-    return (
-      <img
-        src={mediaUrl(avatarUrl)}
-        alt=""
-        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, ...ring }}
-      />
-    )
-  }
-  if (richAvatar) {
-    return (
-      <div style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, lineHeight: 0, ...ring }}>
-        <AvatarSvg config={richAvatar} size={size} />
-      </div>
-    )
-  }
-  if (avatarConfig) {
-    const cfg = avatarConfig
-    return (
-      <div style={{ width: size, height: size, borderRadius: '50%', background: `radial-gradient(circle at 35% 25%, #fff5, transparent 34%), ${cfg.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.5), flexShrink: 0, ...ring }}>
-        {cfg.face}
-      </div>
-    )
-  }
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: rowAvatarColor(username), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.36), fontWeight: 800, color: '#fff', flexShrink: 0, letterSpacing: '0.03em', ...ring }}>
-      {username.slice(0, 2).toUpperCase()}
-    </div>
+    <UserAvatar
+      identity={{ username, avatarUrl, avatarConfig, richAvatarConfig, avatarPreference }}
+      size={size}
+      border={ringColor ? `2px solid ${ringColor}` : '1px solid var(--border)'}
+    />
   )
 }
 
@@ -258,20 +227,20 @@ export default function LeaderboardPage() {
       setBoards((prev) => prev.map((b) => b.slug === slug ? { ...b, rows, loading: false } : b))
 
     getScoreLeaderboard('spirit-drift', 50).then((res) => {
-      const raw = (res.leaderboard ?? []) as Array<{ rank: number; userId: string; username: string; avatarUrl?: string | null; avatarConfig?: AvatarConfig | null; score: number; achievedAt: string }>
-      update('spirit-drift', raw.map((r) => ({ rank: r.rank, userId: r.userId, username: r.username, avatarUrl: r.avatarUrl, avatarConfig: r.avatarConfig, value: r.score, achievedAt: r.achievedAt })))
+      const raw = (res.leaderboard ?? []) as LeaderboardApiRow[]
+      update('spirit-drift', raw.map((r) => toLeaderboardRow(r, r.score ?? 0)))
     })
     getDeliveryLeaderboard().then((res) => {
-      const raw = (res.leaderboard ?? []) as Array<{ rank: number; userId: string; username: string; avatarUrl?: string | null; avatarConfig?: AvatarConfig | null; bestTimeSeconds: number; achievedAt: string }>
-      update('delivery-on-the-wind', raw.map((r) => ({ rank: r.rank, userId: r.userId, username: r.username, avatarUrl: r.avatarUrl, avatarConfig: r.avatarConfig, value: r.bestTimeSeconds, achievedAt: r.achievedAt })))
+      const raw = (res.leaderboard ?? []) as LeaderboardApiRow[]
+      update('delivery-on-the-wind', raw.map((r) => toLeaderboardRow(r, r.bestTimeSeconds ?? 0)))
     })
     getScoreLeaderboard('spirit-sapling', 50).then((res) => {
-      const raw = (res.leaderboard ?? []) as Array<{ rank: number; userId: string; username: string; avatarUrl?: string | null; avatarConfig?: AvatarConfig | null; score: number; achievedAt: string }>
-      update('spirit-sapling', raw.map((r) => ({ rank: r.rank, userId: r.userId, username: r.username, avatarUrl: r.avatarUrl, avatarConfig: r.avatarConfig, value: r.score, achievedAt: r.achievedAt })))
+      const raw = (res.leaderboard ?? []) as LeaderboardApiRow[]
+      update('spirit-sapling', raw.map((r) => toLeaderboardRow(r, r.score ?? 0)))
     })
     getScoreLeaderboard('half-moon', 50).then((res) => {
-      const raw = (res.leaderboard ?? []) as Array<{ rank: number; userId: string; username: string; avatarUrl?: string | null; avatarConfig?: AvatarConfig | null; score: number; achievedAt: string }>
-      update('half-moon', raw.map((r) => ({ rank: r.rank, userId: r.userId, username: r.username, avatarUrl: r.avatarUrl, avatarConfig: r.avatarConfig, value: r.score, achievedAt: r.achievedAt })))
+      const raw = (res.leaderboard ?? []) as LeaderboardApiRow[]
+      update('half-moon', raw.map((r) => toLeaderboardRow(r, r.score ?? 0)))
     })
   }, [])
 

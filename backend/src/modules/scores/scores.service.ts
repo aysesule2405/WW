@@ -4,6 +4,7 @@ import { UserHighScore } from '../../models/UserHighScore'
 import { User } from '../../models/User'
 import { Game } from '../../models/Game'
 import achievementsService from '../achievements/achievements.service'
+import { serializeUserAvatar, USER_AVATAR_SELECT } from '../users/userProfile'
 
 export default {
   submitScore: async ({ userId, gameId, score, durationMs, metadata }: {
@@ -54,7 +55,7 @@ export default {
       .lean()
 
     const userIds = rows.map((r) => r.userId)
-    const users   = await User.find({ _id: { $in: userIds } }).select('_id username avatarUrl avatarConfig richAvatarConfig avatarPreference').lean()
+    const users   = await User.find({ _id: { $in: userIds } }).select(USER_AVATAR_SELECT).lean()
     const userMap = new Map(users.map((u) => [u._id.toString(), u]))
 
     return rows.map((r, i) => {
@@ -62,11 +63,7 @@ export default {
       return {
         rank:             i + 1,
         userId:           r.userId.toString(),
-        username:         u?.username ?? 'Unknown',
-        avatarUrl:        (u as any)?.avatarUrl ?? null,
-        avatarConfig:     (u as any)?.avatarConfig ?? null,
-        richAvatarConfig:  (u as any)?.richAvatarConfig ?? null,
-        avatarPreference:  (u as any)?.avatarPreference ?? null,
+        ...serializeUserAvatar(u),
         score:        r.score,
         achievedAt:   r.achievedAt,
       }

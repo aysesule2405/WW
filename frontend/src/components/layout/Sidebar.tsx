@@ -1,10 +1,9 @@
 import type { CSSProperties } from 'react'
-import { useState, useEffect } from 'react'
 import { headingFontFamily, bodyFontFamily } from '../../theme/typography'
 import { useTheme } from '../../context/ThemeContext'
+import { useAuth } from '../../context/AuthContext'
 import { GAME_THEMES } from '../../context/themeTypes'
-import { getProfile, mediaUrl, type AvatarConfig } from '../../lib/api'
-import { AvatarSvg, DEFAULT_RICH_AVATAR, type RichAvatarConfig } from '../AvatarCreator'
+import UserAvatar from '../avatar/UserAvatar'
 
 export type SidebarSection = 'games' | 'community' | 'progress' | 'achievements' | 'leaderboard' | 'profile' | 'settings'
 
@@ -29,34 +28,9 @@ type Props = {
 
 export default function Sidebar({ active, onChange, username, onLogout }: Props) {
   const { isDark, theme, mode, toggleTheme } = useTheme()
+  const { profile } = useAuth()
   const isGameTheme  = GAME_THEMES.includes(theme)
   const toggleIsDark = isGameTheme ? mode === 'dark' : isDark
-  const avatarLetter = username?.[0]?.toUpperCase() ?? '?'
-
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | null>(null)
-  const [richAvatar, setRichAvatar] = useState<RichAvatarConfig | null>(null)
-  const [avatarPref, setAvatarPref] = useState<'photo' | 'rich' | null>(null)
-  const [userStatus, setUserStatus] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!username) return
-    getProfile()
-      .then((data) => {
-        if (data?.error) return
-        setAvatarUrl(data.avatarUrl ?? null)
-        setAvatarConfig(data.avatarConfig ?? null)
-        setAvatarPref(data.avatarPreference ?? null)
-        setUserStatus(data.status ?? null)
-        if (data.richAvatarConfig) {
-          try {
-            const parsed = { ...DEFAULT_RICH_AVATAR, ...JSON.parse(data.richAvatarConfig) }
-            if (JSON.stringify(parsed) !== JSON.stringify(DEFAULT_RICH_AVATAR)) setRichAvatar(parsed)
-          } catch { /* ignore */ }
-        }
-      })
-      .catch(() => {})
-  }, [username])
 
   return (
     <aside className="ww-sidebar" style={s.sidebar}>
@@ -129,41 +103,15 @@ export default function Sidebar({ active, onChange, username, onLogout }: Props)
       {/* User footer */}
       <div className="ww-sidebar-footer" style={s.footer}>
         <button style={s.userRow} onClick={() => onChange('profile')} title="Edit profile">
-          {avatarPref === 'rich' && richAvatar ? (
-            <div style={{ ...s.avatar, overflow: 'hidden', padding: 0, lineHeight: 0 } as CSSProperties}>
-              <AvatarSvg config={richAvatar} size={32} />
-            </div>
-          ) : avatarPref === 'photo' && avatarUrl ? (
-            <img
-              src={mediaUrl(avatarUrl)}
-              alt=""
-              style={{ ...s.avatar, objectFit: 'cover', padding: 0 } as CSSProperties}
-            />
-          ) : richAvatar ? (
-            <div style={{ ...s.avatar, overflow: 'hidden', padding: 0, lineHeight: 0 } as CSSProperties}>
-              <AvatarSvg config={richAvatar} size={32} />
-            </div>
-          ) : avatarUrl ? (
-            <img
-              src={mediaUrl(avatarUrl)}
-              alt=""
-              style={{ ...s.avatar, objectFit: 'cover', padding: 0 } as CSSProperties}
-            />
-          ) : avatarConfig ? (
-            <div style={{
-              ...s.avatar,
-              background: `radial-gradient(circle at 35% 25%, #fff5, transparent 34%), ${avatarConfig.color}`,
-              fontSize: 15,
-            }}>
-              {avatarConfig.face}
-            </div>
-          ) : (
-            <div style={s.avatar}>{avatarLetter}</div>
-          )}
+          <UserAvatar
+            identity={profile ?? { username }}
+            size={32}
+            border="1px solid rgba(255,255,255,0.18)"
+          />
           <div style={{ minWidth: 0, flex: 1 }}>
             <span style={s.userName}>{username}</span>
-            {userStatus && (
-              <p style={s.userStatus}>{userStatus}</p>
+            {profile?.status && (
+              <p style={s.userStatus}>{profile.status}</p>
             )}
           </div>
         </button>

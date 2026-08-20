@@ -2,6 +2,7 @@ import { Response } from 'express'
 import { Types } from 'mongoose'
 import { AuthRequest } from '../../core/middleware/auth.middleware'
 import { CommunityPost, CommunityTopic } from '../../models/CommunityPost'
+import { serializeUserAvatar, USER_AVATAR_SELECT, USER_COMMUNITY_PROFILE_SELECT } from '../users/userProfile'
 
 const TOPICS = new Set<CommunityTopic>(['general', 'delivery', 'sapling', 'half-moon', 'spirit-drift'])
 
@@ -22,11 +23,7 @@ function normalizePost(post: any, currentUserId?: string) {
       : false,
     author: {
       id:               author._id?.toString?.() ?? String(post.author),
-      username:         author.username ?? 'Unknown player',
-      avatarUrl:        author.avatarUrl ?? null,
-      avatarConfig:     author.avatarConfig ?? null,
-      richAvatarConfig: author.richAvatarConfig ?? null,
-      avatarPreference: author.avatarPreference ?? null,
+      ...serializeUserAvatar(author),
       status:           author.status ?? null,
     },
     replies: (post.replies ?? []).map((reply: any) => {
@@ -37,11 +34,7 @@ function normalizePost(post: any, currentUserId?: string) {
         createdAt: reply.createdAt,
         author: {
           id:               replyAuthor._id?.toString?.() ?? String(reply.author),
-          username:         replyAuthor.username ?? 'Unknown player',
-          avatarUrl:        replyAuthor.avatarUrl ?? null,
-          avatarConfig:     replyAuthor.avatarConfig ?? null,
-          richAvatarConfig: replyAuthor.richAvatarConfig ?? null,
-          avatarPreference: replyAuthor.avatarPreference ?? null,
+          ...serializeUserAvatar(replyAuthor),
         },
       }
     }),
@@ -57,8 +50,8 @@ export const listPosts = async (req: AuthRequest, res: Response) => {
     const posts = await CommunityPost.find(filter)
       .sort({ createdAt: -1 })
       .limit(50)
-      .populate('author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference status')
-      .populate('replies.author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference')
+      .populate('author', USER_COMMUNITY_PROFILE_SELECT)
+      .populate('replies.author', USER_AVATAR_SELECT)
       .lean()
 
     return res.status(200).json({ posts: posts.map((p) => normalizePost(p, req.userId)) })
@@ -84,8 +77,8 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       body: String(body).trim(),
     })
     const populated = await CommunityPost.findById(post._id)
-      .populate('author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference status')
-      .populate('replies.author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference')
+      .populate('author', USER_COMMUNITY_PROFILE_SELECT)
+      .populate('replies.author', USER_AVATAR_SELECT)
       .lean()
     return res.status(201).json({ post: normalizePost(populated, req.userId) })
   } catch (err: any) {
@@ -113,8 +106,8 @@ export const createReply = async (req: AuthRequest, res: Response) => {
     await post.save()
 
     const populated = await CommunityPost.findById(post._id)
-      .populate('author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference status')
-      .populate('replies.author', 'username avatarUrl avatarConfig richAvatarConfig avatarPreference')
+      .populate('author', USER_COMMUNITY_PROFILE_SELECT)
+      .populate('replies.author', USER_AVATAR_SELECT)
       .lean()
     return res.status(201).json({ post: normalizePost(populated) })
   } catch (err: any) {

@@ -34,16 +34,15 @@ export class UserRepository {
   }) {
     const update: Record<string, unknown> = {}
     if (data.username) update.username = data.username
-    if (data.avatarUrl) update.avatarUrl = data.avatarUrl
+    if (data.avatarUrl !== undefined) update.avatarUrl = data.avatarUrl
     if (data.status !== undefined) update.status = data.status
     if (data.favoriteSong !== undefined) update.favoriteSong = data.favoriteSong
     if (data.favoriteSteamGames !== undefined) update.favoriteSteamGames = data.favoriteSteamGames
     if (data.avatarConfig !== undefined) update.avatarConfig = data.avatarConfig
     if (data.richAvatarConfig !== undefined) update.richAvatarConfig = data.richAvatarConfig
     if (data.avatarPreference !== undefined) update.avatarPreference = data.avatarPreference
-    if (Object.keys(update).length === 0) return { updated: false }
-    await User.findByIdAndUpdate(id, { $set: update })
-    return { updated: true }
+    if (Object.keys(update).length === 0) return this.findById(id)
+    return User.findByIdAndUpdate(id, { $set: update }, { new: true }).lean()
   }
 
   async updatePassword(id: string, passwordHash: string) {

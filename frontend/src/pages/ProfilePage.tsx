@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import api from '../lib/api'
+import api, { isProfileError } from '../lib/api'
 import { bodyFontFamily, headingFontFamily, numberFontFamily, readableFontFamily } from '../theme/typography'
 import { inputSurface, pageShell, primaryButton, surfaceCard, uiRadius, uiSpace, uiType } from '../theme/uiTokens'
 import { AvatarCreator, AvatarSvg, DEFAULT_RICH_AVATAR, type RichAvatarConfig } from '../components/AvatarCreator'
@@ -30,7 +30,7 @@ function isCustomized(cfg: RichAvatarConfig): boolean {
 }
 
 export default function ProfilePage() {
-  const { updateUser } = useAuth()
+  const { setCurrentProfile } = useAuth()
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile>({})
   const [username, setUsername] = useState('')
@@ -48,8 +48,9 @@ export default function ProfilePage() {
       try {
         const data = await api.getProfile()
         if (!mounted) return
-        if (data?.error) setMessage({ text: data.error, ok: false })
+        if (isProfileError(data)) setMessage({ text: data.error, ok: false })
         else {
+          setCurrentProfile(data)
           setProfile(data)
           setUsername(data.username || '')
           setStatus(data.status || '')
@@ -65,7 +66,7 @@ export default function ProfilePage() {
       }
     })()
     return () => { mounted = false }
-  }, [])
+  }, [setCurrentProfile])
 
   const save = async () => {
     setSaving(true)
@@ -79,19 +80,10 @@ export default function ProfilePage() {
         avatarConfig,
         richAvatarConfig: JSON.stringify(richAvatar),
       })
-      if (data?.error) setMessage({ text: data.error, ok: false })
+      if (isProfileError(data)) setMessage({ text: data.error, ok: false })
       else {
-        setProfile((current) => ({
-          ...current,
-          username,
-          status,
-          favoriteSong,
-          favoriteSteamGames,
-          avatarConfig,
-          richAvatarConfig: JSON.stringify(richAvatar),
-          avatarPreference: 'rich',
-        }))
-        updateUser({ username })
+        setProfile(data)
+        setCurrentProfile(data)
         setMessage({ text: 'Profile updated!', ok: true })
       }
     } catch (err: unknown) {
@@ -107,9 +99,10 @@ export default function ProfilePage() {
     reader.onload = async () => {
       try {
         const data = await api.uploadAvatar(reader.result as string)
-        if (data?.error) setMessage({ text: data.error, ok: false })
+        if (isProfileError(data)) setMessage({ text: data.error, ok: false })
         else {
-          setProfile((p) => ({ ...p, avatarUrl: data.avatarUrl, avatarPreference: 'photo' }))
+          setProfile(data)
+          setCurrentProfile(data)
           setMessage({ text: 'Avatar updated!', ok: true })
         }
       } catch (err: unknown) {

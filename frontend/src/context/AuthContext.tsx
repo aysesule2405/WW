@@ -1,5 +1,5 @@
-import { createContext, useContext, useState } from 'react';
-import { apiUrl } from '../lib/api';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { apiUrl, getProfile, isProfileError, type UserProfile } from '../lib/api';
 
 export type AuthUser = {
   token: string;
@@ -11,7 +11,10 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
-  updateUser: (patch: Partial<AuthUser>) => void;
+  profile: UserProfile | null;
+  profileLoading: boolean;
+  refreshProfile: () => Promise<UserProfile | null>;
+  setCurrentProfile: (profile: UserProfile) => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -27,6 +30,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
   });
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  const setCurrentProfile = useCallback((nextProfile: UserProfile) => {
+    setProfile(nextProfile);
+    setUser((prev) => {
+      if (!prev || prev.username === nextProfile.username) return prev;
+      const next = { ...prev, username: nextProfile.username };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    if (!localStorage.getItem(STORAGE_KEY)) return null;
+    setProfileLoading(true);
+    try {
+      const nextProfile = await getProfile();
+      if (isProfileError(nextProfile)) return null;
+      setCurrentProfile(nextProfile);
+      return nextProfile;
+    } catch {
+      return null;
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [setCurrentProfile]);
+
+  useEffect(() => {
+    if (!user?.token) {
+      setProfile(null);
+      return;
+    }
+    void refreshProfile();
+  }, [user?.token, refreshProfile]);
 
   const login = async (email: string, password: string) => {
     const res = await fetch(apiUrl('/auth/login'), {
@@ -55,20 +93,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem(STORAGE_KEY);
+    setProfile(null);
     setUser(null);
   };
 
-  const updateUser = (patch: Partial<AuthUser>) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, ...patch };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  };
-
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, login, register, logout, profile, profileLoading, refreshProfile, setCurrentProfile }}>
       {children}
     </AuthContext.Provider>
   );

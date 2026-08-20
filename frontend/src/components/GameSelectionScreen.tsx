@@ -8,11 +8,9 @@ import {
   getScoreLeaderboard,
   getDeliveryLeaderboard,
   getProgressSummary,
-  getProfile,
-  mediaUrl,
   type AvatarConfig,
 } from '../lib/api'
-import { AvatarSvg, DEFAULT_RICH_AVATAR, type RichAvatarConfig } from './AvatarCreator'
+import UserAvatar from './avatar/UserAvatar'
 
 type Props = {
   onSelect?: (id: string) => void
@@ -96,14 +94,6 @@ function fmtTime(sec: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function parseRichAvatar(raw: string | null | undefined): RichAvatarConfig | null {
-  if (!raw) return null
-  try {
-    const parsed = { ...DEFAULT_RICH_AVATAR, ...JSON.parse(raw) }
-    return JSON.stringify(parsed) !== JSON.stringify(DEFAULT_RICH_AVATAR) ? parsed : null
-  } catch { return null }
-}
-
 function MiniAvatar({ username, avatarUrl, avatarConfig, richAvatarConfig, avatarPreference, size = 28 }: {
   username: string
   avatarUrl?: string | null
@@ -112,39 +102,7 @@ function MiniAvatar({ username, avatarUrl, avatarConfig, richAvatarConfig, avata
   avatarPreference?: 'photo' | 'rich' | null
   size?: number
 }) {
-  const PALETTE = ['#4a7c59', '#6b5c3e', '#5c6b9e', '#7a3c5c', '#3c6b7a', '#7a6b3c', '#3c5c7a']
-  const fallbackColor = PALETTE[username.charCodeAt(0) % PALETTE.length]
-  const richAvatar = parseRichAvatar(richAvatarConfig)
-  const showRich = avatarPreference === 'rich' ? !!richAvatar : richAvatar && !avatarUrl
-
-  if (showRich && richAvatar) {
-    return (
-      <div style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, lineHeight: 0, border: '1px solid rgba(0,0,0,0.1)' }}>
-        <AvatarSvg config={richAvatar} size={size} />
-      </div>
-    )
-  }
-  if (avatarUrl) {
-    return (
-      <img
-        src={mediaUrl(avatarUrl)}
-        alt=""
-        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,0,0,0.1)' }}
-      />
-    )
-  }
-  if (avatarConfig) {
-    return (
-      <div style={{ width: size, height: size, borderRadius: '50%', background: `radial-gradient(circle at 35% 25%, #fff5, transparent 34%), ${avatarConfig.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.46), flexShrink: 0, border: '1px solid rgba(0,0,0,0.08)' }}>
-        {avatarConfig.face}
-      </div>
-    )
-  }
-  return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: fallbackColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.38), fontWeight: 800, color: '#fff', flexShrink: 0, letterSpacing: '0.03em' }}>
-      {username.slice(0, 2).toUpperCase()}
-    </div>
-  )
+  return <UserAvatar identity={{ username, avatarUrl, avatarConfig, richAvatarConfig, avatarPreference }} size={size} />
 }
 
 const DASH_DARK_OVERLAYS: Record<string, string> = {
@@ -159,7 +117,7 @@ const DASH_DARK_OVERLAYS: Record<string, string> = {
 }
 
 export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { theme, mode } = useTheme()
   const isDark = mode === 'dark'
   const dashOverlay = isDark
@@ -176,13 +134,6 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
   const [selectedLeader, setSelectedLeader] = useState('spirit-drift')
 
   const [progressSummary, setProgressSummary] = useState<ProgressGame[]>([])
-
-  const [welcomeAvatar, setWelcomeAvatar] = useState<{
-    avatarUrl?: string | null
-    avatarConfig?: AvatarConfig | null
-    richAvatarConfig?: string | null
-    avatarPreference?: 'photo' | 'rich' | null
-  }>({})
 
   const playableCount   = useMemo(() => games.filter((g) => g.available).length, [])
   const comingSoonCount = games.length - playableCount
@@ -227,18 +178,6 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
     if (!user) return
     getProgressSummary()
       .then((res) => setProgressSummary((res as { games?: ProgressGame[] }).games ?? []))
-      .catch(() => {})
-  }, [user])
-
-  // Fetch profile for welcome bar avatar
-  useEffect(() => {
-    if (!user) return
-    getProfile()
-      .then((data) => {
-        if (!data?.error) {
-          setWelcomeAvatar({ avatarUrl: data.avatarUrl, avatarConfig: data.avatarConfig, richAvatarConfig: data.richAvatarConfig ?? null, avatarPreference: data.avatarPreference ?? null })
-        }
-      })
       .catch(() => {})
   }, [user])
 
@@ -324,10 +263,10 @@ export const GameSelectionScreen: React.FC<Props> = ({ onSelect }) => {
             <div className="ww-avatar-ring">
               <MiniAvatar
                 username={user?.username ?? '?'}
-                avatarUrl={welcomeAvatar.avatarUrl}
-                avatarConfig={welcomeAvatar.avatarConfig}
-                richAvatarConfig={welcomeAvatar.richAvatarConfig}
-                avatarPreference={welcomeAvatar.avatarPreference}
+                avatarUrl={profile?.avatarUrl}
+                avatarConfig={profile?.avatarConfig}
+                richAvatarConfig={profile?.richAvatarConfig}
+                avatarPreference={profile?.avatarPreference}
                 size={44}
               />
             </div>

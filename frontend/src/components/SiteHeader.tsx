@@ -1,4 +1,5 @@
 import React from 'react'
+import UserAvatar, { type AvatarIdentity } from './avatar/UserAvatar'
 // no direct API usage here; parent controls actions
 
 type Props = {
@@ -9,12 +10,11 @@ type Props = {
   onOpenProfile?: () => void
   onOpenSettings?: () => void
   avatarUrl?: string | null
+  avatar?: AvatarIdentity
 }
 
-export default function SiteHeader({ username, onLogin, onLogout, onOpenProgress, onOpenProfile, onOpenSettings, avatarUrl }: Props) {
+export default function SiteHeader({ username, onLogin, onLogout, onOpenProgress, onOpenProfile, onOpenSettings, avatarUrl, avatar }: Props) {
   const [open, setOpen] = React.useState(false)
-
-  const initials = username ? username.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase() : ''
 
   return (
     <header style={styles.header}>
@@ -24,7 +24,7 @@ export default function SiteHeader({ username, onLogin, onLogout, onOpenProgress
         {username ? (
           <div style={{ position: 'relative' }}>
             <button style={styles.avatar} onClick={() => setOpen(v => !v)}>
-              {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width: 36, height: 36, borderRadius: 999 }} /> : initials}
+              <UserAvatar identity={avatar ?? { username, avatarUrl }} size={36} border="none" />
             </button>
             {open ? (
               <div style={styles.dropdown} onMouseLeave={() => setOpen(false)}>
