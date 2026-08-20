@@ -183,14 +183,23 @@ export class HalfMoonScene extends Phaser.Scene {
   }
 
   private drawStarfield() {
+    const theme = this.layout?.theme
+
     // Use the real background image when loaded; fall back to procedural starfield.
     if (this.textures.exists(GAME_BG_KEY)) {
       this.add.image(VP_W / 2, VP_H / 2, GAME_BG_KEY)
         .setDisplaySize(VP_W, VP_H)
         .setDepth(-1)
+      // The shared background art is the same PNG for every level — lay a
+      // faint per-level color wash over it so each board still reads as a
+      // distinct place without fighting the artwork underneath.
+      if (theme) {
+        this.add.graphics().setDepth(-1)
+          .fillStyle(theme.bgTint, 0.16)
+          .fillRect(0, 0, VP_W, VP_H)
+      }
       return
     }
-    const theme    = this.layout?.theme
     const bgTint   = theme?.bgTint ?? 0x060C1A
     const density  = theme?.starDensity ?? 200
     const g = this.add.graphics()
@@ -226,7 +235,7 @@ export class HalfMoonScene extends Phaser.Scene {
     const maxX   = Math.max(...spaces.map(s => s.x)) + CELL
     const maxY   = Math.max(...spaces.map(s => s.y)) + CELL
 
-    const TOP_MARGIN    = 138
+    const TOP_MARGIN    = 168
     const BOTTOM_MARGIN = 112
     const SIDE_MARGIN   = 36
     const availW = VP_W - SIDE_MARGIN * 2
