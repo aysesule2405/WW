@@ -8,15 +8,24 @@ export type WildCardType = 'eclipse-shield' | 'moonrise' | 'star-burst' | 'cresc
 
 export interface SpaceDef {
   id: number
-  x: number       // pixel x in scene (column * CELL_SIZE)
-  y: number       // pixel y in scene (row * CELL_SIZE)
+  x: number       // pixel x in scene (column * CELL_SIZE, or radial position for ring layouts)
+  y: number       // pixel y in scene (row * CELL_SIZE, or radial position for ring layouts)
   adjacentIds: number[]
+  ring?: number   // for ring-topology boards: 0 = innermost hub, increasing outward
+}
+
+export interface BoardTheme {
+  bgTint: number
+  starDensity: number
+  accentColor: number
 }
 
 export interface BoardLayout {
   level: number
   label: string
   spaces: SpaceDef[]
+  theme?: BoardTheme
+  longLinks?: [number, number][]   // edges rendered as visually distinct "bridge" connections
 }
 
 export interface PlacedCard {
@@ -67,6 +76,12 @@ export function isConsecutive(a: Phase, b: Phase): boolean {
   return Math.min(diff, 8 - diff) === 1
 }
 
+// The next/previous phase in the fixed lunar direction (wraps 8→1 and 1→8).
+// Used to enforce that a "moon cycle" chain reads monotonically in one
+// direction end-to-end, rather than just being pairwise-adjacent values.
+export function nextPhase(p: Phase): Phase { return (p === 8 ? 1 : p + 1) as Phase }
+export function prevPhase(p: Phase): Phase { return (p === 1 ? 8 : p - 1) as Phase }
+
 // Complementary pairs (differ by exactly 4 in the 8-phase cycle):
 //   1 + 5,  2 + 6,  3 + 7,  4 + 8
 export function isComplementary(a: Phase, b: Phase): boolean {
@@ -81,10 +96,50 @@ export function complementaryPhase(p: Phase): Phase {
   return ((((p - 1) + 4) % 8) + 1) as Phase
 }
 
+// ── Seeded RNG ─────────────────────────────────────────────────────────────────
+// Board layouts are generated once at module load using a fixed seed per level,
+// so the same level always produces the same board on every page load (a
+// stakeholder retesting level 5 should see "Crescent Cove" every time, not a
+// reshuffled board) while still giving each level an organic, non-grid shape.
+
+function mulberry32(seed: number): () => number {
+  let s = seed
+  return function () {
+    s |= 0
+    s = (s + 0x6D2B79F5) | 0
+    let t = Math.imul(s ^ (s >>> 15), 1 | s)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
 // ── Board layouts ─────────────────────────────────────────────────────────────
 
 export const CELL = 110
 
+function isConnectedCellSet(cells: Set<string>, start: string, dirs: [number, number][]): boolean {
+  if (cells.size === 0) return true
+  const visited = new Set([start])
+  const stack = [start]
+  while (stack.length) {
+    const key = stack.pop()!
+    const [r, c] = key.split(',').map(Number)
+    for (const [dr, dc] of dirs) {
+      const nk = `${r + dr},${c + dc}`
+      if (cells.has(nk) && !visited.has(nk)) { visited.add(nk); stack.push(nk) }
+    }
+  }
+  return visited.size === cells.size
+}
+
+function link(spaces: SpaceDef[], a: number, b: number) {
+  const sa = spaces.find(s => s.id === a)!
+  const sb = spaces.find(s => s.id === b)!
+  if (!sa.adjacentIds.includes(b)) sa.adjacentIds.push(b)
+  if (!sb.adjacentIds.includes(a)) sb.adjacentIds.push(a)
+}
+
+// Rectangular grid, 4-directional adjacency, optional skipped cells (by linear index).
 function grid(level: number, label: string, rows: number, cols: number, skip: number[] = []): BoardLayout {
   const spaces: SpaceDef[] = []
   let id = 0
@@ -119,19 +174,250 @@ function grid(level: number, label: string, rows: number, cols: number, skip: nu
   return { level, label, spaces }
 }
 
-const L1 = grid(1, 'Moonrise',        3, 3, [4])
-const L2 = grid(2, 'Crescent Hollow', 4, 3)
-const L3 = grid(3, 'Silver Glade',    4, 4)
-const L4 = grid(4, 'Starlit Marsh',   5, 3)
-const L5 = grid(5, 'Crescent Cove',   5, 4, [3, 7, 11])
-const L6 = grid(6, 'Twin Peaks',      4, 4, [5, 6, 9, 10])
-const L7 = grid(7, 'Lunar Vale',      5, 4)
-const L8 = grid(8, 'Eclipse Reach',   5, 5, [2, 8, 16, 22])
-const L9 = grid(9, 'Half Moon Summit',6, 5)
+// Organic flood-fill blob: grows a random connected blob of `finalSize + holes`
+// cells on a loose grid, punches `holes` interior cells back out, then jitters
+// each surviving cell's pixel position slightly so it doesn't read as grid-snapped.
+function organicLayout(
+  level: number, label: string, seed: number, finalSize: number, holes = 0,
+): BoardLayout {
+  const rng = mulberry32(seed)
+  const growTarget = finalSize + holes
+  const DIM = Math.max(3, Math.ceil(Math.sqrt(growTarget * 1.7)))
+  const DIRS: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]]
 
-export const BOARD_LAYOUTS: BoardLayout[] = [L1, L2, L3, L4, L5, L6, L7, L8, L9]
+  const included = new Set<string>()
+  const frontier: [number, number][] = []
+  const startR = Math.floor(rng() * DIM)
+  const startC = Math.floor(rng() * DIM)
+  included.add(`${startR},${startC}`)
+  frontier.push([startR, startC])
 
-// ── Random board generator ────────────────────────────────────────────────────
+  while (included.size < growTarget) {
+    const pivot = frontier[Math.floor(rng() * frontier.length)]
+    const neighbors = DIRS
+      .map(([dr, dc]) => [pivot[0] + dr, pivot[1] + dc] as [number, number])
+      .filter(([r, c]) => r >= 0 && r < DIM && c >= 0 && c < DIM && !included.has(`${r},${c}`))
+    if (neighbors.length === 0) continue
+    const chosen = neighbors[Math.floor(rng() * neighbors.length)]
+    included.add(`${chosen[0]},${chosen[1]}`)
+    frontier.push(chosen)
+  }
+
+  // Punch a few interior holes (cells fully surrounded on all 4 sides).
+  // Each removal is verified with a full connectivity check and reverted if
+  // it would split the board — a "surrounded" cell isn't always safe to
+  // remove (it can still be an articulation point in an oddly-shaped blob).
+  let holesLeft = holes
+  for (const key of Array.from(included)) {
+    if (holesLeft <= 0) break
+    const [r, c] = key.split(',').map(Number)
+    const surrounded = DIRS.every(([dr, dc]) => included.has(`${r + dr},${c + dc}`))
+    if (!surrounded || rng() >= 0.6) continue
+
+    included.delete(key)
+    const probe = included.values().next().value
+    if (probe && isConnectedCellSet(included, probe, DIRS)) {
+      holesLeft--
+    } else {
+      included.add(key) // would have disconnected the board — revert
+    }
+  }
+
+  const cells = Array.from(included)
+    .map(k => { const [r, c] = k.split(',').map(Number); return { r, c } })
+    .sort((a, b) => a.r - b.r || a.c - b.c)
+
+  const minR = Math.min(...cells.map(c => c.r))
+  const minC = Math.min(...cells.map(c => c.c))
+  const cellMap = new Map<string, number>()
+  cells.forEach(({ r, c }, i) => cellMap.set(`${r},${c}`, i))
+
+  const jitter = 14
+  const spaces: SpaceDef[] = cells.map(({ r, c }, i) => {
+    const adjacentIds: number[] = []
+    for (const [dr, dc] of DIRS) {
+      const adjId = cellMap.get(`${r + dr},${c + dc}`)
+      if (adjId !== undefined) adjacentIds.push(adjId)
+    }
+    const jx = (rng() - 0.5) * jitter
+    const jy = (rng() - 0.5) * jitter
+    return { id: i, x: (c - minC) * CELL + jx, y: (r - minR) * CELL + jy, adjacentIds }
+  })
+
+  return { level, label, spaces }
+}
+
+// Two separate organic blobs joined by a single narrow bridge — "Crescent Cove".
+function twoLobeLayout(level: number, label: string, seed: number, sizeA: number, sizeB: number): BoardLayout {
+  const lobeA = organicLayout(level, label, seed, sizeA)
+  const lobeB = organicLayout(level, label, seed + 977, sizeB)
+
+  const offsetX = Math.max(...lobeA.spaces.map(s => s.x)) + CELL * 2.1
+  const idOffset = lobeA.spaces.length
+
+  const spaces: SpaceDef[] = [
+    ...lobeA.spaces,
+    ...lobeB.spaces.map(s => ({
+      id: s.id + idOffset,
+      x: s.x + offsetX,
+      y: s.y,
+      adjacentIds: s.adjacentIds.map(a => a + idOffset),
+    })),
+  ]
+
+  // Bridge: connect lobeA's rightmost cell to lobeB's leftmost cell
+  const aRight = lobeA.spaces.reduce((best, s) => (s.x > best.x ? s : best))
+  const bLeft  = lobeB.spaces.reduce((best, s) => (s.x < best.x ? s : best))
+  link(spaces, aRight.id, bLeft.id + idOffset)
+
+  return { level, label, spaces, longLinks: [[aRight.id, bLeft.id + idOffset]] }
+}
+
+// Concentric rings around a central hub. ringCounts[0] is the hub (usually 1),
+// each subsequent ring connects to its own neighbors plus spokes inward.
+function ringLayout(level: number, label: string, seed: number, ringCounts: number[]): BoardLayout {
+  const rng = mulberry32(seed)
+  const spaces: SpaceDef[] = []
+  const ringNodeIds: number[][] = []
+  let id = 0
+  const baseRadius = CELL
+
+  ringCounts.forEach((count, ringIdx) => {
+    const ids: number[] = []
+    const radius = ringIdx === 0 ? 0 : baseRadius * ringIdx
+    const angleOffset = rng() * Math.PI * 2
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + angleOffset
+      const x = Math.round(Math.cos(angle) * radius)
+      const y = Math.round(Math.sin(angle) * radius)
+      spaces.push({ id, x, y, adjacentIds: [], ring: ringIdx })
+      ids.push(id)
+      id++
+    }
+    ringNodeIds.push(ids)
+  })
+
+  // Connect nodes within each ring to their immediate neighbors
+  for (const ids of ringNodeIds) {
+    if (ids.length < 2) continue
+    ids.forEach((sid, i) => link(spaces, sid, ids[(i + 1) % ids.length]))
+  }
+
+  // Connect each ring outward-to-inward via a limited, evenly-spaced set of
+  // spokes (not one per outer node — a small inner ring, especially a
+  // single-node hub, would otherwise collect a spoke from every outer node
+  // and blow past the board's max-degree budget). Ring-internal links already
+  // keep each ring's own nodes connected to each other, so spokes only need
+  // to bridge the rings, not touch every node.
+  for (let r = 1; r < ringNodeIds.length; r++) {
+    const outer = ringNodeIds[r]
+    const inner = ringNodeIds[r - 1]
+    const spokeCount = Math.min(outer.length, Math.max(inner.length, Math.ceil(outer.length / 3)))
+    for (let k = 0; k < spokeCount; k++) {
+      const outerIdx = Math.floor((k / spokeCount) * outer.length)
+      const innerIdx = Math.floor((k / spokeCount) * inner.length)
+      link(spaces, outer[outerIdx], inner[innerIdx])
+    }
+  }
+
+  const minX = Math.min(...spaces.map(s => s.x))
+  const minY = Math.min(...spaces.map(s => s.y))
+  spaces.forEach(s => { s.x -= minX; s.y -= minY })
+
+  return { level, label, spaces }
+}
+
+// Two ring clusters joined by a single bridge — "Twin Peaks".
+function twinHubLayout(level: number, label: string, seed: number, clusterRingCounts: number[]): BoardLayout {
+  const clusterA = ringLayout(level, label, seed, clusterRingCounts)
+  const clusterB = ringLayout(level, label, seed + 977, clusterRingCounts)
+
+  const offsetX = Math.max(...clusterA.spaces.map(s => s.x)) + CELL * 2.4
+  const idOffset = clusterA.spaces.length
+
+  const spaces: SpaceDef[] = [
+    ...clusterA.spaces,
+    ...clusterB.spaces.map(s => ({
+      id: s.id + idOffset,
+      x: s.x + offsetX,
+      y: s.y,
+      adjacentIds: s.adjacentIds.map(a => a + idOffset),
+      ring: s.ring,
+    })),
+  ]
+
+  const aRight = clusterA.spaces.reduce((best, s) => (s.x > best.x ? s : best))
+  const bLeft  = clusterB.spaces.reduce((best, s) => (s.x < best.x ? s : best))
+  link(spaces, aRight.id, bLeft.id + idOffset)
+
+  return { level, label, spaces, longLinks: [[aRight.id, bLeft.id + idOffset]] }
+}
+
+// Adds `count` extra non-adjacent "long link" edges between cells that are
+// visually close but not already connected — read as intentional shortcuts
+// on the board, rendered with a distinct dashed style. Respects a max degree
+// of 6 per node so no hub becomes a scoring/AI-search hotspot.
+function addLongLinks(layout: BoardLayout, count: number, seed: number): BoardLayout {
+  const rng = mulberry32(seed)
+  const added: [number, number][] = []
+  const spaces = layout.spaces
+  let attempts = 0
+
+  while (added.length < count && attempts < 300) {
+    attempts++
+    const a = spaces[Math.floor(rng() * spaces.length)]
+    const b = spaces[Math.floor(rng() * spaces.length)]
+    if (a.id === b.id) continue
+    if (a.adjacentIds.includes(b.id)) continue
+    if (a.adjacentIds.length >= 6 || b.adjacentIds.length >= 6) continue
+    const dist = Math.hypot(a.x - b.x, a.y - b.y)
+    if (dist < CELL * 1.3 || dist > CELL * 2.6) continue
+    link(spaces, a.id, b.id)
+    added.push([a.id, b.id])
+  }
+
+  return { ...layout, longLinks: [...(layout.longLinks ?? []), ...added] }
+}
+
+function lerpColor(a: number, b: number, t: number): number {
+  const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255
+  const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255
+  const r = Math.round(ar + (br - ar) * t)
+  const g = Math.round(ag + (bg - ag) * t)
+  const bl = Math.round(ab + (bb - ab) * t)
+  return (r << 16) | (g << 8) | bl
+}
+
+// Ramps each level's visual identity from a deep indigo, sparse-star opening
+// board to a gold-violet eclipse tone with a dense starfield by level 9 — no
+// new art assets required, this only tints the existing procedural starfield.
+function themeFor(level: number): BoardTheme {
+  const t = (level - 1) / 8
+  return {
+    bgTint: lerpColor(0x0A1628, 0x241033, t),
+    accentColor: lerpColor(0xC8A84B, 0xB080FF, t),
+    starDensity: Math.round(40 + t * 220),
+  }
+}
+
+const RAW_LAYOUTS: BoardLayout[] = [
+  grid(1, 'Moonrise', 3, 3, [4]),
+  organicLayout(2, 'Crescent Hollow', 2001, 11, 1),
+  organicLayout(3, 'Silver Glade', 3001, 14, 2),
+  addLongLinks(organicLayout(4, 'Starlit Marsh', 4001, 16), 1, 4501),
+  twoLobeLayout(5, 'Crescent Cove', 5001, 9, 9),
+  twinHubLayout(6, 'Twin Peaks', 6001, [1, 9]),
+  addLongLinks(ringLayout(7, 'Lunar Vale', 7001, [1, 7, 14]), 2, 7501),
+  addLongLinks(organicLayout(8, 'Eclipse Reach', 8001, 25, 3), 2, 8501),
+  addLongLinks(ringLayout(9, 'Half Moon Summit', 9001, [1, 6, 9, 13]), 3, 9501),
+]
+
+export const BOARD_LAYOUTS: BoardLayout[] = RAW_LAYOUTS.map(l => ({
+  ...l,
+  theme: l.theme ?? themeFor(l.level),
+}))
+
+// ── Random board generator (fallback for level 10+, not used by BOARD_LAYOUTS) ─
 
 const LEVEL_SPACE_COUNTS = [8, 12, 16, 15, 17, 12, 20, 21, 30]
 const RANDOM_GRID_DIMS = [
@@ -337,38 +623,57 @@ export function runScoringAfterPlacement(
   return result
 }
 
-// ── Consecutive chain DFS (handles circular 8→1 wrap) ────────────────────────
+// ── Directional chain walk (replaces undirected pairwise DFS) ────────────────
+//
+// A "moon cycle" chain must read as a strictly monotonic run of phases (mod 8)
+// end-to-end — e.g. 2-3-4 or 6-7-8-1 — not just a set of pairwise-adjacent
+// values. Walking undirected would let a player insert a card that reverses
+// back into an existing chain (2-3-4 + a second 3 next to the 4 → "2-3-4-3")
+// and have it wrongly scored as a longer cycle.
+//
+// Fix: from the newly placed card, walk outward in the "forward" direction
+// (phase → nextPhase(phase)) and separately in the "backward" direction
+// (phase → prevPhase(phase)), then splice the two walks together. This still
+// correctly recognizes a new card that bridges two existing fragments on
+// either side of it (e.g. placing a 3 between an existing 2 and an existing
+// 4), since that's a legitimate single monotonic run read end-to-end.
+
+function walkDirectional(
+  placed: PlacedCard[],
+  startId: number,
+  layout: BoardLayout,
+  dir: 'forward' | 'backward',
+  visited: Set<number> = new Set([startId]),
+): number[] {
+  const startCard = placed.find(c => c.spaceId === startId)!
+  const wantPhase = dir === 'forward' ? nextPhase(startCard.phase) : prevPhase(startCard.phase)
+  const space = layout.spaces.find(s => s.id === startId)!
+
+  let best: number[] = [startId]
+  for (const adjId of space.adjacentIds) {
+    if (visited.has(adjId)) continue
+    const adjCard = placed.find(c => c.spaceId === adjId)
+    if (!adjCard || adjCard.owner === null || adjCard.phase !== wantPhase) continue
+
+    visited.add(adjId)
+    const candidate = [startId, ...walkDirectional(placed, adjId, layout, dir, visited)]
+    visited.delete(adjId)
+
+    if (candidate.length > best.length) best = candidate
+  }
+  return best
+}
 
 function findConsecutiveChain(placed: PlacedCard[], startId: number, layout: BoardLayout): number[] {
-  const startCard = placed.find(c => c.spaceId === startId)
-  if (!startCard) return []
+  if (!placed.find(c => c.spaceId === startId)) return []
 
-  const best: number[] = []
+  const forward  = walkDirectional(placed, startId, layout, 'forward')
+  const backward = walkDirectional(placed, startId, layout, 'backward')
+  const full = [...backward.slice(1).reverse(), ...forward]
 
-  function dfs(currentId: number, path: number[], visited: Set<number>) {
-    if (path.length > best.length) {
-      best.length = 0
-      best.push(...path)
-    }
-    const currentCard = placed.find(c => c.spaceId === currentId)!
-    const space = layout.spaces.find(s => s.id === currentId)!
-
-    for (const adjId of space.adjacentIds) {
-      if (visited.has(adjId)) continue
-      const adjCard = placed.find(c => c.spaceId === adjId)
-      if (!adjCard || adjCard.owner === null) continue
-
-      // Circular consecutive check: handles 8→1 and 1→8 wrap
-      if (isConsecutive(adjCard.phase, currentCard.phase)) {
-        visited.add(adjId)
-        dfs(adjId, [...path, adjId], visited)
-        visited.delete(adjId)
-      }
-    }
-  }
-
-  dfs(startId, [startId], new Set([startId]))
-  return best.length >= 3 ? best : []
+  // Cap at 8 = one full lunar cycle, guarding the edge case of a walk
+  // spiraling past a full 8-phase loop across more than 8 distinct spaces.
+  return full.length >= 3 && full.length <= 8 ? full : []
 }
 
 function countOwners(cards: PlacedCard[]): { player: number; ai: number } {

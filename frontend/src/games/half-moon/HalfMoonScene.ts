@@ -66,8 +66,17 @@ export class HalfMoonScene extends Phaser.Scene {
   private handCards:    Card[]                                   = []
   private handCardHomePos: { x: number; y: number }[]           = []
 
+  // Half Moon opponent's hand — rendered face-up so its cards are always visible
+  private aiHandCards:     Card[]                                = []
+  private aiHandHomePos:   { x: number; y: number }[]            = []
+
   private slotGraphics:  Map<number, Phaser.GameObjects.Graphics> = new Map()
   private slotPositions: Map<number, { x: number; y: number }>   = new Map()
+
+  // Scale applied to board cards/slots so larger, more irregular boards
+  // (levels 7-9) always fit inside the fixed viewport without overlap.
+  private boardScale = 1
+  private longLinkKeys: Set<string> = new Set()
 
   // Dynamic connection-line layer (redrawn on every placement)
   private connectionGfx!: Phaser.GameObjects.Graphics
@@ -104,6 +113,10 @@ export class HalfMoonScene extends Phaser.Scene {
     this.boardCards = new Map()
     this.handCards  = []
     this.handCardHomePos = []
+    this.aiHandCards      = []
+    this.aiHandHomePos    = []
+    this.boardScale       = 1
+    this.longLinkKeys     = new Set()
     this.slotGraphics    = new Map()
     this.slotPositions   = new Map()
     this.dragIdx         = null
@@ -164,6 +177,9 @@ export class HalfMoonScene extends Phaser.Scene {
 
   private buildLayout() {
     this.layout = BOARD_LAYOUTS[this.level - 1] ?? generateRandomLayout(this.level)
+    this.longLinkKeys = new Set(
+      (this.layout.longLinks ?? []).map(([a, b]) => [a, b].sort((x, y) => x - y).join('-')),
+    )
   }
 
   private drawStarfield() {
@@ -174,11 +190,13 @@ export class HalfMoonScene extends Phaser.Scene {
         .setDepth(-1)
       return
     }
+    const theme    = this.layout?.theme
+    const bgTint   = theme?.bgTint ?? 0x060C1A
+    const density  = theme?.starDensity ?? 200
     const g = this.add.graphics()
-    g.fillStyle(0x060C1A)
+    g.fillStyle(bgTint)
     g.fillRect(0, 0, VP_W, VP_H)
-    g.fillStyle(0xFFFFFF)
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < density; i++) {
       const sx = Math.random() * VP_W
       const sy = Math.random() * VP_H * 0.88
       const sr = Math.random() < 0.8 ? 0.8 : 1.5
@@ -200,25 +218,39 @@ export class HalfMoonScene extends Phaser.Scene {
     this.moonFaceGfx = this.add.graphics().setAlpha(0)
   }
 
+  // Top margin reserves the HUD bar + the Half Moon hand row; bottom margin
+  // reserves the player's hand row. `scale` shrinks larger/irregular boards
+  // (levels 7-9) to fit the remaining band without overlapping either row.
   private boardOffset() {
     const spaces = this.layout.spaces
     const maxX   = Math.max(...spaces.map(s => s.x)) + CELL
     const maxY   = Math.max(...spaces.map(s => s.y)) + CELL
+
+    const TOP_MARGIN    = 138
+    const BOTTOM_MARGIN = 112
+    const SIDE_MARGIN   = 36
+    const availW = VP_W - SIDE_MARGIN * 2
+    const availH = VP_H - TOP_MARGIN - BOTTOM_MARGIN
+
+    const scale = Math.min(1, availW / maxX, availH / maxY)
+
     return {
-      ox: (VP_W - maxX) / 2,
-      oy: 70 + (VP_H - 160 - maxY) / 2,
+      ox: (VP_W - maxX * scale) / 2,
+      oy: TOP_MARGIN + (availH - maxY * scale) / 2,
+      scale,
     }
   }
 
   // ── Board drawing with dynamic connection colors ───────────────────────────
 
   private drawBoard() {
-    const { ox, oy } = this.boardOffset()
+    const { ox, oy, scale } = this.boardOffset()
+    this.boardScale = scale
 
     // Static slot markers
     for (const space of this.layout.spaces) {
-      const sx = ox + space.x + CELL / 2
-      const sy = oy + space.y + CELL / 2
+      const sx = ox + (space.x + CELL / 2) * scale
+      const sy = oy + (space.y + CELL / 2) * scale
       this.slotPositions.set(space.id, { x: sx, y: sy })
       const slotG = this.add.graphics().setDepth(2)
       this.slotGraphics.set(space.id, slotG)
@@ -230,7 +262,26 @@ export class HalfMoonScene extends Phaser.Scene {
     this.redrawConnections()
   }
 
-  // Redraws all connection lines with ownership-aware colors
+  private drawDashedLine(
+    g: Phaser.GameObjects.Graphics, x1: number, y1: number, x2: number, y2: number,
+  ) {
+    const dashLen = 7, gapLen = 5
+    const dist = Math.hypot(x2 - x1, y2 - y1)
+    if (dist === 0) return
+    const ux = (x2 - x1) / dist, uy = (y2 - y1) / dist
+    let pos = 0
+    while (pos < dist) {
+      const segEnd = Math.min(pos + dashLen, dist)
+      g.strokeLineShape(new Phaser.Geom.Line(
+        x1 + ux * pos, y1 + uy * pos, x1 + ux * segEnd, y1 + uy * segEnd,
+      ))
+      pos += dashLen + gapLen
+    }
+  }
+
+  // Redraws all connection lines with ownership-aware colors. "Long link"
+  // bridge edges (see BoardLayout.longLinks) render dashed so they read as
+  // intentional shortcuts rather than a rendering glitch.
   private redrawConnections() {
     this.connectionGfx.clear()
 
@@ -254,9 +305,14 @@ export class HalfMoonScene extends Phaser.Scene {
 
         const { x: sx, y: sy } = this.slotPositions.get(space.id)!
         const { x: ax, y: ay } = this.slotPositions.get(adjId)!
+        const isLongLink = this.longLinkKeys.has([space.id, adjId].sort((a, b) => a - b).join('-'))
 
-        this.connectionGfx.lineStyle(lineWidth, lineColor, lineAlpha)
-        this.connectionGfx.strokeLineShape(new Phaser.Geom.Line(sx, sy, ax, ay))
+        this.connectionGfx.lineStyle(lineWidth, lineColor, isLongLink ? Math.max(lineAlpha, 0.55) : lineAlpha)
+        if (isLongLink) {
+          this.drawDashedLine(this.connectionGfx, sx, sy, ax, ay)
+        } else {
+          this.connectionGfx.strokeLineShape(new Phaser.Geom.Line(sx, sy, ax, ay))
+        }
       }
     }
   }
@@ -266,18 +322,19 @@ export class HalfMoonScene extends Phaser.Scene {
     if (!slotG) return
     const { x: sx, y: sy } = this.slotPositions.get(spaceId)!
     const occupied = !!this.placed.find(c => c.spaceId === spaceId)
+    const w = CARD_W * this.boardScale, h = CARD_H * this.boardScale, r = 10 * this.boardScale
 
     slotG.clear()
     if (dropTarget && !occupied) {
       slotG.fillStyle(SLOT_HOVER_BG, 1)
-      slotG.fillRoundedRect(sx - CARD_W / 2, sy - CARD_H / 2, CARD_W, CARD_H, 10)
+      slotG.fillRoundedRect(sx - w / 2, sy - h / 2, w, h, r)
       slotG.lineStyle(2, SLOT_HOVER_BORDER, 0.9)
-      slotG.strokeRoundedRect(sx - CARD_W / 2, sy - CARD_H / 2, CARD_W, CARD_H, 10)
+      slotG.strokeRoundedRect(sx - w / 2, sy - h / 2, w, h, r)
     } else {
       slotG.fillStyle(SLOT_EMPTY_BG, 1)
-      slotG.fillRoundedRect(sx - CARD_W / 2, sy - CARD_H / 2, CARD_W, CARD_H, 10)
+      slotG.fillRoundedRect(sx - w / 2, sy - h / 2, w, h, r)
       slotG.lineStyle(1, SLOT_EMPTY_BORDER, 0.8)
-      slotG.strokeRoundedRect(sx - CARD_W / 2, sy - CARD_H / 2, CARD_W, CARD_H, 10)
+      slotG.strokeRoundedRect(sx - w / 2, sy - h / 2, w, h, r)
     }
   }
 
@@ -302,6 +359,10 @@ export class HalfMoonScene extends Phaser.Scene {
     this.add.text(VP_W - 14, 24, `Level ${this.level}: ${this.layout.label}`, {
       fontSize: '12px', color: '#D6D3A9', fontFamily: uiFontFamily,
     }).setOrigin(1, 0.5).setDepth(21).setScrollFactor(0)
+
+    this.add.text(VP_W / 2, 72, "Half Moon's hand", {
+      fontSize: '11px', color: '#998FAA', fontFamily: uiFontFamily,
+    }).setOrigin(0.5, 0.5).setDepth(21).setScrollFactor(0)
   }
 
   private refreshScoreHUD() {
@@ -316,6 +377,7 @@ export class HalfMoonScene extends Phaser.Scene {
     this.playerHand = this.deck.splice(0, 3)
     this.aiHand     = this.deck.splice(0, 3)
     this.cb.onHandUpdate([...this.playerHand], null)
+    this.renderAIHand()
   }
 
   private drawForPlayer(n = 1) {
@@ -358,6 +420,27 @@ export class HalfMoonScene extends Phaser.Scene {
     }
   }
 
+  // The Half Moon opponent's hand — always visible face-up so the player can
+  // judge whether it's drawing better cards, not tucked away client-side.
+  private renderAIHand() {
+    this.aiHandCards.forEach(c => c.destroy())
+    this.aiHandCards   = []
+    this.aiHandHomePos = []
+
+    const y      = 114
+    const gap    = CARD_W + 12
+    const startX = VP_W / 2 - (this.aiHand.length - 1) * gap / 2
+
+    for (let i = 0; i < this.aiHand.length; i++) {
+      const hx   = startX + i * gap
+      const card = new Card(this, this.aiHand[i], -1, hx, y)
+      card.setDepth(29)
+      card.setOwner('ai')
+      this.aiHandHomePos.push({ x: hx, y })
+      this.aiHandCards.push(card)
+    }
+  }
+
   // ── Drag & drop ───────────────────────────────────────────────────────────
 
   private startDrag(idx: number) {
@@ -393,7 +476,7 @@ export class HalfMoonScene extends Phaser.Scene {
 
   private getNearestSlot(px: number, py: number): number | null {
     let best: number | null = null
-    let bestDist = DROP_RADIUS
+    let bestDist = DROP_RADIUS * this.boardScale
     for (const [spaceId, pos] of this.slotPositions) {
       if (!this.canPlaceOnSpace(spaceId)) continue
       const d = Math.hypot(px - pos.x, py - pos.y)
@@ -424,10 +507,9 @@ export class HalfMoonScene extends Phaser.Scene {
     }
     this.inputLocked = true
 
-    card.setScale(1)
     card.setDepth(10)
     this.tweens.add({
-      targets: card, x: pos.x, y: pos.y,
+      targets: card, x: pos.x, y: pos.y, scaleX: this.boardScale, scaleY: this.boardScale,
       duration: 180, ease: 'Back.Out',
       onComplete: () => {
         card.setDepth(5)
@@ -468,19 +550,21 @@ export class HalfMoonScene extends Phaser.Scene {
   // ── Card placement + scoring ──────────────────────────────────────────────
 
   private placeCard(spaceId: number, phase: Phase, by: 'player' | 'ai', existingCard?: Card) {
-    const { ox, oy } = this.boardOffset()
+    const { ox, oy, scale } = this.boardOffset()
     const space = this.layout.spaces.find(s => s.id === spaceId)!
-    const sx    = ox + space.x + CELL / 2
-    const sy    = oy + space.y + CELL / 2
+    const sx    = ox + (space.x + CELL / 2) * scale
+    const sy    = oy + (space.y + CELL / 2) * scale
 
     let card: Card
     if (existingCard) {
       card = existingCard
+      card.setPosition(sx, sy)
     } else {
       card = new Card(this, phase, spaceId, sx, sy)
       card.alpha = 0
       this.tweens.add({ targets: card, alpha: 1, duration: 220 })
     }
+    card.setScale(scale)
     card.setDepth(5)
     card.setOwner(by)
     this.boardCards.set(spaceId, card)
@@ -584,44 +668,50 @@ export class HalfMoonScene extends Phaser.Scene {
   }
 
   private executeAIMove(move: { spaceId: number; phase: Phase }) {
-    const { ox, oy } = this.boardOffset()
+    const { ox, oy, scale } = this.boardOffset()
     const space   = this.layout.spaces.find(s => s.id === move.spaceId)!
-    const targetX = ox + space.x + CELL / 2
-    const targetY = oy + space.y + CELL / 2
+    const targetX = ox + (space.x + CELL / 2) * scale
+    const targetY = oy + (space.y + CELL / 2) * scale
 
-    const deckX = VP_W - 80
-    const deckY = 80
-    const flyCard = new Card(this, move.phase, move.spaceId, deckX, deckY)
+    // Fly the card out from its actual visible position in the Half Moon's
+    // hand row, so the player can see exactly which card it's playing.
+    const handIdx  = this.aiHand.findIndex(p => p === move.phase)
+    const originPos = this.aiHandHomePos[handIdx] ?? { x: VP_W - 80, y: 80 }
+    this.aiHandCards[handIdx]?.setAlpha(0)
+
+    const flyCard = new Card(this, move.phase, move.spaceId, originPos.x, originPos.y)
     flyCard.setOwner('ai')
     flyCard.setDepth(50)
-    flyCard.alpha  = 0.15
-    flyCard.scaleX = 0.6
-    flyCard.scaleY = 0.6
+    flyCard.scaleX = 1
+    flyCard.scaleY = 1
 
-    const midX = (deckX + targetX) / 2
-    const midY = Math.min(oy - 20, (deckY + targetY) / 2 - 50)
+    const midX = (originPos.x + targetX) / 2
+    const midY = Math.min(oy - 20, (originPos.y + targetY) / 2 - 50)
 
     this.tweens.add({
       targets: flyCard,
       x: midX, y: midY,
-      alpha: 1, scaleX: 1, scaleY: 1,
+      scaleX: (1 + scale) / 2, scaleY: (1 + scale) / 2,
       duration: 300, ease: 'Quad.Out',
       onComplete: () => {
         this.tweens.add({
           targets: flyCard,
           x: targetX, y: targetY,
+          scaleX: scale, scaleY: scale,
           duration: 260, ease: 'Quad.In',
           onComplete: () => {
             flyCard.setDepth(5)
             this.placeCard(move.spaceId, move.phase, 'ai', flyCard)
-            this.aiHand.splice(this.aiHand.findIndex(p => p === move.phase), 1)
+            this.aiHand.splice(handIdx, 1)
 
             if (this.isBoardFull()) {
+              this.renderAIHand()
               this.time.delayedCall(400, () => this.endLevel())
               return
             }
 
             this.drawForAI(1)
+            this.renderAIHand()
             this.inputLocked  = false
             this.isPlayerTurn = true
             this.cb.onTurnChange(true)
@@ -667,9 +757,9 @@ export class HalfMoonScene extends Phaser.Scene {
 
   create() {
     if (!this.ai) this.ai = new AIOpponent(this.difficulty, this.aiMode)
+    this.buildLayout()
     this.drawStarfield()
     this.drawMoonFace()
-    this.buildLayout()
     this.drawBoard()
     this.buildHUD()
     this.dealHands()

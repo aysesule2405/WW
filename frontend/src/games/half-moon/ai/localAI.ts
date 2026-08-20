@@ -152,23 +152,24 @@ function findComplementaryMoves(
   return moves
 }
 
+// Both checks below run the real scoring engine on a simulated placement
+// rather than re-deriving consecutive-neighbor heuristics locally. This keeps
+// the AI's move-priority ranking exactly in sync with `findConsecutiveChain`'s
+// directional (monotonic-run) rule — a heuristic based on raw `isConsecutive`
+// adjacency would flag "cycle" moves that the real engine now refuses to
+// score (e.g. reversing back into an existing chain), making the AI waste its
+// top move priorities on placements worth zero points.
+
 function wouldExtendCycle(
   spaceId: number,
   phase: Phase,
   placed: PlacedCard[],
   layout: BoardLayout,
 ): boolean {
-  const space = layout.spaces.find(s => s.id === spaceId)!
-  let consecutiveNeighbours = 0
-
-  for (const adjId of space.adjacentIds) {
-    const adjCard = placed.find(c => c.spaceId === adjId)
-    if (!adjCard) continue
-    if (isConsecutive(phase, adjCard.phase)) {
-      consecutiveNeighbours++
-    }
-  }
-  return consecutiveNeighbours >= 1
+  const sim = placed.map(c => ({ ...c }))
+  sim.push({ spaceId, phase, owner: 'ai', chainId: null })
+  const result = runScoringAfterPlacement(sim, spaceId, 'ai', layout, new Set(), false)
+  return result.events.some(e => e.type === 'moon-cycle')
 }
 
 function wouldStealChain(
@@ -177,23 +178,10 @@ function wouldStealChain(
   placed: PlacedCard[],
   layout: BoardLayout,
 ): boolean {
-  const space = layout.spaces.find(s => s.id === spaceId)!
-
-  for (const adjId of space.adjacentIds) {
-    const adjCard = placed.find(c => c.spaceId === adjId)
-    if (!adjCard || adjCard.owner !== 'player') continue
-    if (!isConsecutive(phase, adjCard.phase)) continue
-
-    // Check if adjCard is itself adjacent to another consecutive player card
-    const adjSpace = layout.spaces.find(s => s.id === adjId)!
-    for (const adj2Id of adjSpace.adjacentIds) {
-      if (adj2Id === spaceId) continue
-      const adj2 = placed.find(c => c.spaceId === adj2Id)
-      if (!adj2 || adj2.owner !== 'player') continue
-      if (isConsecutive(adjCard.phase, adj2.phase)) return true
-    }
-  }
-  return false
+  const sim = placed.map(c => ({ ...c }))
+  sim.push({ spaceId, phase, owner: 'ai', chainId: null })
+  const result = runScoringAfterPlacement(sim, spaceId, 'ai', layout, new Set(), false)
+  return result.events.some(e => e.type === 'chain-stolen')
 }
 
 function findBlockingMove(

@@ -22,7 +22,7 @@ type HighScore        = { score: number; achievedAt: string } | null
 type RecentScore      = { score: number; metadata: { level?: number; won?: boolean }; createdAt: string }
 type LeaderboardRow   = { rank?: number; username: string; score: number; achievedAt: string }
 
-const MAX_LEVELS      = 3
+const MAX_LEVELS      = 9
 const STREAK_FOR_WILD = 3
 const GAME_SLUG       = 'half-moon'
 const SCOREBOARD_ACCENT = '#63e8e7'
@@ -227,7 +227,7 @@ export default function HalfMoonGame({ onExit }: Props) {
   const advanceLevel = useCallback(() => {
     const next = level + 1
     if (next > MAX_LEVELS) {
-      // Won all 3 levels → victory!
+      // Won all levels → victory!
       const seconds = Math.round((Date.now() - startTimeRef.current) / 1000)
       setCompletionSeconds(seconds)
       setGameResult('victory')
@@ -290,7 +290,7 @@ export default function HalfMoonGame({ onExit }: Props) {
         <div className="ww-game-scroll" style={s.centre}>
           <div className="ww-game-info-card" style={s.rulesCard}>
             <h2 style={s.rulesTitle}>Rise of the Half Moon</h2>
-            <p style={s.rulesSub}>A moon-phase card placement game. Win all 3 levels to complete the ritual — one loss ends your run.</p>
+            <p style={s.rulesSub}>A moon-phase card placement game. Win all 9 levels to complete the ritual — one loss ends your run.</p>
 
             <div className="ww-halfmoon-rules-grid" style={s.rulesGrid}>
               <RuleBlock title="The Deck"          body="8 lunar phases — New Moon (1) to Waning Crescent (8). Four copies each. Draw 3 to start." />
@@ -355,7 +355,7 @@ export default function HalfMoonGame({ onExit }: Props) {
             </h2>
             <p style={s.endSub}>
               {isVictory
-                ? `All 3 levels conquered in ${completionSeconds}s`
+                ? `All ${MAX_LEVELS} levels conquered in ${completionSeconds}s`
                 : `Defeated at level ${levelResult?.level ?? '?'}`}
             </p>
 
@@ -541,10 +541,19 @@ function ordinalLevel(level: number): string {
   return `${level}th`
 }
 
+const LEVEL_INTROS: Record<number, string> = {
+  2: 'Level 2 opens onto Crescent Hollow.',
+  3: 'Level 3 reveals Silver Glade.',
+  4: 'Level 4 crosses into Starlit Marsh.',
+  5: 'Level 5 bridges the two shores of Crescent Cove.',
+  6: 'Level 6 rises between the Twin Peaks.',
+  7: 'Level 7 winds through Lunar Vale.',
+  8: 'Level 8 nears the shadow of Eclipse Reach.',
+  9: 'Level 9 — the final climb to Half Moon Summit.',
+}
+
 function levelIntro(level: number): string {
-  if (level === 2) return 'Level 2 opens a larger crescent map.'
-  if (level === 3) return 'Level 3 reveals the full silver glade.'
-  return `Level ${level} awaits.`
+  return LEVEL_INTROS[level] ?? `Level ${level} awaits.`
 }
 
 function wildIcon(type: WildCardType): string {
