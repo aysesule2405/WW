@@ -40,7 +40,9 @@ export default function ProfilePage() {
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(DEFAULT_AVATAR)
   const [richAvatar, setRichAvatar] = useState<RichAvatarConfig>(DEFAULT_RICH_AVATAR)
   const [saving, setSaving] = useState(false)
+  const [savingAvatar, setSavingAvatar] = useState(false)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
+  const [avatarMessage, setAvatarMessage] = useState<{ text: string; ok: boolean } | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -68,28 +70,43 @@ export default function ProfilePage() {
     return () => { mounted = false }
   }, [setCurrentProfile])
 
+  const persistProfile = async () => {
+    const data = await api.updateProfile({
+      username,
+      status,
+      favoriteSong,
+      favoriteSteamGames,
+      avatarConfig,
+      richAvatarConfig: JSON.stringify(richAvatar),
+    })
+    if (isProfileError(data)) throw new Error(data.error)
+    setProfile(data)
+    setCurrentProfile(data)
+  }
+
   const save = async () => {
     setSaving(true)
     setMessage(null)
     try {
-      const data = await api.updateProfile({
-        username,
-        status,
-        favoriteSong,
-        favoriteSteamGames,
-        avatarConfig,
-        richAvatarConfig: JSON.stringify(richAvatar),
-      })
-      if (isProfileError(data)) setMessage({ text: data.error, ok: false })
-      else {
-        setProfile(data)
-        setCurrentProfile(data)
-        setMessage({ text: 'Profile updated!', ok: true })
-      }
+      await persistProfile()
+      setMessage({ text: 'Profile updated!', ok: true })
     } catch (err: unknown) {
       setMessage({ text: (err as Error)?.message || 'Save failed', ok: false })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const saveAvatar = async () => {
+    setSavingAvatar(true)
+    setAvatarMessage(null)
+    try {
+      await persistProfile()
+      setAvatarMessage({ text: 'Avatar saved and updated everywhere!', ok: true })
+    } catch (err: unknown) {
+      setAvatarMessage({ text: (err as Error)?.message || 'Avatar save failed', ok: false })
+    } finally {
+      setSavingAvatar(false)
     }
   }
 
@@ -273,7 +290,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <button style={s.saveBtn} onClick={save} disabled={saving}>
+          <button style={s.saveBtn} onClick={save} disabled={saving || savingAvatar}>
             {saving ? 'Saving…' : 'Save Changes'}
           </button>
         </section>
@@ -284,7 +301,21 @@ export default function ProfilePage() {
             <h3 style={s.builderTitle}>Design Your Grove Avatar</h3>
             <p style={s.builderDesc}>Shape an expressive, anime-inspired vector portrait that follows you across the grove.</p>
           </div>
-          <AvatarCreator value={richAvatar} onChange={setRichAvatar} />
+          <AvatarCreator
+            value={richAvatar}
+            onChange={(nextAvatar) => {
+              setRichAvatar(nextAvatar)
+              setAvatarMessage(null)
+            }}
+          />
+          {avatarMessage && (
+            <div style={{ ...s.message, background: avatarMessage.ok ? 'var(--bg-success-soft)' : 'var(--bg-danger-soft)', color: avatarMessage.ok ? 'var(--accent-dark)' : '#C04040', border: `1px solid ${avatarMessage.ok ? 'var(--border-focus)' : 'rgba(200,60,60,0.30)'}` }}>
+              {avatarMessage.text}
+            </div>
+          )}
+          <button style={s.saveBtn} onClick={saveAvatar} disabled={savingAvatar || saving}>
+            {savingAvatar ? 'Saving Avatar…' : 'Save Avatar'}
+          </button>
         </section>
       </div>
     </div>
